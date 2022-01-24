@@ -14,6 +14,7 @@ def test_multiproc(env_id, num_proc=4):
         def _init():
             env = gym.make(env_id)
             return env
+
         return _init
 
     env = SubprocVecEnv([make_env() for _ in range(num_proc)])
@@ -27,8 +28,8 @@ def test_multiproc(env_id, num_proc=4):
 
 
 def main():
-    test_multiproc(env_id='gym_basic:test-v0')
+    test_multiproc(env_id="gym_basic:test-v0")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
