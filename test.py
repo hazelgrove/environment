@@ -6,7 +6,7 @@ import gym
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import DQN, A2C
 from stable_baselines3.dqn.policies import DQNPolicy, MlpPolicy
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 
 
 def test_multiproc(env_id, num_proc=4):
@@ -17,7 +17,7 @@ def test_multiproc(env_id, num_proc=4):
 
         return _init
 
-    env = SubprocVecEnv([make_env() for _ in range(num_proc)])
+    env = DummyVecEnv([make_env() for _ in range(num_proc)])
     model = A2C("MlpPolicy", env, verbose=0)
     model.learn(total_timesteps=10)
 
