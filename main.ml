@@ -1,4 +1,17 @@
 Py.initialize ();
-Py.Run.eval ~start:Py.File "
-from test import main
-main()"
+
+(* Get original code and parse into AST *)
+
+
+(* Loop *)
+  (* Send current state to Python *)
+
+
+  (* Receive action from Python and mutate AST *)
+
+
+
+
+
+
+

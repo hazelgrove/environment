@@ -26,9 +26,12 @@ def test_multiproc(env_id, num_proc=4):
     obs, rewards, dones, info = env.step(action)
     print(rewards)
 
+def print_int(num):
+    print(num)
+    return num + 1
 
 def main():
-    test_multiproc(env_id="gym_basic:test-v0")
+    print_int(3)
 
 
 if __name__ == "__main__":
