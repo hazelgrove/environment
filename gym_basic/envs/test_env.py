@@ -1,4 +1,5 @@
 import gym
+import ctypes
 
 
 class TestEnv(gym.Env):
@@ -12,11 +13,10 @@ class TestEnv(gym.Env):
         self.observation_space = gym.spaces.Discrete(2)
 
     def step(self, action):
+        testlib = testlib = ctypes.CDLL('clib/test.so')
+        
         state = 1
-        if action == 0:
-            reward = 1
-        else:
-            reward = -1
+        reward = testlib.get_reward(ctypes.c_int(action))
         done = True
         info = {}
 

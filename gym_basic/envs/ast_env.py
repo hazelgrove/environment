@@ -1,5 +1,17 @@
 import gym
 import numpy as np 
+import ctypes
+
+
+max_num_nodes = 10;
+num_actions = 10;
+
+
+class State(ctypes.Structure):
+    _fields_ = [("nodes", ctypes.c_int * max_num_nodes),
+                ("edges", (ctypes.c_int * (max_num_nodes ** 2)) * 2),
+                ("permitted_actions", ctypes.c_int * num_actions)]
+
 
 class ASTEnv(gym.Env):
     def __init__(self, num_actions, max_num_nodes):
@@ -16,10 +28,22 @@ class ASTEnv(gym.Env):
             'edges': gym.spaces.MultiDiscrete(edge_nvec),
             'permitted_actions': gym.spaces.MultiBinary(num_actions)
         })
+        
+        self.astclib = ctypes.CDLL('clib/astlib.so')
+        self.state = None
 
     # TODO: Connect to OCaml and adjust & evaluate AST
     def step(self, action):
-        pass
+        self.astclib.take_action(self.state, self.state.shape[0], action)
+        reward = self.astclib.check_ast(self.state, 1) # TODO: specify unit test index
+        
+        done = False
+        if reward == 1:
+            done = True
+        else:
+            self.astclib.valid_actions(self.state)
+        
+        return self.state, reward, done, {}
 
     # TODO: Reset to original AST
     def reset(self):
