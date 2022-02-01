@@ -3,7 +3,7 @@ import numpy as np
 import ctypes
 
 
-max_num_nodes = 10;
+max_num_nodes = 5;
 num_actions = 10;
 
 
@@ -14,7 +14,7 @@ class State(ctypes.Structure):
 
 
 class ASTEnv(gym.Env):
-    def __init__(self, num_actions, max_num_nodes):
+    def __init__(self):
         super(ASTEnv, self).__init__()
 
         self.action_space = gym.spaces.Discrete(num_actions)
@@ -28,6 +28,9 @@ class ASTEnv(gym.Env):
             'edges': gym.spaces.MultiDiscrete(edge_nvec),
             'permitted_actions': gym.spaces.MultiBinary(num_actions)
         })
+        # self.observation_space = gym.spaces.Tuple((gym.spaces.MultiDiscrete(node_nvec), 
+        #                                           gym.spaces.MultiDiscrete(edge_nvec), 
+        #                                           gym.spaces.MultiBinary(num_actions)))
         
         self.astclib = ctypes.CDLL('clib/astlib.so')
         self.state = None
@@ -42,17 +45,26 @@ class ASTEnv(gym.Env):
         else:
             self.astclib.valid_actions(ctypes.byref(self.state))
         
-        return self.state, reward, done, {}
+        state = {'nodes': np.ctypeslib.as_array(self.state.nodes), 
+                'edges': np.ctypeslib.as_array(self.state.edges).reshape(-1, 2), 
+                'permitted_actions': np.ctypeslib.as_array(self.state.permitted_actions)}
+        
+        return state, reward, done, {}
 
     # TODO: Reset to original AST
     def reset(self):
         self.state = State()
         self.astclib.get_ast(ctypes.byref(self.state), ctypes.c_int(1)) # TODO: specify which AST to get
+        
+        state = {'nodes': np.ctypeslib.as_array(self.state.nodes), 
+                'edges': np.ctypeslib.as_array(self.state.edges).reshape(-1, 2), 
+                'permitted_actions': np.ctypeslib.as_array(self.state.permitted_actions)}
+        return state
+        
+    # # TODO: Put a visual?
+    # def render(self, mode="human"):
+    #     pass
 
-    # TODO: Put a visual?
-    def render(self, mode="human"):
-        pass
-
-    # TODO: Anything that needs to be cleaned up
-    def close(self):
-        pass
+    # # TODO: Anything that needs to be cleaned up
+    # def close(self):
+    #     pass

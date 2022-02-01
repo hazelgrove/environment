@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define MAX_NUM_NODES 10
+#define MAX_NUM_NODES 5
 #define NUM_ACTIONS 10
 
 /*
@@ -43,7 +43,7 @@ Mutates:
     - ast->nodes, ast->edges
 */
 void take_action(State *ast, int action){
-
+    return;
 }
 
 /*
@@ -58,7 +58,7 @@ Output:
 */
 int check_ast(const State *ast, int unit_test_index){
 
-    return 0;
+    return 1;
 }
 
 /*
@@ -71,7 +71,8 @@ Mutates:
     - ast->permitted_actions
 */
 void valid_actions(State *ast){
-
+    for (int i = 0; i < NUM_ACTIONS; i++)
+        ast->permitted_actions[i] = 1;
 }
 
 /*
@@ -85,6 +86,16 @@ Mutates:
     - ast
 */
 void get_ast(State *ast, int index){
+    ast->nodes[0] = 0;
+    ast->nodes[1] = 1;
+    ast->nodes[2] = 0;
 
+    ast->edges[0][0] = 0;
+    ast->edges[0][1] = 1;
+    ast->edges[1][0] = 1;
+    ast->edges[1][1] = 2;
+
+    for (int i = 0; i < NUM_ACTIONS; i++)
+        ast->permitted_actions[i] = 1;
 }
 

@@ -4,13 +4,14 @@ Testing various functionalities of libraries
 import numpy as np
 import gym
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3 import DQN, A2C
+from stable_baselines3 import DQN, A2C, PPO
 from stable_baselines3.dqn.policies import DQNPolicy, MlpPolicy
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+from stable_baselines3.common.policies import MultiInputActorCriticPolicy
 import ctypes
 
 
-def test_multiproc(env_id, num_proc=4):
+def test_multiproc(env_id, num_proc=2):
     def make_env():
         def _init():
             env = gym.make(env_id)
@@ -19,7 +20,7 @@ def test_multiproc(env_id, num_proc=4):
         return _init
 
     env = SubprocVecEnv([make_env() for _ in range(num_proc)])
-    model = A2C("MlpPolicy", env, verbose=0)
+    model = PPO(MultiInputActorCriticPolicy(env.observation_space, env.action_space, lr_schedule=(0.5, 0.4)), env, verbose=0)
     model.learn(total_timesteps=10)
 
     obs = env.reset()
@@ -53,7 +54,7 @@ def test_struct():
 
 
 def main():
-    test_multiproc("gym_basic:test-v0")
+    test_multiproc("gym_basic:ast-v0")
 
 
 if __name__ == "__main__":
