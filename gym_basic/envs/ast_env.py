@@ -32,22 +32,22 @@ class ASTEnv(gym.Env):
         self.astclib = ctypes.CDLL('clib/astlib.so')
         self.state = None
 
-    # TODO: Connect to OCaml and adjust & evaluate AST
     def step(self, action):
-        self.astclib.take_action(self.state, self.state.shape[0], action)
-        reward = self.astclib.check_ast(self.state, 1) # TODO: specify unit test index
+        self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
+        reward = self.astclib.check_ast(ctypes.byref(self.state), ctypes.c_int(1)) # TODO: specify unit test index
         
         done = False
         if reward == 1:
             done = True
         else:
-            self.astclib.valid_actions(self.state)
+            self.astclib.valid_actions(ctypes.byref(self.state))
         
         return self.state, reward, done, {}
 
     # TODO: Reset to original AST
     def reset(self):
-        pass
+        self.state = State()
+        self.astclib.get_ast(ctypes.byref(self.state), ctypes.c_int(1)) # TODO: specify which AST to get
 
     # TODO: Put a visual?
     def render(self, mode="human"):
