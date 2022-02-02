@@ -4,3 +4,4 @@ gym_basic/envs/__pycache__
 gym_basic/__pycache__
 gym_basic/spaces/__pycache__
 __pycache__
+.vscode/

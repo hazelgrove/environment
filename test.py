@@ -11,6 +11,18 @@ from stable_baselines3.common.policies import MultiInputActorCriticPolicy
 import ctypes
 
 
+def test_env(env_id):
+    env = gym.make(env_id)
+    env.reset()
+    
+    action = env.action_space.sample()
+    print(action)
+
+    obs, rewards, done, info = env.step(action)
+    print(obs)
+    print(rewards)
+
+
 def test_multiproc(env_id, num_proc=2):
     def make_env():
         def _init():
@@ -20,12 +32,14 @@ def test_multiproc(env_id, num_proc=2):
         return _init
 
     env = SubprocVecEnv([make_env() for _ in range(num_proc)])
-    model = PPO(MultiInputActorCriticPolicy(env.observation_space, env.action_space, lr_schedule=(0.5, 0.4)), env, verbose=0)
-    model.learn(total_timesteps=10)
 
     obs = env.reset()
-    action, _states = model.predict(obs)
-    obs, rewards, dones, info = env.step(action)
+    
+    action = [env.action_space.sample() for _ in range(num_proc)]
+    print(action)
+
+    obs, rewards, done, info = env.step(action)
+    print(obs)
     print(rewards)
 
 def test_ctype(arr):
