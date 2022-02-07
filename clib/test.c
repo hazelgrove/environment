@@ -1,4 +1,9 @@
 #include <stdio.h>
+#include <string.h>
+
+#define CAML_NAME_SPACE
+#include "caml/mlvalues.h"
+#include "caml/callback.h"
 
 typedef struct{
     int a[3][2];
@@ -28,4 +33,22 @@ int get_reward(int action){
         return 1;
     else
         return -1;
+}
+
+
+extern int fib(int n);
+extern char *format_result(int n);
+
+int run_ocaml(){
+    // Build a stub argv[] to satisfy caml_Startup()
+    char *argv[2];
+    argv[0] = "";
+    argv[1] = NULL;
+
+    /* Initialize OCaml code */
+    caml_startup(argv);
+
+    int result = fib(10);
+    printf("fib(10) = %s\n", format_result(result));
+    return 0;
 }

@@ -65,10 +65,15 @@ def test_struct():
     test.b = 1.2
     test.c = b"c"
     testlib.print_struct(ctypes.byref(test))
+    
+    
+def test_ocaml():
+    testlib = ctypes.CDLL('clib/test.so')
+    testlib.run_ocaml()
 
 
 def main():
-    test_multiproc("gym_basic:ast-v0")
+    test_ocaml()
 
 
 if __name__ == "__main__":
