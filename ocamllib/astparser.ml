@@ -1,4 +1,4 @@
-open Parse ;;
+module Astparser = struct
 
 let read_sig filename =
   Location.input_name := filename ;
@@ -20,9 +20,10 @@ let write_struct filename ast =
   let fmt = Format.formatter_of_out_channel handle in
   Format.fprintf fmt "%a@." Pprintast.structure ast ;
   close_out handle
+end
 
-let () =
-  if Array.length Sys.argv < 4 then begin
+(* let () =
+  if Array.length Sys.argv < 3 then begin
     Printf.eprintf "Usage: %s ML RESULT EXPECTED\n" Sys.argv.(0);
     exit 2
   end;
@@ -38,4 +39,4 @@ let () =
       "test"
   in
 
-  exit @@ Sys.command s
+  exit @@ Sys.command s *)

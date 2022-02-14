@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdint.h>
-
 #include "astlib.h"
 
 
@@ -15,7 +12,8 @@ Mutates:
     - ast->nodes, ast->edges
 */
 void take_action(State *ast, int action){
-    return;
+    change_node(action);
+    copy_ast(ast, &curr_state);
 }
 
 
@@ -30,8 +28,7 @@ Output:
     - 0 for not passed; 1 for passed
 */
 int check_ast(const State *ast, int unit_test_index){
-
-    return 1;
+    return evaluate_ast(unit_test_index);
 }
 
 
@@ -47,6 +44,8 @@ Mutates:
 void valid_actions(State *ast){
     for (int i = 0; i < NUM_ACTIONS; i++)
         ast->permitted_actions[i] = 1;
+    
+    curr_state = *ast;
 }
 
 
@@ -72,5 +71,46 @@ void get_ast(State *ast, int index){
 
     for (int i = 0; i < NUM_ACTIONS; i++)
         ast->permitted_actions[i] = 1;
+    
+    copy_ast(&curr_state, ast);
+}
+
+
+void init_c(){
+    // Build a stub argv[] to satisfy caml_Startup()
+    char *argv[2];
+    argv[0] = "";
+    argv[1] = NULL;
+    caml_startup(argv);
+
+    for (int i = 0; i < MAX_NUM_NODES; i++){
+        curr_state.nodes[i] = 0;
+    }
+    for (int i = 0; i < MAX_NUM_NODES * MAX_NUM_NODES; i++){
+        curr_state.edges[i][0] = 0;
+        curr_state.edges[i][1] = 0;
+    }
+    for (int i = 0; i < NUM_ACTIONS; i++){
+        curr_state.permitted_actions[i] = 0;
+    }
+}
+
+
+void close_c(){
+    caml_shutdown();
+}
+
+
+void copy_ast(State *astdst, State *astsrc){
+    for (int i = 0; i < MAX_NUM_NODES; i++){
+        astdst->nodes[i] = astsrc->nodes[i];
+    }
+    for (int i = 0; i < MAX_NUM_NODES * MAX_NUM_NODES; i++){
+        astdst->edges[i][0] = astsrc->edges[i][0];
+        astdst->edges[i][1] = astsrc->edges[i][1];
+    }
+    for (int i = 0; i < NUM_ACTIONS; i++){
+        astdst->permitted_actions[i] = astsrc->permitted_actions[i];
+    }
 }
 

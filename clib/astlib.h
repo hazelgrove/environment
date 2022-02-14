@@ -1,33 +1,16 @@
-#define MAX_NUM_NODES 5
-#define NUM_ACTIONS 10
+#ifndef __ASTLIB_H
+#define __ASTLIB_H
 
-/*
-Struct defining the AST structure
+#include <stdio.h>
+#include <stdint.h>
 
-Example
-    # graph (for node descriptors 'a' and 'b'):
-    0.    1.    2. 
-    a --> b --> a
+#define CAML_NAME_SPACE
+#include "caml/mlvalues.h"
+#include "caml/callback.h"
 
-    # observation:
-    {
-    "nodes": [
-        0, # a
-        1, # b
-        0, # a
-    ],
-    "edges": [
-        [0, 1],
-        [1, 2],
-    ],
-    "permitted_actions": [...]
-    }
-*/
-typedef struct{
-    int nodes[MAX_NUM_NODES]; // Node descriptor of each node
-    int edges[MAX_NUM_NODES * MAX_NUM_NODES][2]; // Edge showing indices of vertices on each edge
-    int permitted_actions[NUM_ACTIONS]; // Actions permitted in the current AST
-} State;
+#include "state.h"
+
+State curr_state;
 
 
 /*
@@ -79,3 +62,21 @@ Mutates:
     - ast
 */
 void get_ast(State *ast, int index);
+
+
+void copy_ast(State *astdst, State *astsrc);
+
+
+void init_c();
+
+
+void close_c();
+
+
+/*
+External functions from ocaml interface
+*/
+extern int evaluate_ast(int n);
+extern void change_node(int action);
+
+#endif

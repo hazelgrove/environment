@@ -4,7 +4,7 @@ import ctypes
 
 
 max_num_nodes = 5;
-num_actions = 10;
+num_actions = 5;
 
 
 class State(ctypes.Structure):
@@ -32,12 +32,14 @@ class ASTEnv(gym.Env):
         #                                           gym.spaces.MultiDiscrete(edge_nvec), 
         #                                           gym.spaces.MultiBinary(num_actions)))
         
-        self.astclib = ctypes.CDLL('clib/astlib.so')
+        self.astclib = ctypes.CDLL('clib/astclib.so')
         self.state = None
+        
+        self.astclib.init_c()
 
     def step(self, action):
         self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
-        reward = self.astclib.check_ast(ctypes.byref(self.state), ctypes.c_int(1)) # TODO: specify unit test index
+        reward = self.astclib.check_ast(ctypes.byref(self.state), ctypes.c_int(action)) # TODO: specify unit test index
         
         done = False
         if reward == 1:
@@ -62,9 +64,20 @@ class ASTEnv(gym.Env):
         return state
         
     # # TODO: Put a visual?
-    # def render(self, mode="human"):
-    #     pass
+    def render(self, mode="human"):
+        state = {'nodes': np.ctypeslib.as_array(self.state.nodes), 
+                'edges': np.ctypeslib.as_array(self.state.edges).reshape(-1, 2), 
+                'permitted_actions': np.ctypeslib.as_array(self.state.permitted_actions)}
+        
+        print("Current environment:")
+        print(f"\tNodes: {state['nodes']}")
+        print("\tEdges: ", end='')
+        for edge in state['edges']:
+            if (edge[0] != edge[1]):
+                print(edge, end='')
+        print()
+        print(f"\tPermitted Actions: {state['permitted_actions']}")
 
-    # # TODO: Anything that needs to be cleaned up
-    # def close(self):
-    #     pass
+    # TODO: Anything that needs to be cleaned up
+    def close(self):
+        self.astclib.close_c()

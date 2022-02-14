@@ -50,5 +50,8 @@ int run_ocaml(){
 
     int result = fib(10);
     printf("fib(10) = %s\n", format_result(result));
+
+    caml_shutdown();
+
     return 0;
 }

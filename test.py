@@ -13,14 +13,28 @@ import ctypes
 
 def test_env(env_id):
     env = gym.make(env_id)
-    env.reset()
     
-    action = env.action_space.sample()
-    print(action)
+    for i in range(5):
+        print("-----------------------")
+        print(f"Starting run: {i + 1}")
+        
+        env.reset()
+        print("Reset environment.\n")
+        
+        state = env.state
+        
+        done = False
+        while not done:
+            action = env.action_space.sample()
+            print(f"Action taken: {action}")
 
-    obs, rewards, done, info = env.step(action)
-    print(obs)
-    print(rewards)
+            obs, rewards, done, info = env.step(action)
+            
+            env.render()
+            
+            print(f"Reward: {rewards}\n")
+        print("Done!")
+    env.close()
 
 
 def test_multiproc(env_id, num_proc=2):
@@ -65,15 +79,10 @@ def test_struct():
     test.b = 1.2
     test.c = b"c"
     testlib.print_struct(ctypes.byref(test))
-    
-    
-def test_ocaml():
-    testlib = ctypes.CDLL('clib/test.so')
-    testlib.run_ocaml()
 
 
 def main():
-    test_ocaml()
+    test_env("gym_basic:ast-v0")
 
 
 if __name__ == "__main__":
