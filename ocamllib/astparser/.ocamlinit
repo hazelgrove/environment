@@ -4,3 +4,26 @@
 #load "ast.cmo";;
 #load "main.cmo";;
 open Main;;
+
+(* 
+  let x = fun y -> if y > 2 then y + 1 else y in 2 * x -1
+  [15, 23, 17, 24, 16, 9, 24, 22, 3, 24, 21, 24, 5, 22, 14, 23, 19]
+*)
+let nodes = Bigarray.Array1.create Bigarray.int Bigarray.c_layout 20;;
+nodes.{0} <- 15;;
+nodes.{1} <- 23;;
+nodes.{2} <- 17;;
+nodes.{3} <- 24;;
+nodes.{4} <- 16;;
+nodes.{5} <- 9;;
+nodes.{6} <- 24;;
+nodes.{7} <- 22;;
+nodes.{8} <- 3;;
+nodes.{9} <- 24;;
+nodes.{10} <- 21;;
+nodes.{11} <- 24;;
+nodes.{12} <- 5;;
+nodes.{13} <- 22;;
+nodes.{14} <- 14;;
+nodes.{15} <- 23;;
+nodes.{16} <- 19;;

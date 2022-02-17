@@ -14,6 +14,7 @@ rule read =
   | "+"     { PLUS }
   | "-"     { MINUS }
   | "*"     { TIMES }
+  | "/"     { DIV }
   | "!="    { NE }
   | "<="    { LE }
   | ">="    { GE }

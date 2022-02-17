@@ -28,12 +28,9 @@ class ASTEnv(gym.Env):
             'edges': gym.spaces.MultiDiscrete(edge_nvec),
             'permitted_actions': gym.spaces.MultiBinary(num_actions)
         })
-        # self.observation_space = gym.spaces.Tuple((gym.spaces.MultiDiscrete(node_nvec), 
-        #                                           gym.spaces.MultiDiscrete(edge_nvec), 
-        #                                           gym.spaces.MultiBinary(num_actions)))
         
-        self.astclib = ctypes.CDLL('clib/astclib.so')
-        self.state = None
+        self.astclib = ctypes.CDLL('clib/astclib.so') # Used to call C functions
+        self.state = None # Current state of environment
         
         self.astclib.init_c()
 
@@ -47,6 +44,7 @@ class ASTEnv(gym.Env):
         else:
             self.astclib.valid_actions(ctypes.byref(self.state))
         
+        # Change state to Python dict
         state = {'nodes': np.ctypeslib.as_array(self.state.nodes), 
                 'edges': np.ctypeslib.as_array(self.state.edges).reshape(-1, 2), 
                 'permitted_actions': np.ctypeslib.as_array(self.state.permitted_actions)}
@@ -58,6 +56,7 @@ class ASTEnv(gym.Env):
         self.state = State()
         self.astclib.get_ast(ctypes.byref(self.state), ctypes.c_int(1)) # TODO: specify which AST to get
         
+        # Change state to Python dict
         state = {'nodes': np.ctypeslib.as_array(self.state.nodes), 
                 'edges': np.ctypeslib.as_array(self.state.edges).reshape(-1, 2), 
                 'permitted_actions': np.ctypeslib.as_array(self.state.permitted_actions)}

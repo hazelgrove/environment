@@ -1,7 +1,7 @@
 %token <int> INT
 %token <string> ID
 %token TRUE FALSE
-%token PLUS MINUS TIMES
+%token PLUS MINUS TIMES DIV
 %token LT LE GT GE EQ NE
 %token CON
 %token NEG
@@ -15,7 +15,7 @@
 %left LT LE GT GE EQ NE
 %right CON
 %left PLUS MINUS
-%left TIMES      
+%left TIMES DIV
 %nonassoc NEG
 %left AP
 
@@ -47,6 +47,8 @@ expr:
     { Expr.EBinOp (e1, Expr.OpMinus, e2) }
 | e1 = expr TIMES e2 = expr
     { Expr.EBinOp (e1, Expr.OpTimes, e2) }
+| e1 = expr DIV e2 = expr
+    { Expr.EBinOp (e1, Expr.OpDiv, e2) }
 | e1 = expr LT e2 = expr
     { Expr.EBinOp (e1, Expr.OpLt, e2) }
 | e1 = expr LE e2 = expr
