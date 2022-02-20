@@ -19,9 +19,9 @@ let node_to_list (arr: (int, int_elt, c_layout) Array1.t) (len : int) : int list
   in
   node_to_list_aux arr len []
 
-let edge_to_list (arr: (int, int_elt, c_layout) Array1.t) (len : int) : (int * int) list = 
+let edge_to_list (arr: (int, int_elt, c_layout) Array1.t) (len : int) : (int * int * int) list = 
   let rec edge_to_list_aux (arr: (int, int_elt, c_layout) Array1.t) (len : int) (l : (int * int) list) : (int * int) list =
-    edge_to_list_aux arr (len - 1) ((arr.{len - 1, 0}, arr.{len - 1, 1}) :: list)
+    edge_to_list_aux arr (len - 1) ((arr.{len - 1, 0}, arr.{len - 1, 1}, arr.{len - 1, 2}) :: list)
   in
   edge_to_list_aux arr len []
 

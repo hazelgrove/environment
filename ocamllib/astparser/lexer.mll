@@ -32,6 +32,7 @@ rule read =
   | "then"  { THEN }
   | "else"  { ELSE }
   | "fun"   { FUN }
+  | "rec"   { REC }
   | "->"    { RIGHTARROW }
   | id      { ID (Lexing.lexeme lexbuf) }
   | int     { INT (int_of_string (Lexing.lexeme lexbuf)) }

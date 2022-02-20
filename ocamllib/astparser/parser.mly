@@ -7,7 +7,7 @@
 %token NEG
 %token LET IN
 %token IF THEN ELSE
-%token FUN RIGHTARROW AP
+%token FUN RIGHTARROW AP REC
 %token LPAREN RPAREN
 %token EOF
 
@@ -71,6 +71,16 @@ expr:
     { Expr.EIf(b, e1, e2) }
 | FUN x = ID RIGHTARROW e = expr
     { Expr.EFun(x, e) }
+| LET REC x = ID args = ID+ EQ e1 = expr IN e2 = expr
+    {
+    let rec resolve_fun args e = 
+        match args with
+            | [] -> raise (Failure "Incorrect syntax")
+            | [arg] -> Expr.EFun(arg, e)
+            | hd :: tl -> Expr.EFun(hd, resolve_fun tl e)
+    in
+        Expr.ELet(x, Expr.EFix(x, resolve_fun args e1), e2)
+    }
 | LET x = ID args = ID+ EQ e1 = expr IN e2 = expr
     { 
     let rec resolve_fun args e = 

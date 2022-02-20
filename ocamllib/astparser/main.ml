@@ -28,71 +28,69 @@ let parse_file filename =
   let s = read_whole_file filename in
   parse s
 
-let c_to_expr (nodes : (int, int_elt, c_layout) Array1.t) : Expr.t =
-  let get_expr (e, _) = e in
+type edge = (int * int * int)
+type node = int
+type graph = (node list) * (edge list)
 
-  let rec construct_ast (nodes : (int, int_elt, c_layout) Array1.t) (curr_node : int) =
-    let evar_to_var e = 
+let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
+  List.filter (fun (start, _, _) -> start = start_node) edges
+
+let rec c_to_expr (nodes : node list) (edges : edge list) (curr_node : int) : Expr.t =
+  let tag = List.nth nodes curr_node in
+  if tag >= 30 then Tag.tag_to_node tag None None None else
+  let adj_nodes = get_adj_nodes edges curr_node in
+  let get_nth_child n = 
+    let nth_child = List.filter (fun (_, _, child_num) -> child_num = n) adj_nodes in
+    match nth_child with
+    | [] -> None
+    | [(_, endpt, _)] -> Some (c_to_expr nodes edges endpt)
+    | _ -> raise (Failure "Invalid syntax")
+  in
+  Tag.tag_to_node tag (get_nth_child 1) (get_nth_child 2) (get_nth_child 3)
+
+let expr_to_c (e : Expr.t) : (graph * int) = 
+  let add_node (nodes : node list) (tag : Tag.t) : (node list * int) =
+    let new_nodes = nodes @ [tag] in (new_nodes, List.length nodes)
+  in
+  let add_edge (edges : edge list) (new_edge : edge) : (edge list) =
+    new_edge :: edges
+  in
+  let rec expr_to_c_aux (e : Expr.t) (nodes : node list) (edges : edge list) : (graph * int) = 
+    let tag = Tag.node_to_tag e in
+    if tag >= 30 then 
+      let (nodes, root) = add_node nodes tag in ((nodes, edges), root)
+    else 
+      let add_unary subexpr = 
+        let ((nodes, edges), root) = expr_to_c_aux subexpr nodes edges in
+        let (nodes, new_root) = add_node nodes tag in
+        let edges = add_edge edges (new_root, root, 1) in
+        ((nodes, edges), new_root)
+      in
+      let add_binary sub1 sub2 = 
+        let ((nodes, edges), root1) = expr_to_c_aux sub1 nodes edges in
+        let ((nodes, edges), root2) = expr_to_c_aux sub2 nodes edges in
+        let (nodes, new_root) = add_node nodes tag in
+        let edges = add_edge edges (new_root, root1, 1) in
+        let edges = add_edge edges (new_root, root2, 2) in
+        ((nodes, edges), new_root)
+      in
+      let add_ternary sub1 sub2 sub3 = 
+        let ((nodes, edges), root1) = expr_to_c_aux sub1 nodes edges in
+        let ((nodes, edges), root2) = expr_to_c_aux sub2 nodes edges in
+        let ((nodes, edges), root3) = expr_to_c_aux sub3 nodes edges in
+        let (nodes, new_root) = add_node nodes tag in
+        let edges = add_edge edges (new_root, root1, 1) in
+        let edges = add_edge edges (new_root, root2, 2) in
+        let edges = add_edge edges (new_root, root3, 3) in
+        ((nodes, edges), new_root)
+      in
       match e with
-        | Expr.EVar s -> s
+        | EUnOp (_, subexpr) -> add_unary subexpr
+        | EBinOp (sub1, _ , sub2) -> add_binary sub1 sub2
+        | ELet (sub1, sub2, sub3) -> add_ternary (EVar sub1) sub2 sub3
+        | EIf (sub1, sub2, sub3) -> add_ternary sub1 sub2 sub3
+        | EFun (sub1, sub2) -> add_binary (EVar sub1) sub2
+        | EFix (sub1, sub2) -> add_binary (EVar sub1) sub2
         | _ -> raise (Failure "Incorrect syntax")
     in
-
-    (* Terminal Nodes *)
-    if nodes.{curr_node} = 0 then (Expr.EBool true, curr_node + 1)
-    else if nodes.{curr_node} = 1 then (Expr.EBool false, curr_node + 1)
-    else if nodes.{curr_node} = 18 then (Expr.EInt (-2), curr_node + 1)
-    else if nodes.{curr_node} = 19 then (Expr.EInt (-1), curr_node + 1)
-    else if nodes.{curr_node} = 20 then (Expr.EInt 0, curr_node + 1)
-    else if nodes.{curr_node} = 21 then (Expr.EInt 1, curr_node + 1)
-    else if nodes.{curr_node} = 22 then (Expr.EInt 2, curr_node + 1)
-    else if nodes.{curr_node} = 23 then (Expr.EVar "x", curr_node + 1)
-    else if nodes.{curr_node} = 24 then (Expr.EVar "y", curr_node + 1)
-    else if nodes.{curr_node} = 25 then (Expr.EVar "z", curr_node + 1)
-
-    (* Non-Terminal Nodes *)
-    else if nodes.{curr_node} = 2 then
-      let (e, next) = construct_ast nodes (curr_node + 1) in
-      (Expr.EUnOp (Expr.OpNeg, e), next)
-    else if nodes.{curr_node} > 2 && nodes.{curr_node} < 15 then 
-      let (e1, next1) = construct_ast nodes (curr_node + 1) in
-      let (e2, next2) = construct_ast nodes next1 in
-      let op = 
-        (match nodes.{curr_node} with 
-          | 3 -> Expr.OpPlus
-          | 4 -> Expr.OpMinus
-          | 5 -> Expr.OpTimes
-          | 6 -> Expr.OpDiv
-          | 7 -> Expr.OpLt
-          | 8 -> Expr.OpLe
-          | 9 -> Expr.OpGt
-          | 10 -> Expr.OpGe
-          | 11 -> Expr.OpEq
-          | 12 -> Expr.OpNe
-          | 13 -> Expr.OpCon
-          | 14 -> Expr.OpAp
-          | _ -> raise (Failure "Incorrect syntax")
-        )
-      in
-      (Expr.EBinOp (e1, op, e2), next2)
-    else if nodes.{curr_node} = 15 then
-      let (e1, next1) = construct_ast nodes (curr_node + 2) in
-      let (e2, next2) = construct_ast nodes next1 in
-      (Expr.ELet (evar_to_var (get_expr (construct_ast nodes (curr_node + 1))), e1, e2), next2)
-    else if nodes.{curr_node} = 16 then
-      let (econd, next_cond) = construct_ast nodes (curr_node + 1) in
-      let (ethen, next_then) = construct_ast nodes next_cond in
-      let (eelse, next_else) = construct_ast nodes next_then in
-      (Expr.EIf (econd, ethen, eelse), next_else)
-    else if nodes.{curr_node} = 17 then
-      let (e, next) = construct_ast nodes (curr_node + 2) in
-      (Expr.EFun (evar_to_var (get_expr (construct_ast nodes (curr_node + 1))), e), next)
-    else
-      (Expr.EBool true, 1)
-  in
-    get_expr (construct_ast nodes 0)
-
-
-
-let expr_to_c (e : Expr.t) : ((int, int64_elt, c_layout) Array1.t, (int, int64_elt, c_layout) Array2.t) =
-  EBool true
+      expr_to_c_aux e [] []

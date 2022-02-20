@@ -28,14 +28,16 @@ module Expr = struct
   type binop = OpPlus | OpMinus | OpTimes | OpDiv | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe | OpCon | OpAp
 
   type t =
-    | EVar of Var.t                 (* Node Descriptor Number : 23 - 25 *)
-    | EInt of int                   (* Node Descriptor Number : 18 - 22 *)
-    | EBool of bool                 (* Node Descriptor Number : 0 - 1 *)
-    | EUnOp of unop * t             (* Node Descriptor Number : 2 *)
-    | EBinOp of t * binop * t       (* Node Descriptor Number : 3 - 14 *)
-    | ELet of Var.t * t * t         (* Node Descriptor Number : 15 *)
-    | EIf of t * t * t              (* Node Descriptor Number : 16 *)
-    | EFun of Var.t * t             (* Node Descriptor Number : 17 *)
+    | EVar of Var.t                         (* Node Descriptor Number : 35 - 37 *)
+    | EInt of int                           (* Node Descriptor Number : 30 - 34 *)
+    | EBool of bool                         (* Node Descriptor Number : 0 - 1 *)
+    | EUnOp of unop * t                     (* Node Descriptor Number : 2 *)
+    | EBinOp of t * binop * t               (* Node Descriptor Number : 3 - 14 *)
+    | ELet of Var.t * t * t                 (* Node Descriptor Number : 15 *)
+    | EIf of t * t * t                      (* Node Descriptor Number : 16 *)
+    | EFun of Var.t * t                     (* Node Descriptor Number : 17 *)
+    | EFix of Var.t * t                     (* Node Descriptor Number : 18 *)
+    | EHole                                 (* Node Descriptor Number : 19 *)
 end
 
 (* Values *)
@@ -61,11 +63,10 @@ module Action = struct
     | Ap
     | Lit of int
     | Plus
-    | Nehole
 
   type t = 
-    | Del                     (* Action Number: 0 *)
-    | Finish                  (* Action Number: 1 *)
+    (* | Del                     (* Action Number: 0 *)
+    | Finish                  Action Number: 1 *)
     | Move of dir             (* Action Number: 2-5 *)
     | Construct of shape      (* Action Number: 6-14 *)
 end
@@ -75,33 +76,77 @@ module Tag = struct
 
   let node_to_tag (node : Expr.t) : t = 
     match node with
-      | EBool false -> 0
-      | EBool true -> 1
-      | EUnOp (OpNeg, _) -> 2
+      | EUnOp (OpNeg, _) -> 0
       | EBinOp (_, op, _) ->
         (match op with
-          | OpPlus -> 3
-          | OpMinus -> 4
-          | OpTimes -> 5
-          | OpDiv -> 6
-          | OpLt -> 7
-          | OpLe -> 8
-          | OpGt -> 9
-          | OpGe -> 10
-          | OpEq -> 11
-          | OpNe -> 12
-          | OpCon -> 13
-          | OpAp -> 14
+          | OpPlus -> 1
+          | OpMinus -> 2
+          | OpTimes -> 3
+          | OpDiv -> 4
+          | OpLt -> 5
+          | OpLe -> 6
+          | OpGt -> 7
+          | OpGe -> 8
+          | OpEq -> 9
+          | OpNe -> 10
+          | OpCon -> 11
+          | OpAp -> 12
         )
-      | ELet (_, _, _) -> 15
-      | EIf (_, _, _) -> 16
-      | EFun (_, _, _) -> 17
-      | EVar "x" -> 18
-      | EVar "y" -> 19
-      | EVar "z" -> 20
-      | EInt (-2) -> 21
-      | EInt (-1) -> 22
-      | EInt 0 -> 23
-      | EInt 1 -> 24
-      | EInt 2 -> 25
+      | ELet (_, _, _) -> 13
+      | EIf (_, _, _) -> 14
+      | EFun (_, _) -> 15
+      | EFix (_, _) -> 16
+      | EHole -> 30
+      | EBool false -> 31
+      | EBool true -> 32
+      | EInt (-2) -> 33
+      | EInt (-1) -> 34
+      | EInt 0 -> 35
+      | EInt 1 -> 36
+      | EInt 2 -> 37
+      | EVar "x" -> 38
+      | EVar "y" -> 39
+      | EVar "z" -> 40
+      | _ -> raise (Failure "Not supported yet")
+
+  let tag_to_node (tag : t) (child1 : Expr.t option) (child2 : Expr.t option) (child3 : Expr.t option) : Expr.t = 
+    let check_child (child : Expr.t option) : Expr.t =
+      match child with
+        | Some e -> e
+        | _ -> raise (Failure "Incorrect syntax")
+    in
+    let expr_to_var (e : Expr.t) : Var.t =
+      match e with
+        | EVar s -> s
+        | _ -> raise (Failure "Incorrect syntax")
+    in
+    match tag with
+      | 0 -> EUnOp (OpNeg, check_child child1)
+      | 1 -> EBinOp (check_child child1, OpPlus, check_child child2)
+      | 2 -> EBinOp (check_child child1, OpMinus, check_child child2)
+      | 3 -> EBinOp (check_child child1, OpTimes, check_child child2)
+      | 4 -> EBinOp (check_child child1, OpDiv, check_child child2)
+      | 5 -> EBinOp (check_child child1, OpLt, check_child child2)
+      | 6 -> EBinOp (check_child child1, OpLe, check_child child2)
+      | 7 -> EBinOp (check_child child1, OpGt, check_child child2)
+      | 8 -> EBinOp (check_child child1, OpGe, check_child child2)
+      | 9 -> EBinOp (check_child child1, OpEq, check_child child2)
+      | 10 -> EBinOp (check_child child1, OpNe, check_child child2)
+      | 11 -> EBinOp (check_child child1, OpCon, check_child child2)
+      | 12 -> EBinOp (check_child child1, OpAp, check_child child2)
+      | 13 -> ELet (expr_to_var (check_child child1), check_child child2, check_child child3)
+      | 14 -> EIf (check_child child1, check_child child2, check_child child3)
+      | 15 -> EFun (expr_to_var (check_child child1), check_child child2)
+      | 16 -> EFix (expr_to_var (check_child child1), check_child child2)
+      | 30 -> EHole
+      | 31 -> EBool false
+      | 32 -> EBool true
+      | 33 -> EInt (-2)
+      | 34 -> EInt (-1)
+      | 35 -> EInt 0
+      | 36 -> EInt 1
+      | 37 -> EInt 2
+      | 38 -> EVar "x"
+      | 39 -> EVar "y"
+      | 40 -> EVar "z"
 end
