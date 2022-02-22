@@ -23,7 +23,7 @@ make astclib
 # Python Dependency Manager
 [Poetry](https://python-poetry.org/)
 
-# Run Executable
+# Run OCaml Side
 ```
-dune build main.exe && _build/default/main.exe
+dune utop
 ```

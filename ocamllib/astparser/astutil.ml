@@ -1,15 +1,90 @@
 open Ast
-open Bigarray
 
-(* [subst e1 e2 x] is [e1] with [e2] substituted for [x]. *)
-(* let rec subst e1 e2 (x : Var.t) = match e1 with
-  | Expr.EVar y      -> if x = y then e2 else e1
-  | Expr.EInt c      -> Expr.EInt c
-  | Expr.EBool b      -> Expr.EBool b
-  | Expr.EBinOp(el, op, er) -> Expr.EBinOp(subst el e2 x, op, subst er e2 x)
-  | Expr.EUnOp(op, e) -> Expr.EUnOp(op, subst e e2 x)
-  | Expr.ELet(y, el, er) -> if Var.equal x y then Expr.ELet(y, subst el e2 x, er) else Expr.ELet(y, subst el e2 x, subst er e2 x)
-  | Expr.EIf(b, el, er) -> Expr.EIf(subst b e2 x, subst el e2 x, subst er e2 x) *)
+exception SyntaxError of string
+exception NotImplemented
+
+let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
+  let subx = subst e1 x in
+  let subx_unless cond = if cond then Fun.id else subx in
+  match e2 with
+    | EBool _ | EInt _ | ENil | EHole -> e2
+    | EVar y -> if Var.equal x y then e1 else e2
+    | EUnOp (op, e) -> EUnOp (op, subx e)
+    | EBinOp (e_l, op, e_r) -> EBinOp (subx e_l, op, subx e_r)
+    | EIf (e_cond, e_then, e_else) -> EIf (subx e_cond, subx e_then, subx e_else)
+    | EFun (y, e_body) -> EFun (y, subx_unless (Var.equal x y) e_body)
+    | ELet (y, e_def, e_body) -> ELet (y, subx e_def, subx_unless (Var.equal x y) e_body)
+    | EFix (y, e_body) -> EFix (y, subx_unless (Var.equal x y) e_body)
+    | EPair (e_l, e_r) -> EPair (subx e_l, subx e_r)
+
+
+let expecting_num (v : Value.t): int =
+  match v with
+  | VInt n -> n
+  | _ -> raise (Failure "Cannot be evaluated")
+
+let expecting_bool (v : Value.t): bool =
+  match v with
+  | VBool b -> b
+  | _ -> raise (Failure "Cannot be evaluated")
+
+let expecting_fun (v : Value.t): (Var.t * Expr.t) =
+  match v with
+  | VFun (x, body) -> (x, body)
+  | _ -> raise (Failure "Cannot be evaluated")  
+
+let rec eval (e : Expr.t) : Value.t =
+  let eval_unop (op: Expr.unop) (v: Value.t): Value.t =
+    match op with
+    | OpNeg ->
+        let n = expecting_num v in
+        VInt (-1 * n)
+  in
+  match e with
+    | EInt n -> VInt n
+    | EBool b -> VBool b
+    | EFun (x, e_body) -> VFun (x, e_body)
+    | ENil -> VNil
+    | EUnOp (unop, e) -> eval_unop unop (eval e)
+    | EBinOp (e_l, binop, e_r) -> eval_binop (eval e_l) binop (eval e_r)
+    | EIf (e_cond, e_then, e_else) ->
+      let b = expecting_bool (eval e_cond) in
+      if b then eval e_then else eval e_else
+    | ELet (x, e_def, e_body) ->
+      let v_def = eval e_def in
+      eval (subst (Value.to_expr v_def) x e_body)
+    | EPair (e_l, e_r) -> VPair (eval e_l, eval e_r)
+    | EFix (x, e_body) ->
+      let unrolled = subst (EFix (x, e_body)) x e_body in
+      eval unrolled
+    | _ -> raise (Failure "Invalid syntax")
+and eval_binop (v_l: Value.t) (op: Expr.binop) (v_r: Value.t): Value.t =
+match op with
+| OpAp ->
+  let (x, body) = expecting_fun v_l in
+  eval (subst (Value.to_expr v_r) x body)
+| OpPlus | OpMinus | OpTimes | OpDiv ->
+  let f =
+    match op with
+    | OpPlus -> (+)
+    | OpMinus -> (-)
+    | OpTimes -> ( * )
+    | _ -> (/)
+  in
+  VInt (f (expecting_num v_l) (expecting_num v_r))
+| OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
+  let f =
+    match op with
+    | OpLt -> (<)
+    | OpLe -> (<=)
+    | OpGt -> (>)
+    | OpGe -> (>=)
+    | OpNe -> (!=)
+    | _ -> (=)
+  in
+  VBool (f (expecting_num v_l) (expecting_num v_r))
+| OpCon ->
+  raise NotImplemented
   
 (* Parse a string into an ast *)
 let parse s =
@@ -91,6 +166,7 @@ let expr_to_c (e : Expr.t) : (graph * int) =
         | EIf (sub1, sub2, sub3) -> add_ternary sub1 sub2 sub3
         | EFun (sub1, sub2) -> add_binary (EVar sub1) sub2
         | EFix (sub1, sub2) -> add_binary (EVar sub1) sub2
+        | EPair (sub1, sub2) -> add_binary sub1 sub2
         | _ -> raise (Failure "Incorrect syntax")
     in
       expr_to_c_aux e [] []

@@ -28,16 +28,18 @@ module Expr = struct
   type binop = OpPlus | OpMinus | OpTimes | OpDiv | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe | OpCon | OpAp
 
   type t =
-    | EVar of Var.t                         (* Node Descriptor Number : 35 - 37 *)
-    | EInt of int                           (* Node Descriptor Number : 30 - 34 *)
-    | EBool of bool                         (* Node Descriptor Number : 0 - 1 *)
-    | EUnOp of unop * t                     (* Node Descriptor Number : 2 *)
-    | EBinOp of t * binop * t               (* Node Descriptor Number : 3 - 14 *)
-    | ELet of Var.t * t * t                 (* Node Descriptor Number : 15 *)
-    | EIf of t * t * t                      (* Node Descriptor Number : 16 *)
-    | EFun of Var.t * t                     (* Node Descriptor Number : 17 *)
-    | EFix of Var.t * t                     (* Node Descriptor Number : 18 *)
-    | EHole                                 (* Node Descriptor Number : 19 *)
+    | EVar of Var.t                         
+    | EInt of int   
+    | EBool of bool 
+    | EUnOp of unop * t 
+    | EBinOp of t * binop * t
+    | ELet of Var.t * t * t
+    | EIf of t * t * t 
+    | EFun of Var.t * t
+    | EFix of Var.t * t
+    | EPair of t * t
+    | EHole
+    | ENil
 end
 
 (* Values *)
@@ -45,7 +47,17 @@ module Value = struct
   type t = 
     | VInt of int
     | VBool of bool
-    | VFun of (Var.t * Expr.t)
+    | VFun of Var.t * Expr.t
+    | VPair of t * t
+    | VNil
+  
+  let rec to_expr (v : t) =
+    match v with
+      | VInt n -> Expr.EInt n
+      | VBool b -> Expr.EBool b
+      | VFun (x, e) -> Expr.EFun (x, e)
+      | VPair (e1, e2) -> Expr.EPair (to_expr e1, to_expr e2)
+      | VNil -> ENil
 end
 
 (* Actions as defined in Hazel paper *)
@@ -96,6 +108,7 @@ module Tag = struct
       | EIf (_, _, _) -> 14
       | EFun (_, _) -> 15
       | EFix (_, _) -> 16
+      | EPair (_, _) -> 17
       | EHole -> 30
       | EBool false -> 31
       | EBool true -> 32
@@ -107,6 +120,7 @@ module Tag = struct
       | EVar "x" -> 38
       | EVar "y" -> 39
       | EVar "z" -> 40
+      | ENil -> 41
       | _ -> raise (Failure "Not supported yet")
 
   let tag_to_node (tag : t) (child1 : Expr.t option) (child2 : Expr.t option) (child3 : Expr.t option) : Expr.t = 
@@ -138,6 +152,7 @@ module Tag = struct
       | 14 -> EIf (check_child child1, check_child child2, check_child child3)
       | 15 -> EFun (expr_to_var (check_child child1), check_child child2)
       | 16 -> EFix (expr_to_var (check_child child1), check_child child2)
+      | 17 -> EPair (check_child child1, check_child child2)
       | 30 -> EHole
       | 31 -> EBool false
       | 32 -> EBool true
@@ -149,4 +164,6 @@ module Tag = struct
       | 38 -> EVar "x"
       | 39 -> EVar "y"
       | 40 -> EVar "z"
+      | 41 -> ENil
+      | _ -> raise (Failure "Not supported")
 end
