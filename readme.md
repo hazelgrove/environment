@@ -24,6 +24,8 @@ make astclib
 [Poetry](https://python-poetry.org/)
 
 # Run OCaml Side
+To run the OCaml AST side independently, you can use
 ```
 dune utop
 ```
+The utop has the modules included automatically.
