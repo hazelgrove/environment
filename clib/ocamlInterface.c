@@ -24,9 +24,9 @@ void change_node(int action){
 }
 
 
-void copy_nodes(int *nodes, int dim){
+void copy_nodes(int *nodes, int dim, int *dest){
     for (int i = 0; i < dim; i++){
-        curr_state.nodes[i] = nodes[i];
+        dest[i] = nodes[i];
     }
 }
 
@@ -48,6 +48,6 @@ CAMLprim value pass_permitted_actions(value unit){
 
 CAMLprim value get_nodes(value bigarray){
     int dim = Caml_ba_array_val(bigarray)->dim[0];
-    copy_nodes(Caml_ba_data_val(bigarray), dim);
+    copy_nodes(Caml_ba_data_val(bigarray), dim, curr_state.nodes);
     return Val_unit;
 }

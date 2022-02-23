@@ -54,7 +54,7 @@ expr:
 | LBRAC es = separated_list(SEMI, e = expr { e }) RBRAC
     { let rec resolve_list es =
         match es with
-            | hd :: tl :: [] -> Expr.EBinOp(hd, OpCon, tl)
+            | hd :: [] -> Expr.EBinOp(hd, OpCon, Expr.ENil)
             | hd :: tl -> Expr.EBinOp(hd, OpCon, resolve_list tl)
             | _ -> raise (Failure "Incorrect syntax")
     in
