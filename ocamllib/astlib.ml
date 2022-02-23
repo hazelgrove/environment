@@ -53,6 +53,23 @@ let load_assignment_c (test_num : int) : unit =
     (* let () = Array1.set nodes action 0 in pass_nodes nodes *)
     pass_nodes nodes *)
 
+let select_root :Ast.Expr.t -> Ast.Expr.z_t = 
+  (* Convert an unzipped ast into a zipped one, by selecting the root*)
+  (function tree -> Ast.Expr.Cursor tree) 
+
+let rec unzip_ast  (tree : Ast.Expr.z_t) : Ast.Expr.t = 
+  match tree with 
+  | Cursor arg -> arg 
+  | EUnop_L (unop, l_child) -> EUnop (unop, unzip_ast l_child)
+  | EBinop_L (l_child, binop,r_child) -> BinOp (unzip_ast l_child, binop,r_child)
+  | EBinop_R (l_child, binop,r_child) -> BinOp (l_child, binop,unzip_ast r_child)
+  | ELet_L (var,l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
+  | ELet_R (var,l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
+  | EIf_L (l, c, r) -> EIf(unzip_ast l, c,r)
+  | EIf_C (l, c, r) -> EIf(l, unzip_ast c, r) 
+  | EIf_R (l, c, r) -> EIf(l, c, unzip_ast r) 
+  | EFun_L (var, child) -> EFun(var, unzip_ast child) 
+  | EFix_L (var, child) -> EFix(var, unzip_ast child) 
 
 let perform : Ast.Action.t -> Ast.Expr.z_t -> Ast.Expr.z_t =
   (function action -> 
