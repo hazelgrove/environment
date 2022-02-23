@@ -51,7 +51,83 @@ let load_assignment_c (test_num : int) : unit =
     pass_nodes nodes
   else
     (* let () = Array1.set nodes action 0 in pass_nodes nodes *)
-    pass_nodes nodes
+    pass_nodes nodes *)
 
+
+let perform : Ast.Action.t -> Ast.Expr.z_t -> Ast.Expr.z_t =
+  (function action -> 
+    let rec act_on tree = (
+      match action with 
+      | Construct shape -> tree  (*for now hold of on constructing*)
+      | Move Child n -> 
+        (match tree with 
+        | EUnop_L (op,r_child) -> UnopL (op,act_on r_child) 
+        | EBinop_L (l_child, op, r_child) -> EBinop_L (act_on l_child, op, r_child)
+        | EBinop_R (l_child, op, r_child) -> EBinop_R (l_child, op, act_on r_child)
+        | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
+        | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
+        | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
+        | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
+        | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
+        | EFun_L (var, child) -> Efun_L (var, act_on child)
+        | EFix_L (var, child) -> Efun_R (var, act_on child)
+        | Cursor subtree -> (
+          match n with 
+          | 0 -> (
+            match subtree with
+              | EUnOp  (op,arg) -> EUnop_L (op, Cursor (arg))
+              | EBinop (arg_l, op, arg_r) -> EBinop_L (Cursor (arg_l), op, arg_r)
+              | ELet (varn, arg_l, arg_r) -> ELet_L (varn, Cursor(arg_l),arg_r)
+              | EIf (arg_l, arg_c,arg_r) -> EIf_L (Cursor (arg_l), arg_c,arg_r)
+              | EFun (varn, arg_l) -> EFun_L (varn, Cursor (arg_l))
+              | EFix (varn, arg_l) -> EFix (varn, Cursor (arg_l))
+              | _ -> tree  (*all invalid actions are noops*)
+            ) 
+          | 1 ->( 
+            match subtree with 
+            | EBinop (arg_l, op, arg_r) -> EBinop_R (arg_l, op, Cursor(arg_r))
+            | ELet (varn, arg_l, arg_r) -> ELet_R (varn, arg_l,Cursor(arg_r))
+            | EIf (arg_l, arg_c,arg_r) -> EIf_C (arg_l, Cursor(arg_c),arg_r)
+            | _ -> tree  (*all invalid actions are noops*)
+            )
+          | 1 -> (
+            match subtree with 
+            | EIf (arg_l, arg_c,arg_r) -> EIf_R (arg_l, arg_c,Cursor(arg_r))
+            )
+        )
+      )
+    | Parent -> (
+      match tree with 
+      | EUnop_L (op, Cursor arg ) -> Cursor (Unop (op, arg))
+      | EUnop_L (op, arg) -> EUnop_L (op, act_on arg) 
+
+      | EBinop_L (Cursor arg, op, r_child) -> Cursor (BinOp (arg, op, r_child))
+      | EBinop_L (l_child, op, r_child) -> EBinop_L (act_on l_child, op, r_child)
+      | EBinop_R (l_child, op, Cursor arg) -> Cursor (BinOp (l_child, op, arg))
+      | EBinop_R (l_child, op, r_child) -> EBinop_R (l_child, op, act_on r_child)
+      
+      | ELet_L (var,Cursor arg, r_child )  -> Cursor (ELet (var,arg, r_child))
+      | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
+      | ELet_R (var,l_child, Cursor arg )  -> Cursor (ELet (var,l_child,act_on arg))
+      | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
+
+      | EIf_L (Cursor arg, c, r) -> Cursor (EIf (arg, c,r))
+      | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
+      | EIf_C (l, Cursor arg, r) -> Cursor (EIf (l, arg, r))
+      | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
+      | EIf_R (l, c, Cursor arg) -> Cursor (EIf (l, c, arg))
+      | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
+
+      | EFun_L (var, Cursor arg) ->  Cursor (Efun (var, arg))
+      | EFun_L (var, child) -> Efun_L (var, act_on child)
+      | EFix_L (var, Cursor arg) -> Cursor (Efun (var, arg))
+      | EFix_L (var, child) -> Efun_R (var, act_on child)
+      | -> tree
+      )
+    ) in act_on 
+  )
+
+
+(*
 let _ = Callback.register "evaluate_ast" evaluate_ast
 let _ = Callback.register "change_node" change_node_c *)

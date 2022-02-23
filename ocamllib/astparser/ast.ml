@@ -17,7 +17,7 @@ end
 (* Variables *)
 module Var = struct
   type t = string
-
+ (* need to add in some sort of hole idk how this works *)
   (* Check if two variable identifiers are equal *)
   let equal = String.equal
 end
@@ -38,7 +38,31 @@ module Expr = struct
     | EFun of Var.t * t                     (* Node Descriptor Number : 17 *)
     | EFix of Var.t * t                     (* Node Descriptor Number : 18 *)
     | EHole                                 (* Node Descriptor Number : 19 *)
-end
+
+  type z_t = 
+    | Cursor of t 
+    | EUnop_L of unop * z_t
+    | EBinOp_L of z_t * binop * t 
+    | EBinOp_R of t * binop * z_t 
+    (* I think there's no way to index into variables? *)
+    | ELet_L of Var.t * z_t *t 
+    | ELet_R of Var.t * t * z_t 
+    (*if  exprs *)
+    | EIf_L of z_t * t * t
+    | EIf_C of t * z_t * t
+    | EIf_R of t * t * z_t
+    (* function definitions: again only one option b/c no way to edit name *)
+    | EFun_L of Var.t * z_t 
+    | EFix_L   of Var.t * z_t 
+    (* types not represented: EVar, EInt, EBool, EHole; 
+        all of these are unnable to be indexed into 
+        At least unless we try to start representing non-empty holes... 
+        (Its possible that that might best be done only in Z-trees )*)
+
+  end
+
+
+
 
 (* Values *)
 module Value = struct
@@ -55,7 +79,7 @@ module Action = struct
     | Parent
 
   type shape =
-    | Arrow
+    | Arrow 
     | Num
     | Asc
     | Var of Var.t
