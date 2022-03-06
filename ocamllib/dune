@@ -1,9 +1,11 @@
 (env
   (dev
-    (flags (:standard -w -27))))
+    (flags (:standard -w -27))
+  )
+)
 
 (library
- (name astlib)
+ (name cinterface)
  (libraries astutils)
- (modules astlib)
+ (modules cinterface astlib)
 )
