@@ -16,12 +16,10 @@ def test_env(env_id):
     
     for i in range(5):
         print("-----------------------")
-        print(f"Starting run: {i + 1}")
+        print(f"Timestep: {i + 1}")
         
         env.reset()
         print("Reset environment.\n")
-        
-        state = env.state
         
         done = False
         while not done:
@@ -78,10 +76,12 @@ def test_struct():
             test.a[i][j] = 3 * i + j;
     test.b = 1.2
     test.c = b"c"
-    testlib.print_struct(ctypes.byref(test))
+    testlib.change_struct(ctypes.byref(test))
+    print(test.b)
 
 
 def main():
+    # test_struct()
     test_env("gym_basic:ast-v0")
 
 

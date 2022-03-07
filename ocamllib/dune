@@ -4,8 +4,15 @@
   )
 )
 
-(library
+(executable
  (name cinterface)
  (libraries astutils)
+ (modes (native object))
  (modules cinterface astlib)
 )
+
+; (library
+;  (name astlib)
+;  (libraries astutils)
+;  (modules astlib)
+; )
