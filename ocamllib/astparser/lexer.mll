@@ -24,6 +24,11 @@ rule read =
   | "::"    { CON }
   | "("     { LPAREN }
   | ")"     { RPAREN }
+  | ","     { COMMA }
+  | ";"     { SEMI }
+  | "[]"    { LIST }
+  | "["     { LBRAC }
+  | "]"     { RBRAC }
   | "true"  { TRUE }
   | "false" { FALSE }
   | "let"   { LET }

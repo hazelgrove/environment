@@ -12,7 +12,7 @@ Mutates:
     - ast->nodes, ast->edges
 */
 void take_action(State *ast, int action){
-    change_node(action);
+    change_ast(action);
     copy_ast(ast, &curr_state);
 }
 
@@ -27,8 +27,9 @@ Input:
 Output:
     - 0 for not passed; 1 for passed
 */
-int check_ast(const State *ast, int unit_test_index){
-    return evaluate_ast(unit_test_index);
+int check_ast(State *ast){
+    copy_ast(&curr_state, ast);
+    return run_unit_tests();
 }
 
 
@@ -59,20 +60,14 @@ Input:
 Mutates:
     - ast
 */
-void get_ast(State *ast, int index){
-    ast->nodes[0] = 0;
-    ast->nodes[1] = 1;
-    ast->nodes[2] = 0;
+void init_assignment(State *ast, int assignment, int index){
+    load_starter_code(assignment, index);
+    load_tests(assignment);
 
-    ast->edges[0][0] = 0;
-    ast->edges[0][1] = 1;
-    ast->edges[1][0] = 1;
-    ast->edges[1][1] = 2;
-
-    for (int i = 0; i < NUM_ACTIONS; i++)
-        ast->permitted_actions[i] = 1;
+    curr_state.assignment = assignment;
+    curr_state.code = index;
     
-    copy_ast(&curr_state, ast);
+    copy_ast(ast, &curr_state);
 }
 
 
@@ -83,16 +78,30 @@ void init_c(){
     argv[1] = NULL;
     caml_startup(argv);
 
+    curr_state.num_nodes = 0;
     for (int i = 0; i < MAX_NUM_NODES; i++){
-        curr_state.nodes[i] = 0;
+        curr_state.nodes[i] = -1;
     }
+
+    curr_state.num_edges = 0;
     for (int i = 0; i < MAX_NUM_NODES * MAX_NUM_NODES; i++){
-        curr_state.edges[i][0] = 0;
-        curr_state.edges[i][1] = 0;
+        curr_state.edges[i][0] = -1;
+        curr_state.edges[i][1] = -1;
+        curr_state.edges[i][2] = -1;
     }
+
     for (int i = 0; i < NUM_ACTIONS; i++){
         curr_state.permitted_actions[i] = 0;
     }
+
+    curr_state.num_tests = 0;
+    for (int i = 0; i < MAX_NUM_TESTS; i++){
+        curr_state.tests[i][0] = -1;
+        curr_state.tests[i][1] = -1;
+    }
+
+    curr_state.assignment = -1;
+    curr_state.code = -1;
 }
 
 
@@ -108,9 +117,20 @@ void copy_ast(State *astdst, State *astsrc){
     for (int i = 0; i < MAX_NUM_NODES * MAX_NUM_NODES; i++){
         astdst->edges[i][0] = astsrc->edges[i][0];
         astdst->edges[i][1] = astsrc->edges[i][1];
+        astdst->edges[i][2] = astsrc->edges[i][2];
     }
     for (int i = 0; i < NUM_ACTIONS; i++){
         astdst->permitted_actions[i] = astsrc->permitted_actions[i];
     }
+    for (int i = 0; i < MAX_NUM_TESTS; i++){
+        astdst->tests[i][0] = astsrc->tests[i][0];
+        astdst->tests[i][1] = astsrc->tests[i][1];
+    }
+    astdst->root = astsrc->root;
+    astdst->num_nodes = astsrc->num_nodes;
+    astdst->num_edges = astsrc->num_edges;
+    astdst->num_tests = astsrc->num_tests;
+    astdst->assignment = astsrc->assignment;
+    astdst->code = astsrc->code;
 }
 

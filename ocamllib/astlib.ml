@@ -1,23 +1,52 @@
-open Bigarray
 open Ast
-open Main
+open Astutil
 
-external get_nodes: unit -> (int, int_elt, c_layout) Array1.t = "pass_nodes"
-external pass_nodes: (int, int_elt, c_layout) Array1.t -> unit = "get_nodes"
-external get_edges: unit -> (int, int_elt, c_layout) Array2.t = "pass_edges"
-external pass_edges: (int, int_elt, c_layout) Array2.t -> unit = "get_edges"
+exception SyntaxError of string
+exception IOError of string
+exception NotImplemented of unit
 
-let rec evaluate_ast (e : Expr.t) : Value.t =
-  VBool true
+type testType = (int * int)
 
-let change_ast (action : Action.t) (e : Expr.t) : Expr.t =
-  EBool true
+(* 
+    Given an zippered AST, apply the action 
+    Input: 
+      - e : an AST with cursor (TODO: implement zast)
+      - action : action applied to e
+    Output:
+      the modified AST
+*)
+let change_ast (e : Expr.t) (action : Action.t) : Expr.t =
+  ELet("y", EFun ("x", parse "x + 1"), EHole)
 
-let node_to_list (arr: (int, int_elt, c_layout) Array1.t) (len : int) : int list =
-  let rec node_to_list_aux (arr: (int, int_elt, c_layout) Array1.t) (len : int) (l : int list) : int list =
-    node_to_list_aux arr (len - 1) (arr.{len - 1} :: list)
+(* 
+  Given a unit test set and AST, check if AST passes tests
+  Input: 
+    - test_set : a list of tests of testType with inputs and their corresponding output
+    - code : the code to be evaluated upon
+  Output:
+    true, if code passes all tests
+    false, otherwise
+*)
+let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
+  let run_test (test: testType) (code : Expr.t) : bool =
+    (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
+    match code with
+      | Expr.ELet (id, f, Expr.EHole) -> 
+        begin match f with
+          | EFun (_, _) | EFix (_, _) -> 
+            let (test_input, test_output) = test in
+            let output = eval (Expr.ELet (id, f, EBinOp(EVar id, Expr.OpAp, EInt test_input))) in
+            begin match output with
+              | VInt n -> n = test_output
+              | _ -> false
+            end
+          | _ -> false
+        end
+      | _ -> false
   in
-  node_to_list_aux arr len []
+  match test_set with
+    | [] -> true
+    | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
 
 let edge_to_list (arr: (int, int_elt, c_layout) Array1.t) (len : int) : (int * int * int) list = 
   let rec edge_to_list_aux (arr: (int, int_elt, c_layout) Array1.t) (len : int) (l : (int * int) list) : (int * int) list =
@@ -171,3 +200,33 @@ let perform : Ast.Action.t -> Ast.Expr.z_t -> Ast.Expr.z_t =
 (*
 let _ = Callback.register "evaluate_ast" evaluate_ast
 let _ = Callback.register "change_node" change_node_c *)
+(* Given an assignment number, load the unit tests
+  Input: 
+    - assignment : index of assignment
+  Output:
+    (codes, tests) : 
+      - codes : the codes (training data) for the assignment
+      - tests : the unit tests for the assignment
+*)
+let load_tests (directory : string) (assignment : int) : testType list =
+  let filename = directory  ^ "/" ^ string_of_int assignment ^ "/test.ml" in
+  let tests_cons = parse_file filename in
+  let rec combine_tests (tests_cons : Expr.t) : (testType list) = 
+    match tests_cons with
+      | EBinOp (EPair (EInt a, EInt b), OpCon, ENil) -> [(a, b)]
+      | EBinOp (EPair (EInt a, EInt b), OpCon, tl) -> (a, b) :: combine_tests tl
+      | _ -> raise (IOError "Test file in incorrect format.")
+  in 
+  combine_tests tests_cons
+
+(* Given an assignment number, load the code and test data
+  Input: 
+    - assignment : index of assignment
+  Output:
+    (codes, tests) : 
+      - codes : the codes (training data) for the assignment
+      - tests : the unit tests for the assignment
+*)
+let load_starter_code (directory : string) (assignment : int) (index : int) : Expr.t =
+  let filename = directory  ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index ^ ".ml" in
+  parse_file filename

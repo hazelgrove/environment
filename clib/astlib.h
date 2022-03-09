@@ -36,7 +36,7 @@ Input:
 Output:
     - 0 for not passed; 1 for passed
 */
-int check_ast(const State *ast, int unit_test_index);
+int check_ast();
 
 
 /*
@@ -61,7 +61,7 @@ Input:
 Mutates:
     - ast
 */
-void get_ast(State *ast, int index);
+void init_assignment(State *ast, int assignemnt, int index);
 
 
 void copy_ast(State *astdst, State *astsrc);
@@ -76,7 +76,10 @@ void close_c();
 /*
 External functions from ocaml interface
 */
-extern int evaluate_ast(int n);
-extern void change_node(int action);
+extern void change_ast(int action);
+extern int run_unit_tests();
+extern void load_starter_code(int assignment, int index);
+extern void load_tests(int assignment);
+extern void print_stuff();
 
 #endif

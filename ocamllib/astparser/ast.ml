@@ -37,8 +37,9 @@ module Expr = struct
     | EIf of t * t * t                      (* Node Descriptor Number : 16 *)
     | EFun of Var.t * t                     (* Node Descriptor Number : 17 *)
     | EFix of Var.t * t                     (* Node Descriptor Number : 18 *)
+    | EPair of t * t
     | EHole                                 (* Node Descriptor Number : 19 *)
-
+    | ENil
 
   type z_t = 
     | Cursor of t 
@@ -60,43 +61,10 @@ module Expr = struct
         At least unless we try to start representing non-empty holes... 
         (Its possible that that might best be done only in Z-trees )*)
 
-  end
 
-  (* Values *)
-module Value = struct
-  type t = 
-    | VInt of int
-    | VBool of bool
-    | VFun of (Var.t * Expr.t)
-end
+  type tag = int
 
-(* Actions as defined in Hazel paper *)
-module Action = struct
-  type dir = 
-    | Child of int
-    | Parent
-
-  type shape =
-    | Arrow of Var.t  (* need to add name (handle this upstream? ) *)
-    | Num             (* need to add a value? I added one now but idk how this messes with things *)
-    | Asc             (* what is this? --> also how do we construct binops *)
-    | Var of Var.t    (* use debruijn indexing *)
-    | Lam of Var.t
-    | Ap
-    | Lit of int
-    | Plus
-
-  type t = 
-    | Del                     (* Action Number: 0 *)
-(*    | Finish                  (* Action Number: 1 *)  *)
-    | Move of dir             (* Action Number: 2-5 *)
-    | Construct of shape      (* Action Number: 6-14 *)
-end
-
-module Tag = struct
-  type t = int
-
-  let node_to_tag (node : Expr.t) : t = 
+  let node_to_tag (node : t) : tag = 
     match node with
       | EUnOp (OpNeg, _) -> 0
       | EBinOp (_, op, _) ->
@@ -118,6 +86,7 @@ module Tag = struct
       | EIf (_, _, _) -> 14
       | EFun (_, _) -> 15
       | EFix (_, _) -> 16
+      | EPair (_, _) -> 17
       | EHole -> 30
       | EBool false -> 31
       | EBool true -> 32
@@ -129,15 +98,16 @@ module Tag = struct
       | EVar "x" -> 38
       | EVar "y" -> 39
       | EVar "z" -> 40
+      | ENil -> 41
       | _ -> raise (Failure "Not supported yet")
 
-  let tag_to_node (tag : t) (child1 : Expr.t option) (child2 : Expr.t option) (child3 : Expr.t option) : Expr.t = 
-    let check_child (child : Expr.t option) : Expr.t =
+  let tag_to_node (tag : tag) (child1 : t option) (child2 : t option) (child3 : t option) : t = 
+    let check_child (child : t option) : t =
       match child with
         | Some e -> e
         | _ -> raise (Failure "Incorrect syntax")
     in
-    let expr_to_var (e : Expr.t) : Var.t =
+    let expr_to_var (e : t) : Var.t =
       match e with
         | EVar s -> s
         | _ -> raise (Failure "Incorrect syntax")
@@ -160,6 +130,7 @@ module Tag = struct
       | 14 -> EIf (check_child child1, check_child child2, check_child child3)
       | 15 -> EFun (expr_to_var (check_child child1), check_child child2)
       | 16 -> EFix (expr_to_var (check_child child1), check_child child2)
+      | 17 -> EPair (check_child child1, check_child child2)
       | 30 -> EHole
       | 31 -> EBool false
       | 32 -> EBool true
@@ -171,4 +142,86 @@ module Tag = struct
       | 38 -> EVar "x"
       | 39 -> EVar "y"
       | 40 -> EVar "z"
+      | 41 -> ENil
+      | _ -> raise (Failure "Not supported")
+
+  let tag_to_word (tag : tag) : string = 
+    match tag with
+      | 0 -> "-"
+      | 1 -> "+"
+      | 2 -> "-"
+      | 3 -> "*"
+      | 4 -> "/"
+      | 5 -> "<"
+      | 6 -> "<="
+      | 7 -> ">"
+      | 8 -> ">="
+      | 9 -> "="
+      | 10 -> "!="
+      | 11 -> "::"
+      | 12 -> "(ap)"
+      | 13 -> "let"
+      | 14 -> "if"
+      | 15 -> "fun"
+      | 16 -> "fix"
+      | 17 -> "pair"
+      | 30 -> "hole"
+      | 31 -> "false"
+      | 32 -> "true"
+      | 33 -> "-2"
+      | 34 -> "-1"
+      | 35 -> "0"
+      | 36 -> "1"
+      | 37 -> "2"
+      | 38 -> "x"
+      | 39 -> "y"
+      | 40 -> "z"
+      | 41 -> "[]"
+      | _ -> raise (Failure "Not supported")
+end
+
+(* Values *)
+module Value = struct
+  type t = 
+    | VInt of int
+    | VBool of bool
+    | VFun of Var.t * Expr.t
+    | VPair of t * t
+    | VNil
+  
+  let rec to_expr (v : t) =
+    match v with
+      | VInt n -> Expr.EInt n
+      | VBool b -> Expr.EBool b
+      | VFun (x, e) -> Expr.EFun (x, e)
+      | VPair (e1, e2) -> Expr.EPair (to_expr e1, to_expr e2)
+      | VNil -> ENil
+end
+
+(* Actions as defined in Hazel paper *)
+module Action = struct
+  type dir = 
+    | Child of int
+    | Parent
+
+  type shape =
+    | Arrow
+    | Num
+    | Asc
+    | Var of Var.t
+    | Lam of Var.t
+    | Ap
+    | Lit of int
+    | Plus
+
+  type t = 
+    (* | Del                     (* Action Number: 0 *)
+    | Finish                  Action Number: 1 *)
+    | Move of dir             (* Action Number: 2-5 *)
+    | Construct of shape      (* Action Number: 6-14 *)
+
+  type tag = int
+
+  let tag_to_action (action : tag) = 
+    Move Parent
 end

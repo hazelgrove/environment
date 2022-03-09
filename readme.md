@@ -23,7 +23,9 @@ make astclib
 # Python Dependency Manager
 [Poetry](https://python-poetry.org/)
 
-# Run Executable
+# Run OCaml Side
+To run the OCaml AST side independently, you can use
 ```
-dune build main.exe && _build/default/main.exe
+dune utop
 ```
+The utop has the modules included automatically.

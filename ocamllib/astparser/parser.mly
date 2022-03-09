@@ -8,7 +8,9 @@
 %token LET IN
 %token IF THEN ELSE
 %token FUN RIGHTARROW AP REC
-%token LPAREN RPAREN
+%token LPAREN RPAREN LBRAC RBRAC
+%token LIST
+%token COMMA SEMI
 %token EOF
 
 %nonassoc IN RIGHTARROW
@@ -32,11 +34,32 @@ main:
 expr:
 | i = INT
     { Expr.EInt i }
-| b = TRUE
+| TRUE
     { Expr.EBool true }
-| b = FALSE
+| FALSE
     { Expr.EBool false }
 | x = ID {Expr.EVar x}
+| LPAREN es = separated_list(COMMA, e = expr { e }) RPAREN
+    { 
+    let rec resolve_tuple es =
+        match es with
+            | hd :: tl :: [] -> Expr.EPair(hd, tl)
+            | hd :: tl -> Expr.EPair(hd, resolve_tuple tl)
+            | _ -> raise (Failure "Incorrect syntax")
+    in
+    resolve_tuple es
+    }
+| LIST
+    { Expr.ENil }
+| LBRAC es = separated_list(SEMI, e = expr { e }) RBRAC
+    { let rec resolve_list es =
+        match es with
+            | hd :: [] -> Expr.EBinOp(hd, OpCon, Expr.ENil)
+            | hd :: tl -> Expr.EBinOp(hd, OpCon, resolve_list tl)
+            | _ -> raise (Failure "Incorrect syntax")
+    in
+    resolve_list es 
+    }
 | LPAREN e = expr RPAREN
     { e }
 | e1 = expr e2 = expr %prec AP
@@ -71,7 +94,7 @@ expr:
     { Expr.EIf(b, e1, e2) }
 | FUN x = ID RIGHTARROW e = expr
     { Expr.EFun(x, e) }
-| LET REC x = ID args = ID+ EQ e1 = expr IN e2 = expr
+| LET REC x = ID args = ID+ EQ e1 = expr; e2 = option(e = scope { e })
     {
     let rec resolve_fun args e = 
         match args with
@@ -79,15 +102,23 @@ expr:
             | [arg] -> Expr.EFun(arg, e)
             | hd :: tl -> Expr.EFun(hd, resolve_fun tl e)
     in
-        Expr.ELet(x, Expr.EFix(x, resolve_fun args e1), e2)
+        match e2 with
+        | None -> Expr.ELet(x, Expr.EFix(x, resolve_fun args e1), Expr.EHole)
+        | Some e -> Expr.ELet(x, Expr.EFix(x, resolve_fun args e1), e)
     }
-| LET x = ID args = ID+ EQ e1 = expr IN e2 = expr
-    { 
+| LET x = ID args = ID+ EQ e1 = expr; e2 = option(e = scope { e })
+    {
     let rec resolve_fun args e = 
         match args with
             | [] -> raise (Failure "Incorrect syntax")
             | [arg] -> Expr.EFun(arg, e)
             | hd :: tl -> Expr.EFun(hd, resolve_fun tl e)
     in
-        Expr.ELet(x, resolve_fun args e1, e2)
+        match e2 with
+        | None -> Expr.ELet(x, resolve_fun args e1, Expr.EHole)
+        | Some e -> Expr.ELet(x, resolve_fun args e1, e)
     }
+
+scope:
+| IN e = expr 
+    { e }
