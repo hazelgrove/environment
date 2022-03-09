@@ -1,0 +1,5 @@
+(test
+ (name test)
+ (libraries astlib astutils ounit2)
+ (modules test test_astlib test_astutil))
+

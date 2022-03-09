@@ -77,9 +77,7 @@ class ASTEnv(gym.Env):
         states = self.states[assignment]
         self.state = states[random.randint(0, len(states) - 1)]
         
-        # Change state to Python dict
-        state = self.get_state()
-        return state
+        return self.get_state()
         
     # # TODO: Put a visual?
     def render(self, mode="human"):
@@ -98,9 +96,11 @@ class ASTEnv(gym.Env):
     # TODO: Anything that needs to be cleaned up
     def close(self):
         self.astclib.close_c()
-        
+    
+    # Get Python dictionary for self.state  
     def get_state(self):
         return {'nodes': np.ctypeslib.as_array(self.state.nodes), 
                 'num_nodes': self.state.num_nodes,
                 'edges': np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
-                'num_edges': self.state.num_edges}
+                'num_edges': self.state.num_edges,
+                'assignment': self.state.assignment}

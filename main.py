@@ -1,7 +1,7 @@
 import gym
 
 def main():
-    env = gym.make("gym_basic:ast-v0")
+    env = gym.make("gym_env:ast-v0")
     env.init(1, [1])
     
     for i in range(5):
@@ -9,7 +9,9 @@ def main():
         print(f"Timestep: {i + 1}")
         
         env.reset()
-        print("Reset environment.\n")
+        print("Reset environment.")
+        print(f"Assignment index: {env.get_state()['assignment']}")
+        print()
         
         done = False
         while not done:

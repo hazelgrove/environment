@@ -202,5 +202,5 @@ module Action = struct
   type tag = int
 
   let tag_to_action (action : tag) = 
-    Move Parent
+    let _ = action in Move Parent
 end

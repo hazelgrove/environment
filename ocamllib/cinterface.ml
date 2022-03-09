@@ -116,12 +116,12 @@ let run_unit_tests_c (root : int) : bool =
 
 (* load_assignment function that will be called by C *)
 let load_tests_c (assignment : int) : unit =
-  let unit_tests = load_tests "ocamllib/data" assignment in
+  let unit_tests = load_tests "data" assignment in
   pass_unit_tests (list_to_tests unit_tests)
 
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (assignment : int) (index : int) : int =
-  let e = load_starter_code "ocamllib/data" assignment index in
+  let e = load_starter_code "data" assignment index in
   let ((nodes, edges), root) = expr_to_c e in
   let _ = pass_nodes (list_to_array1 nodes) in
   let _ = pass_edges (list_to_edge edges) in
