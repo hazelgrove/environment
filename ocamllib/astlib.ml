@@ -75,7 +75,30 @@ let perform : Ast.Action.t -> Ast.Expr.z_t -> Ast.Expr.z_t =
   (function action -> 
     let rec act_on tree = (
       match action with 
-      | Construct shape -> tree  (*for now hold of on constructing*)
+      | Construct shape -> 
+        (* ( match tree with 
+        | EUnop_L (op,r_child) -> UnopL (op,act_on r_child) 
+        | EBinop_L (l_child, op, r_child) -> EBinop_L (act_on l_child, op, r_child)
+        | EBinop_R (l_child, op, r_child) -> EBinop_R (l_child, op, act_on r_child)
+        | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
+        | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
+        | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
+        | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
+        | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
+        | EFun_L (var, child) -> Efun_L (var, act_on child)
+        | EFix_L (var, child) -> Efun_R (var, act_on child)
+        | Cursor subtree ->  (
+            match subtree with 
+            | EHole -> (
+              match shape with 
+              | Arrow funcName -> Cursor(Efun (funcName,EHole))
+              | Num   numVal   -> Cursor(EInt numVal)
+              | Asc
+            )
+          )
+        ) *)
+        (*for now hold of on constructing*)
+        tree 
       | Move Child n -> 
         (match tree with 
         | EUnop_L (op,r_child) -> UnopL (op,act_on r_child) 

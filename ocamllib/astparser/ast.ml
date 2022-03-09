@@ -39,6 +39,7 @@ module Expr = struct
     | EFix of Var.t * t                     (* Node Descriptor Number : 18 *)
     | EHole                                 (* Node Descriptor Number : 19 *)
 
+
   type z_t = 
     | Cursor of t 
     | EUnop_L of unop * z_t
@@ -61,10 +62,7 @@ module Expr = struct
 
   end
 
-
-
-
-(* Values *)
+  (* Values *)
 module Value = struct
   type t = 
     | VInt of int
@@ -79,18 +77,18 @@ module Action = struct
     | Parent
 
   type shape =
-    | Arrow 
-    | Num
-    | Asc
-    | Var of Var.t
+    | Arrow of Var.t  (* need to add name (handle this upstream? ) *)
+    | Num             (* need to add a value? I added one now but idk how this messes with things *)
+    | Asc             (* what is this? --> also how do we construct binops *)
+    | Var of Var.t    (* use debruijn indexing *)
     | Lam of Var.t
     | Ap
     | Lit of int
     | Plus
 
   type t = 
-    (* | Del                     (* Action Number: 0 *)
-    | Finish                  Action Number: 1 *)
+    | Del                     (* Action Number: 0 *)
+(*    | Finish                  (* Action Number: 1 *)  *)
     | Move of dir             (* Action Number: 2-5 *)
     | Construct of shape      (* Action Number: 6-14 *)
 end
