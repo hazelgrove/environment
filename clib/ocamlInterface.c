@@ -96,10 +96,10 @@ CAMLprim value get_unit_tests(value bigarray){
     return Val_unit;
 }
 
-void print_stuff(){
-    static const value * closure = NULL;
-    if (closure == NULL) closure = caml_named_value("print_stuff");
-    printf("%s\n", String_val(caml_callback(*closure, Val_unit)));
+void print_code(){
+    static const value * print_code_closure = NULL;
+    if (print_code_closure == NULL) print_code_closure = caml_named_value("print_code");
+    String_val(caml_callback(*print_code_closure, Val_int(curr_state.root)));
 }
 
 

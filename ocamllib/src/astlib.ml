@@ -78,3 +78,44 @@ let load_tests (directory : string) (assignment : int) : testType list =
 let load_starter_code (directory : string) (assignment : int) (index : int) : Expr.t =
   let filename = directory  ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index ^ ".ml" in
   parse_file filename
+
+
+let rec code_to_string (e : Expr.t) : string = 
+  match e with
+    | EVar x -> x ^ " "
+    | EInt n -> string_of_int n ^ " "
+    | EBool b -> string_of_bool b ^ " "
+    | EUnOp (_, e) -> "(-" ^ code_to_string e ^ ") "
+    | EBinOp (e1, op, e2) -> 
+      let op_string = begin match op with
+        | OpPlus -> "+"
+        | OpMinus -> "-"
+        | OpTimes -> "*"
+        | OpDiv -> "/"
+        | OpLt -> "<"
+        | OpLe -> "<="
+        | OpGt -> ">"
+        | OpGe -> ">="
+        | OpEq -> "="
+        | OpNe -> "!="
+        | OpCon -> "::"
+        | OpAp -> " "
+      end
+      in
+      "(" ^ code_to_string e1 ^ " " ^ op_string ^ " " ^ code_to_string e2  ^ ") "
+    | EIf (cond, e1, e2) -> "(if " ^ code_to_string cond ^ " then " ^ code_to_string e1 ^ " else " ^ code_to_string e2 ^ ") "
+    | ELet (x, EFix (_, e1), EHole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
+    | ELet (x, EFix (_, e1), e2) -> "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ code_to_string e2 ^ " "
+    | ELet (x, EFun (arg, e1), EHole) -> "let " ^ x ^ resolve_fun (EFun (arg, e1)) ^ " "
+    | ELet (x, EFun (arg, e1), e2) -> "let " ^ x ^ resolve_fun (EFun (arg, e1)) ^ " in " ^ code_to_string e2 ^ " "
+    | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " "
+    | ELet (x, e1, e2) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " in " ^ code_to_string e2 ^ " "
+    | EFix (_, _) -> raise (SyntaxError "Incorrect syntax with fix")
+    | EFun (x, e) -> "(fun " ^ x ^ " -> " ^ code_to_string e ^ ") "
+    | EPair (e1, e2) -> "(" ^ code_to_string e1 ^ ", " ^ code_to_string e2 ^ ") "
+    | EHole -> "<HOLE> "
+    | ENil -> "[] "
+and resolve_fun (e : Expr.t) : string =
+  match e with 
+    | EFun (x, e) -> " " ^ x ^ resolve_fun e
+    | _ -> " = " ^ code_to_string e  ^ " "

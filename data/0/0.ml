@@ -1,1 +1,1 @@
-let y x = 2 * x
+let x y = y + 1
