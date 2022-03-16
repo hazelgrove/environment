@@ -120,8 +120,8 @@ let perform : Action.t -> Expr.z_t -> Expr.z_t =
         | EFix_L (var, child) -> EFix_L (var, act_on child)
         | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
         | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
-        | Cursor child ->
-          (match shape with 
+        | Cursor child -> Cursor shape 
+          (*match shape with 
           | EVar  varname -> Cursor (EVar varname)
           | EInt value   -> Cursor (EInt value) (*I think we want to put the logic for making this on the other side*)
           | EBool  value  -> Cursor (EBool value) 
@@ -132,9 +132,9 @@ let perform : Action.t -> Expr.z_t -> Expr.z_t =
           | EFun  (subvar, _) -> Cursor (EFun(subvar, EHole))
           | EFix  (varname, _ ) -> Cursor (EFix (varname, EHole) )
           | EPair  (_,_)      -> Cursor(EPair (EHole, EHole))
-          | EHole    -> Cursor (EHole) 
+          | EHole -> Cursor (EHole) 
           | ENil     -> Cursor (ENil)
-          )
+          *)
         )
       | Move Child n -> 
         (match tree with 
@@ -240,25 +240,22 @@ let possible_actions (expr: Expr.z_t ) : Action.avail_actions =(
   (* now finally we recurse *)
   let rec recurse (expr:Expr.z_t) (state :Action.avail_actions):Action.avail_actions = 
     match expr with 
-    | EUnOp_L (_, child) -> recurse child state
-    | EBinOp_L (child,_,_) -> recurse child state
-    | EBinOp_R (_, _, child) -> recurse child state
-    | ELet_L (_,child,_) -> recurse child state (* variable not in self-scope in definition*)
-    | EIf_L (child, _, _) -> recurse child state
-    | EIf_C (_,child, _) -> recurse child state
-    | EIf_R (_, _, child) -> recurse child state
-    | EFix_L (_, child) -> recurse child state
-    | EPair_L (child, _) -> recurse child state
+    | EUnOp_L (_, child) 
+    | EBinOp_L (child,_,_) 
+    | EBinOp_R (_, _, child) 
+    | ELet_L (_,child,_)  (* variable not in self-scope in definition*)
+    | EIf_L (child, _, _) 
+    | EIf_C (_,child, _) 
+    | EIf_R (_, _, child) 
+    | EFix_L (_, child) 
+    | EPair_L (child, _) 
     | EPair_R (_, child) -> recurse child state
     (*functions: update  *)
-    | EFun_L (varname, child) -> 
-        recurse child {move_parent=state.move_parent;
-                       max_child=state.max_child; 
-                       in_scope = update_var_arr state.in_scope}
-    | ELet_R (varname, child) -> 
+    | EFun_L (varname, child)
+      | ELet_R (varname, child) -> 
       recurse child {move_parent=state.move_parent;
                      max_child=state.max_child; 
-                     in_scope = update_var_arr state.in_scope}
+                     in_scope = update_var_arr varname state.in_scope}
     (*Now finally we do our cursor logic *)
     |Cursor subtree -> 
       {move_parent=state.move_parent;

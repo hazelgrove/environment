@@ -46,7 +46,6 @@ module Expr = struct
     | EUnOp_L of unop * z_t
     | EBinOp_L of z_t * binop * t 
     | EBinOp_R of t * binop * z_t 
-    (* I think there's no way to index into variables? *)
     | ELet_L of Var.t * z_t *t 
     | ELet_R of Var.t * t * z_t 
     (*if  exprs *)
@@ -235,4 +234,4 @@ module Action = struct
 
   let tag_to_action (action : tag) = 
     Move Parent
-end
+end    
