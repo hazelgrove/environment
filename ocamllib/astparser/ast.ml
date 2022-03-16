@@ -43,7 +43,7 @@ module Expr = struct
 
   type z_t = 
     | Cursor of t 
-    | EUnop_L of unop * z_t
+    | EUnOp_L of unop * z_t
     | EBinOp_L of z_t * binop * t 
     | EBinOp_R of t * binop * z_t 
     (* I think there's no way to index into variables? *)
@@ -56,6 +56,11 @@ module Expr = struct
     (* function definitions: again only one option b/c no way to edit name *)
     | EFun_L of Var.t * z_t 
     | EFix_L   of Var.t * z_t 
+    (*pairs (why isnt this just a binop) *)
+    | EPair_L of z_t * t
+    | EPair_R of t * z_t
+
+
     (* types not represented: EVar, EInt, EBool, EHole; 
         all of these are unnable to be indexed into 
         At least unless we try to start representing non-empty holes... 
@@ -198,29 +203,35 @@ module Value = struct
       | VNil -> ENil
 end
 
-(* Actions as defined in Hazel paper *)
 module Action = struct
   type dir = 
-    | Child of int
     | Parent
+    | Child of int
 
-  type shape =
-    | Arrow
-    | Num
-    | Asc
-    | Var of Var.t
-    | Lam of Var.t
-    | Ap
-    | Lit of int
-    | Plus
-
+    (* write a numbered action to inser all of <- *)
+    (* Have some sort of default value analog for type t *)
+    (* Look at only allowing inserts on empty holes... *)
+    (* maybe have delete move the subtree into 'copy' register *)
+    
   type t = 
-    (* | Del                     (* Action Number: 0 *)
-    | Finish                  Action Number: 1 *)
+    (*| Del                     (* Action Number: 0 *)
+    (* | Finish                  Action Number: 1 *)*)
     | Move of dir             (* Action Number: 2-5 *)
-    | Construct of shape      (* Action Number: 6-14 *)
+    | Construct of Expr.t      (* Action Number: 6- (36 ish) *)
 
   type tag = int
+
+  type avail_actions = {
+    move_parent: bool; 
+    max_child: int;
+    in_scope: bool list   
+  }
+  (*  Contains short-form avaliable actions*)
+  (*  In the format (Parent avaliable, 
+                    max child number (if 0 no children exist),
+                    can_construct?
+                    A list of 10 bools indicating if variables 'v0' ... 'v9' have been seen )*)
+
 
   let tag_to_action (action : tag) = 
     Move Parent

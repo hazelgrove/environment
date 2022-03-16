@@ -82,102 +82,122 @@ let load_assignment_c (test_num : int) : unit =
     (* let () = Array1.set nodes action 0 in pass_nodes nodes *)
     pass_nodes nodes *)
 
-let select_root :Ast.Expr.t -> Ast.Expr.z_t = 
+let select_root :(Expr.t -> Expr.z_t) =
   (* Convert an unzipped ast into a zipped one, by selecting the root*)
-  (function tree -> Ast.Expr.Cursor tree) 
+  (function tree -> Expr.Cursor tree) 
 
-let rec unzip_ast  (tree : Ast.Expr.z_t) : Ast.Expr.t = 
+let rec unzip_ast  (tree : Expr.z_t) : Expr.t =
   match tree with 
   | Cursor arg -> arg 
-  | EUnop_L (unop, l_child) -> EUnop (unop, unzip_ast l_child)
-  | EBinop_L (l_child, binop,r_child) -> BinOp (unzip_ast l_child, binop,r_child)
-  | EBinop_R (l_child, binop,r_child) -> BinOp (l_child, binop,unzip_ast r_child)
+  | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
+  | EBinOp_L (l_child, binop,r_child) -> EBinOp (unzip_ast l_child, binop,r_child)
+  | EBinOp_R (l_child, binop,r_child) -> EBinOp (l_child, binop,unzip_ast r_child)
   | ELet_L (var,l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
   | ELet_R (var,l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
   | EIf_L (l, c, r) -> EIf(unzip_ast l, c,r)
   | EIf_C (l, c, r) -> EIf(l, unzip_ast c, r) 
   | EIf_R (l, c, r) -> EIf(l, c, unzip_ast r) 
+  | EPair_L (l, r) ->  EPair (unzip_ast l, r) 
+  | EPair_R (l, r) ->  EPair (l, unzip_ast r)
   | EFun_L (var, child) -> EFun(var, unzip_ast child) 
   | EFix_L (var, child) -> EFix(var, unzip_ast child) 
 
-let perform : Ast.Action.t -> Ast.Expr.z_t -> Ast.Expr.z_t =
+let perform : Action.t -> Expr.z_t -> Expr.z_t =
   (function action -> 
-    let rec act_on tree = (
+    let rec act_on (tree : Expr.z_t) : Expr.z_t  = (
       match action with 
       | Construct shape -> 
-        (* ( match tree with 
-        | EUnop_L (op,r_child) -> UnopL (op,act_on r_child) 
-        | EBinop_L (l_child, op, r_child) -> EBinop_L (act_on l_child, op, r_child)
-        | EBinop_R (l_child, op, r_child) -> EBinop_R (l_child, op, act_on r_child)
+        ( match tree with 
+        | EUnOp_L (op,r_child) -> EUnOp_L (op, act_on r_child) 
+        | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
+        | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
         | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
         | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
         | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
         | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
         | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
-        | EFun_L (var, child) -> Efun_L (var, act_on child)
-        | EFix_L (var, child) -> Efun_R (var, act_on child)
-        | Cursor subtree ->  (
-            match subtree with 
-            | EHole -> (
-              match shape with 
-              | Arrow funcName -> Cursor(Efun (funcName,EHole))
-              | Num   numVal   -> Cursor(EInt numVal)
-              | Asc
-            )
+        | EFun_L (var, child) -> EFun_L (var, act_on child)
+        | EFix_L (var, child) -> EFix_L (var, act_on child)
+        | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
+        | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
+        | Cursor child ->
+          (match shape with 
+          | EVar  varname -> Cursor (EVar varname)
+          | EInt value   -> Cursor (EInt value) (*I think we want to put the logic for making this on the other side*)
+          | EBool  value  -> Cursor (EBool value) 
+          | EUnOp  (unop, _ ) -> Cursor (EUnOp  (unop, EHole))
+          | EBinOp  ( _ , binop, _ ) -> Cursor (EBinOp (EHole, binop, EHole))  
+          | ELet  (varname, _, _ )   -> Cursor ( ELet (varname, EHole, EHole)) 
+          | EIf   (_, _, _) -> Cursor (EIf (EHole, EHole, EHole))
+          | EFun  (subvar, _) -> Cursor (EFun(subvar, EHole))
+          | EFix  (varname, _ ) -> Cursor (EFix (varname, EHole) )
+          | EPair  (_,_)      -> Cursor(EPair (EHole, EHole))
+          | EHole    -> Cursor (EHole) 
+          | ENil     -> Cursor (ENil)
           )
-        ) *)
-        (*for now hold of on constructing*)
-        tree 
+        )
       | Move Child n -> 
         (match tree with 
-        | EUnop_L (op,r_child) -> UnopL (op,act_on r_child) 
-        | EBinop_L (l_child, op, r_child) -> EBinop_L (act_on l_child, op, r_child)
-        | EBinop_R (l_child, op, r_child) -> EBinop_R (l_child, op, act_on r_child)
+        | EUnOp_L (op,r_child) -> EUnOp_L (op,act_on r_child) 
+        | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
+        | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
         | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
         | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
         | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
         | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
         | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
-        | EFun_L (var, child) -> Efun_L (var, act_on child)
-        | EFix_L (var, child) -> Efun_R (var, act_on child)
+        | EFun_L (var, child) -> EFun_L (var, act_on child)
+        | EFix_L (var, child) -> EFix_L (var, act_on child)
+        | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
+        | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
         | Cursor subtree -> (
           match n with 
           | 0 -> (
             match subtree with
-              | EUnOp  (op,arg) -> EUnop_L (op, Cursor (arg))
-              | EBinop (arg_l, op, arg_r) -> EBinop_L (Cursor (arg_l), op, arg_r)
+              | EUnOp  (op,arg) -> EUnOp_L (op, Cursor (arg))
+              | EBinOp (arg_l, op, arg_r) -> EBinOp_L (Cursor (arg_l), op, arg_r)
               | ELet (varn, arg_l, arg_r) -> ELet_L (varn, Cursor(arg_l),arg_r)
               | EIf (arg_l, arg_c,arg_r) -> EIf_L (Cursor (arg_l), arg_c,arg_r)
-              | EFun (varn, arg_l) -> EFun_L (varn, Cursor (arg_l))
-              | EFix (varn, arg_l) -> EFix (varn, Cursor (arg_l))
+              | EFun (varname, arg_l) -> EFun_L (varname, Cursor (arg_l))
+              | EFix (varname, arg_l) -> EFix_L (varname, Cursor (arg_l))
+              | EPair (arg_l, arg_r) -> EPair_L (Cursor (arg_l),  arg_r)
               | _ -> tree  (*all invalid actions are noops*)
             ) 
           | 1 ->( 
             match subtree with 
-            | EBinop (arg_l, op, arg_r) -> EBinop_R (arg_l, op, Cursor(arg_r))
+            | EBinOp (arg_l, op, arg_r) -> EBinOp_R (arg_l, op, Cursor (arg_r))
             | ELet (varn, arg_l, arg_r) -> ELet_R (varn, arg_l,Cursor(arg_r))
             | EIf (arg_l, arg_c,arg_r) -> EIf_C (arg_l, Cursor(arg_c),arg_r)
+            | EPair (arg_l, arg_r) -> EPair_R (arg_l, Cursor (arg_r))
             | _ -> tree  (*all invalid actions are noops*)
             )
-          | 1 -> (
+          | 2 -> (
             match subtree with 
             | EIf (arg_l, arg_c,arg_r) -> EIf_R (arg_l, arg_c,Cursor(arg_r))
+            | _ -> tree  (*all invalid actions are noops*)
             )
+          | _ -> tree
         )
       )
-    | Parent -> (
+    | Move Parent -> (
       match tree with 
-      | EUnop_L (op, Cursor arg ) -> Cursor (Unop (op, arg))
-      | EUnop_L (op, arg) -> EUnop_L (op, act_on arg) 
+      | EUnOp_L (op, Cursor arg ) -> Cursor (EUnOp (op, arg))
+      | EUnOp_L (op, arg) -> EUnOp_L (op, act_on arg) 
 
-      | EBinop_L (Cursor arg, op, r_child) -> Cursor (BinOp (arg, op, r_child))
-      | EBinop_L (l_child, op, r_child) -> EBinop_L (act_on l_child, op, r_child)
-      | EBinop_R (l_child, op, Cursor arg) -> Cursor (BinOp (l_child, op, arg))
-      | EBinop_R (l_child, op, r_child) -> EBinop_R (l_child, op, act_on r_child)
+      | EBinOp_L (Cursor arg, op, r_child) -> Cursor (EBinOp (arg, op, r_child))
+      | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
+      | EBinOp_R (l_child, op, Cursor arg) -> Cursor (EBinOp (l_child, op, arg))
+      | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
+
+      (* new: *)
+      | EPair_L (Cursor (l_child), r_child) -> Cursor ( EPair (l_child, r_child))
+      | EPair_L (l_child, r_child)          -> EPair_L (act_on l_child, r_child )
+      | EPair_R (l_child, Cursor(r_child))  -> Cursor (EPair (l_child, r_child))
+      | EPair_R (l_child, r_child)          -> EPair_R (l_child, act_on r_child)
       
       | ELet_L (var,Cursor arg, r_child )  -> Cursor (ELet (var,arg, r_child))
       | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
-      | ELet_R (var,l_child, Cursor arg )  -> Cursor (ELet (var,l_child,act_on arg))
+      | ELet_R (var,l_child, Cursor arg )  -> Cursor (ELet (var,l_child, arg))
       | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
 
       | EIf_L (Cursor arg, c, r) -> Cursor (EIf (arg, c,r))
@@ -187,16 +207,72 @@ let perform : Ast.Action.t -> Ast.Expr.z_t -> Ast.Expr.z_t =
       | EIf_R (l, c, Cursor arg) -> Cursor (EIf (l, c, arg))
       | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
 
-      | EFun_L (var, Cursor arg) ->  Cursor (Efun (var, arg))
-      | EFun_L (var, child) -> Efun_L (var, act_on child)
-      | EFix_L (var, Cursor arg) -> Cursor (Efun (var, arg))
-      | EFix_L (var, child) -> Efun_R (var, act_on child)
-      | -> tree
+      | EFun_L (var, Cursor arg) ->  Cursor (EFun (var, arg))
+      | EFun_L (var, child) -> EFun_L (var, act_on child)
+      | EFix_L (var, Cursor arg) -> Cursor (EFun (var, arg))
+      | EFix_L (var, child) -> EFix_L (var, act_on child)
+      | _ -> tree
       )
     ) in act_on 
   )
 
+let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
+  let rec make_var_arr (i:int)  = 
+    (* create an array of 10 falses *)
+    if i <10 then false :: (make_var_arr (i+1) ) else [];
+  in  
 
+  let update_var_arr (varname:string) (varlist: bool list)  =(
+    (* if a variable is in scope, mark its value to true *)
+    let rec update_arr (i:int) (l: bool list) = 
+      match l with 
+      | a ::tl -> (if ("v" ^ (string_of_int i) = varname) || a )
+                  :: update_arr i+1 tl 
+      | []  -> []
+    in update_arr 0 varlist
+  )
+
+  let acts_init: Action.avail_actions  =
+    { move_parent = match expr with | Cursor _ -> false | _-> true; 
+      max_child = 0; 
+      in_scope = make_var_arr 0)
+  in 
+  (* now finally we recurse *)
+  let rec recurse (expr:Expr.z_t) (state :Action.avail_actions):Action.avail_actions = 
+    match expr with 
+    | EUnOp_L (_, child) -> recurse child state
+    | EBinOp_L (child,_,_) -> recurse child state
+    | EBinOp_R (_, _, child) -> recurse child state
+    | ELet_L (_,child,_) -> recurse child state (* variable not in self-scope in definition*)
+    | EIf_L (child, _, _) -> recurse child state
+    | EIf_C (_,child, _) -> recurse child state
+    | EIf_R (_, _, child) -> recurse child state
+    | EFix_L (_, child) -> recurse child state
+    | EPair_L (child, _) -> recurse child state
+    | EPair_R (_, child) -> recurse child state
+    (*functions: update  *)
+    | EFun_L (varname, child) -> 
+        recurse child {move_parent=state.move_parent;
+                       max_child=state.max_child; 
+                       in_scope = update_var_arr state.in_scope}
+    | ELet_R (varname, child) -> 
+      recurse child {move_parent=state.move_parent;
+                     max_child=state.max_child; 
+                     in_scope = update_var_arr state.in_scope}
+    (*Now finally we do our cursor logic *)
+    |Cursor subtree -> 
+      {move_parent=state.move_parent;
+       max_child =  match subtree with 
+        |EVar | EInt | EBool | EHole | ENil -> 0 
+        |EUnOp | Efun | Efix  -> 1 
+        |EBinOp |ELet |Epair -> 2 
+        |Eif -> 3 
+        ; 
+        in_scope = state.in_scope
+      }
+  in 
+  recurse expr acts_init 
+) 
 (*
 let _ = Callback.register "evaluate_ast" evaluate_ast
 let _ = Callback.register "change_node" change_node_c *)
@@ -230,3 +306,5 @@ let load_tests (directory : string) (assignment : int) : testType list =
 let load_starter_code (directory : string) (assignment : int) (index : int) : Expr.t =
   let filename = directory  ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index ^ ".ml" in
   parse_file filename
+
+
