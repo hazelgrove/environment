@@ -6,13 +6,6 @@
 
 (executable
  (name cinterface)
- (libraries astutils)
+ (libraries astutils astlib)
  (modes (native object))
- (modules cinterface astlib)
 )
-
-; (library
-;  (name astlib)
-;  (libraries astutils)
-;  (modules astlib)
-; )

@@ -116,24 +116,28 @@ let run_unit_tests_c (root : int) : bool =
 
 (* load_assignment function that will be called by C *)
 let load_tests_c (assignment : int) : unit =
-  let unit_tests = load_tests "ocamllib/data" assignment in
+  let unit_tests = load_tests "data" assignment in
   pass_unit_tests (list_to_tests unit_tests)
 
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (assignment : int) (index : int) : int =
-  let e = load_starter_code "ocamllib/data" assignment index in
+  let e = load_starter_code "data" assignment index in
   let ((nodes, edges), root) = expr_to_c e in
   let _ = pass_nodes (list_to_array1 nodes) in
   let _ = pass_edges (list_to_edge edges) in
   root
 
 (* For debugging use *)
-let print_stuff (x : unit) : string =
+let print_code_c (root : int) : unit =
   let nodes = array1_to_list (get_nodes ()) in
-  List.fold_right (fun hd acc -> string_of_int hd ^ " " ^ acc) nodes ""
+  let edges = edge_to_list (get_edges ()) in
+  let e = c_to_expr nodes edges root in
+  let s = code_to_string e in
+  let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl --break-fun-decl=smart") in
+  ()
 
 let _ = Callback.register "run_unit_tests" run_unit_tests_c
 let _ = Callback.register "change_ast" change_ast_c
 let _ = Callback.register "load_tests" load_tests_c
 let _ = Callback.register "load_starter_code" load_starter_code_c
-let _ = Callback.register "print_stuff" print_stuff
+let _ = Callback.register "print_code" print_code_c

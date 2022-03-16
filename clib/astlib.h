@@ -12,6 +12,7 @@
 
 State curr_state;
 
+#define MAX_CODE_LENGTH 1000
 
 /*
 Mutates AST according to action taken
@@ -25,7 +26,6 @@ Mutates:
 */
 void take_action(State *ast, int action);
 
-
 /*
 Test the code given by the AST on the unit test
 
@@ -38,7 +38,6 @@ Output:
 */
 int check_ast();
 
-
 /*
 Find the valid actions given the AST
 
@@ -49,7 +48,6 @@ Mutates:
     - ast->permitted_actions
 */
 void valid_actions(State *ast);
-
 
 /*
 Get the original ast of the code
@@ -63,13 +61,34 @@ Mutates:
 */
 void init_assignment(State *ast, int assignemnt, int index);
 
+/*
+Print the current state as a line of code
 
-void copy_ast(State *astdst, State *astsrc);
+Input:
+    - ast: struct representing the AST
+*/
+void print_curr_state(State *ast);
 
+/*
+Copy the AST from astsrc to astdst
 
+Input:
+    - astdst: destination to copy to
+    - astsrc: source to copy from
+
+Mutates:
+    - astdst
+*/
+void copy_ast(State *astdst, const State *astsrc);
+
+/*
+Initiate the OCaml code and set default values of curr_state
+*/
 void init_c();
 
-
+/*
+Shut down the OCaml Code
+*/
 void close_c();
 
 
@@ -80,6 +99,6 @@ extern void change_ast(int action);
 extern int run_unit_tests();
 extern void load_starter_code(int assignment, int index);
 extern void load_tests(int assignment);
-extern void print_stuff();
+extern void print_code();
 
 #endif

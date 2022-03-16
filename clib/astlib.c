@@ -71,6 +71,21 @@ void init_assignment(State *ast, int assignment, int index){
 }
 
 
+/*
+Print the current state as a line of code
+
+Input:
+    - ast: struct representing the AST
+*/
+void print_curr_state(State *ast){
+    copy_ast(&curr_state, ast);
+    print_code();
+}
+
+
+/*
+Initiate the OCaml code and set default values of curr_state
+*/
 void init_c(){
     // Build a stub argv[] to satisfy caml_Startup()
     char *argv[2];
@@ -105,12 +120,25 @@ void init_c(){
 }
 
 
+/*
+Shut down the OCaml Code
+*/
 void close_c(){
     caml_shutdown();
 }
 
 
-void copy_ast(State *astdst, State *astsrc){
+/*
+Copy the AST from astsrc to astdst
+
+Input:
+    - astdst: destination to copy to
+    - astsrc: source to copy from
+
+Mutates:
+    - astdst
+*/
+void copy_ast(State *astdst, const State *astsrc){
     for (int i = 0; i < MAX_NUM_NODES; i++){
         astdst->nodes[i] = astsrc->nodes[i];
     }

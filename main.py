@@ -1,15 +1,19 @@
 import gym
+from gym_env.envs.ast_env import ASTEnv
 
 def main():
-    env = gym.make("gym_basic:ast-v0")
-    env.init(1, [1])
+    env = ASTEnv(1, [1])
     
     for i in range(5):
         print("-----------------------")
         print(f"Timestep: {i + 1}")
         
         env.reset()
-        print("Reset environment.\n")
+        print("Reset environment.")
+        print(f"Assignment index: {env.get_state()['assignment']}")
+        env.render()
+        print()
+        
         
         done = False
         while not done:

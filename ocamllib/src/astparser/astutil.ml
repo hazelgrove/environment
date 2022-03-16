@@ -3,6 +3,7 @@ open Ast
 exception SyntaxError of string
 exception NotImplemented
 
+(* Substitute the variable x in e2 with e1 (i.e. [e1/x]e2) *)
 let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
   let subx = subst e1 x in
   let subx_unless cond = if cond then Fun.id else subx in
@@ -33,6 +34,7 @@ let expecting_fun (v : Value.t): (Var.t * Expr.t) =
   | VFun (x, body) -> (x, body)
   | _ -> raise (Failure "Cannot be evaluated")  
 
+(* Evalutate the expression e *)
 let rec eval (e : Expr.t) : Value.t =
   let eval_unop (op: Expr.unop) (v: Value.t): Value.t =
     match op with
