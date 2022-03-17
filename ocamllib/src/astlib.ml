@@ -143,6 +143,10 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
     | [] -> true
     | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
     
+(* 
+TODO: Comments on how this function works
+TODO: Seems to have some bugs
+*)
 let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
   let rec make_var_arr (i:int)  = 
     (* create an array of 10 falses *)
