@@ -133,7 +133,7 @@ let print_code_c (root : int) : unit =
   let edges = edge_to_list (get_edges ()) in
   let e = c_to_expr nodes edges root in
   let s = code_to_string e in
-  let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl --break-fun-decl=smart") in
+  let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl") in
   ()
 
 let _ = Callback.register "run_unit_tests" run_unit_tests_c

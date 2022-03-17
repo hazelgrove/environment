@@ -61,32 +61,32 @@ let rec eval (e : Expr.t) : Value.t =
       eval unrolled
     | _ -> raise (Failure "Invalid syntax")
 and eval_binop (v_l: Value.t) (op: Expr.binop) (v_r: Value.t): Value.t =
-match op with
-| OpAp ->
-  let (x, body) = expecting_fun v_l in
-  eval (subst (Value.to_expr v_r) x body)
-| OpPlus | OpMinus | OpTimes | OpDiv ->
-  let f =
-    match op with
-    | OpPlus -> (+)
-    | OpMinus -> (-)
-    | OpTimes -> ( * )
-    | _ -> (/)
-  in
-  VInt (f (expecting_num v_l) (expecting_num v_r))
-| OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
-  let f =
-    match op with
-    | OpLt -> (<)
-    | OpLe -> (<=)
-    | OpGt -> (>)
-    | OpGe -> (>=)
-    | OpNe -> (!=)
-    | _ -> (=)
-  in
-  VBool (f (expecting_num v_l) (expecting_num v_r))
-| OpCon ->
-  raise NotImplemented
+  match op with
+  | OpAp ->
+    let (x, body) = expecting_fun v_l in
+    eval (subst (Value.to_expr v_r) x body)
+  | OpPlus | OpMinus | OpTimes | OpDiv ->
+    let f =
+      match op with
+      | OpPlus -> (+)
+      | OpMinus -> (-)
+      | OpTimes -> ( * )
+      | _ -> (/)
+    in
+    VInt (f (expecting_num v_l) (expecting_num v_r))
+  | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
+    let f =
+      match op with
+      | OpLt -> (<)
+      | OpLe -> (<=)
+      | OpGt -> (>)
+      | OpGe -> (>=)
+      | OpNe -> (!=)
+      | _ -> (=)
+    in
+    VBool (f (expecting_num v_l) (expecting_num v_r))
+  | OpCon ->
+    raise NotImplemented
   
 (* Parse a string into an ast *)
 let parse s =
@@ -113,6 +113,7 @@ type varlist = (Var.t * int) list
 let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
   List.filter (fun (start, _, _) -> start = start_node) edges
 
+(* Change list representation to tree representation of AST *)
 let rec c_to_expr (nodes : node list) (edges : edge list) (curr_node : int) : Expr.t =
   let tag = List.nth nodes curr_node in
   if tag >= 30 then Expr.tag_to_node tag None None None else
@@ -126,6 +127,7 @@ let rec c_to_expr (nodes : node list) (edges : edge list) (curr_node : int) : Ex
   in
   Expr.tag_to_node tag (get_nth_child 1) (get_nth_child 2) (get_nth_child 3)
 
+(* Change tree representation to list representation of AST *)
 let expr_to_c (e : Expr.t) : (graph * int) = 
   let add_node (nodes : node list) (tag : Expr.tag) : (node list * int) =
     let new_nodes = nodes @ [tag] in (new_nodes, List.length nodes)
@@ -217,3 +219,23 @@ let rec nodelist_to_words (nodes : node list) : string list =
   match nodes with
     | [] -> []
     | hd :: tl -> (Expr.tag_to_word hd) :: nodelist_to_words tl
+
+let select_root : (Expr.t -> Expr.z_t) =
+  (* Convert an unzipped ast into a zipped one, by selecting the root*)
+  (function tree -> Expr.Cursor tree) 
+
+let rec unzip_ast  (tree : Expr.z_t) : Expr.t =
+  match tree with 
+  | Cursor arg -> arg 
+  | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
+  | EBinOp_L (l_child, binop,r_child) -> EBinOp (unzip_ast l_child, binop,r_child)
+  | EBinOp_R (l_child, binop,r_child) -> EBinOp (l_child, binop,unzip_ast r_child)
+  | ELet_L (var,l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
+  | ELet_R (var,l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
+  | EIf_L (l, c, r) -> EIf(unzip_ast l, c,r)
+  | EIf_C (l, c, r) -> EIf(l, unzip_ast c, r) 
+  | EIf_R (l, c, r) -> EIf(l, c, unzip_ast r) 
+  | EPair_L (l, r) ->  EPair (unzip_ast l, r) 
+  | EPair_R (l, r) ->  EPair (l, unzip_ast r)
+  | EFun_L (var, child) -> EFun(var, unzip_ast child) 
+  | EFix_L (var, child) -> EFix(var, unzip_ast child)
