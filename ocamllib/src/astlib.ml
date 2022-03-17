@@ -17,101 +17,104 @@ type testType = (int * int)
     Output:
       the modified AST
 *)
-let rec change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
-  match action with 
-    | Construct shape -> 
-      begin match tree with 
-        | EUnOp_L (op, r_child) -> EUnOp_L (op, act_on r_child) 
-        | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
-        | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
-        | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
-        | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
-        | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
-        | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
-        | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
-        | EFun_L (var, child) -> EFun_L (var, act_on child)
-        | EFix_L (var, child) -> EFix_L (var, act_on child)
-        | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
-        | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
-        | Cursor child -> Cursor shape 
-      end
-    | Move Child n -> 
-      begin match tree with 
-        | EUnOp_L (op,r_child) -> EUnOp_L (op,act_on r_child) 
-        | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
-        | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
-        | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
-        | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
-        | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
-        | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
-        | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
-        | EFun_L (var, child) -> EFun_L (var, act_on child)
-        | EFix_L (var, child) -> EFix_L (var, act_on child)
-        | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
-        | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
-        | Cursor subtree -> 
-          begin match n with 
-            | 0 -> (
-              match subtree with
-                | EUnOp  (op,arg) -> EUnOp_L (op, Cursor (arg))
-                | EBinOp (arg_l, op, arg_r) -> EBinOp_L (Cursor (arg_l), op, arg_r)
-                | ELet (varn, arg_l, arg_r) -> ELet_L (varn, Cursor(arg_l),arg_r)
-                | EIf (arg_l, arg_c,arg_r) -> EIf_L (Cursor (arg_l), arg_c,arg_r)
-                | EFun (varname, arg_l) -> EFun_L (varname, Cursor (arg_l))
-                | EFix (varname, arg_l) -> EFix_L (varname, Cursor (arg_l))
-                | EPair (arg_l, arg_r) -> EPair_L (Cursor (arg_l),  arg_r)
-                | _ -> tree  (*all invalid actions are noops*)
-              ) 
-            | 1 ->( 
-              match subtree with 
-              | EBinOp (arg_l, op, arg_r) -> EBinOp_R (arg_l, op, Cursor (arg_r))
-              | ELet (varn, arg_l, arg_r) -> ELet_R (varn, arg_l,Cursor(arg_r))
-              | EIf (arg_l, arg_c,arg_r) -> EIf_C (arg_l, Cursor(arg_c),arg_r)
-              | EPair (arg_l, arg_r) -> EPair_R (arg_l, Cursor (arg_r))
-              | _ -> tree  (*all invalid actions are noops*)
-              )
-            | 2 -> (
-              match subtree with 
-              | EIf (arg_l, arg_c,arg_r) -> EIf_R (arg_l, arg_c,Cursor(arg_r))
-              | _ -> tree  (*all invalid actions are noops*)
-              )
-            | _ -> tree
-          end
+let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
+  let rec act_on (tree : Expr.z_t) : Expr.z_t = 
+    match action with 
+      | Construct shape -> 
+        begin match tree with 
+          | EUnOp_L (op, r_child) -> EUnOp_L (op, act_on r_child) 
+          | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
+          | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
+          | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
+          | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
+          | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
+          | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
+          | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
+          | EFun_L (var, child) -> EFun_L (var, act_on child)
+          | EFix_L (var, child) -> EFix_L (var, act_on child)
+          | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
+          | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
+          | Cursor child -> Cursor shape 
         end
-    | Move Parent -> 
-      begin match tree with 
-        | EUnOp_L (op, Cursor arg ) -> Cursor (EUnOp (op, arg))
-        | EUnOp_L (op, arg) -> EUnOp_L (op, act_on arg) 
+      | Move Child n -> 
+        begin match tree with 
+          | EUnOp_L (op,r_child) -> EUnOp_L (op,act_on r_child) 
+          | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
+          | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
+          | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
+          | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
+          | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
+          | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
+          | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
+          | EFun_L (var, child) -> EFun_L (var, act_on child)
+          | EFix_L (var, child) -> EFix_L (var, act_on child)
+          | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
+          | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
+          | Cursor subtree -> 
+            begin match n with 
+              | 0 -> (
+                match subtree with
+                  | EUnOp  (op,arg) -> EUnOp_L (op, Cursor (arg))
+                  | EBinOp (arg_l, op, arg_r) -> EBinOp_L (Cursor (arg_l), op, arg_r)
+                  | ELet (varn, arg_l, arg_r) -> ELet_L (varn, Cursor(arg_l),arg_r)
+                  | EIf (arg_l, arg_c,arg_r) -> EIf_L (Cursor (arg_l), arg_c,arg_r)
+                  | EFun (varname, arg_l) -> EFun_L (varname, Cursor (arg_l))
+                  | EFix (varname, arg_l) -> EFix_L (varname, Cursor (arg_l))
+                  | EPair (arg_l, arg_r) -> EPair_L (Cursor (arg_l),  arg_r)
+                  | _ -> tree  (*all invalid actions are noops*)
+                ) 
+              | 1 ->( 
+                match subtree with 
+                | EBinOp (arg_l, op, arg_r) -> EBinOp_R (arg_l, op, Cursor (arg_r))
+                | ELet (varn, arg_l, arg_r) -> ELet_R (varn, arg_l,Cursor(arg_r))
+                | EIf (arg_l, arg_c,arg_r) -> EIf_C (arg_l, Cursor(arg_c),arg_r)
+                | EPair (arg_l, arg_r) -> EPair_R (arg_l, Cursor (arg_r))
+                | _ -> tree  (*all invalid actions are noops*)
+                )
+              | 2 -> (
+                match subtree with 
+                | EIf (arg_l, arg_c,arg_r) -> EIf_R (arg_l, arg_c,Cursor(arg_r))
+                | _ -> tree  (*all invalid actions are noops*)
+                )
+              | _ -> tree
+            end
+          end
+      | Move Parent -> 
+        begin match tree with 
+          | EUnOp_L (op, Cursor arg ) -> Cursor (EUnOp (op, arg))
+          | EUnOp_L (op, arg) -> EUnOp_L (op, act_on arg) 
 
-        | EBinOp_L (Cursor arg, op, r_child) -> Cursor (EBinOp (arg, op, r_child))
-        | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
-        | EBinOp_R (l_child, op, Cursor arg) -> Cursor (EBinOp (l_child, op, arg))
-        | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
+          | EBinOp_L (Cursor arg, op, r_child) -> Cursor (EBinOp (arg, op, r_child))
+          | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
+          | EBinOp_R (l_child, op, Cursor arg) -> Cursor (EBinOp (l_child, op, arg))
+          | EBinOp_R (l_child, op, r_child) -> EBinOp_R (l_child, op, act_on r_child)
 
-        (* new: *)
-        | EPair_L (Cursor (l_child), r_child) -> Cursor ( EPair (l_child, r_child))
-        | EPair_L (l_child, r_child)          -> EPair_L (act_on l_child, r_child )
-        | EPair_R (l_child, Cursor(r_child))  -> Cursor (EPair (l_child, r_child))
-        | EPair_R (l_child, r_child)          -> EPair_R (l_child, act_on r_child)
-        
-        | ELet_L (var,Cursor arg, r_child )  -> Cursor (ELet (var,arg, r_child))
-        | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
-        | ELet_R (var,l_child, Cursor arg )  -> Cursor (ELet (var,l_child, arg))
-        | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
+          (* new: *)
+          | EPair_L (Cursor (l_child), r_child) -> Cursor ( EPair (l_child, r_child))
+          | EPair_L (l_child, r_child)          -> EPair_L (act_on l_child, r_child )
+          | EPair_R (l_child, Cursor(r_child))  -> Cursor (EPair (l_child, r_child))
+          | EPair_R (l_child, r_child)          -> EPair_R (l_child, act_on r_child)
+          
+          | ELet_L (var,Cursor arg, r_child )  -> Cursor (ELet (var,arg, r_child))
+          | ELet_L (var,l_child, r_child )  -> ELet_L (var,act_on l_child, r_child)
+          | ELet_R (var,l_child, Cursor arg )  -> Cursor (ELet (var,l_child, arg))
+          | ELet_R (var,l_child, r_child )  -> ELet_R (var,l_child,act_on r_child)
 
-        | EIf_L (Cursor arg, c, r) -> Cursor (EIf (arg, c,r))
-        | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
-        | EIf_C (l, Cursor arg, r) -> Cursor (EIf (l, arg, r))
-        | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
-        | EIf_R (l, c, Cursor arg) -> Cursor (EIf (l, c, arg))
-        | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
+          | EIf_L (Cursor arg, c, r) -> Cursor (EIf (arg, c,r))
+          | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
+          | EIf_C (l, Cursor arg, r) -> Cursor (EIf (l, arg, r))
+          | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
+          | EIf_R (l, c, Cursor arg) -> Cursor (EIf (l, c, arg))
+          | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
 
-        | EFun_L (var, Cursor arg) ->  Cursor (EFun (var, arg))
-        | EFun_L (var, child) -> EFun_L (var, act_on child)
-        | EFix_L (var, Cursor arg) -> Cursor (EFun (var, arg))
-        | EFix_L (var, child) -> EFix_L (var, act_on child)
-        | _ -> tree
-      end
+          | EFun_L (var, Cursor arg) ->  Cursor (EFun (var, arg))
+          | EFun_L (var, child) -> EFun_L (var, act_on child)
+          | EFix_L (var, Cursor arg) -> Cursor (EFun (var, arg))
+          | EFix_L (var, child) -> EFix_L (var, act_on child)
+          | _ -> tree
+        end
+  in
+  act_on tree
 
 (* 
   Given a unit test set and AST, check if AST passes tests
@@ -147,7 +150,7 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
 TODO: Comments on how this function works
 TODO: Seems to have some bugs
 *)
-let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
+(* let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
   let rec make_var_arr (i:int)  = 
     (* create an array of 10 falses *)
     if i <10 then false :: (make_var_arr (i+1) ) else [];
@@ -200,7 +203,7 @@ let possible_actions (expr: Expr.z_t ) : Action.avail_actions =(
       }
   in 
   recurse expr acts_init 
-) 
+)  *)
 
 (* Given an assignment number, load the unit test
   Input: 
