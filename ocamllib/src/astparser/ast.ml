@@ -193,6 +193,28 @@ module Value = struct
 end
 
 module Action = struct
+  begin type shape = 
+    | Var of Var.t
+    | Hole 
+    | Nil
+    | Int of int 
+    | Bool of bool 
+    | UnOp of Expr.unop 
+    | BinOp_L of Expr.binop 
+    | BinOp_R of Expr.binop 
+    | Let_L of Var.t 
+    | Let_R of Var.t
+    | If_L  of 
+    | If_C 
+    | If_R 
+    | Fun   of Var.t
+    | Fix   of Var.t
+    | Pair_L 
+    | Pair_R
+
+
+
+  end
   type dir = 
     | Parent
     | Child of int
@@ -206,7 +228,7 @@ module Action = struct
     (*| Del                     (* Action Number: 0 *)
     (* | Finish                  Action Number: 1 *)*)
     | Move of dir             (* Action Number: 2-5 *)
-    | Construct of (Expr.t *int)      (* Action Number: 6- (36 ish) *)
+    | Construct of shape      (* Action Number: 6- (36 ish) *)
 
   type tag = int
 
