@@ -20,7 +20,7 @@ type testType = (int * int)
 let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   let rec act_on (tree : Expr.z_t) : Expr.z_t = 
     match action with 
-      | Construct shape -> 
+      | Construct (shape, child) -> 
         begin match tree with 
           | EUnOp_L (op, r_child) -> EUnOp_L (op, act_on r_child) 
           | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
@@ -34,7 +34,27 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EFix_L (var, child) -> EFix_L (var, act_on child)
           | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
           | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
-          | Cursor child -> Cursor shape 
+          | Cursor child -> Cursor(
+            match (shape,child) with 
+            | (EVar _ ,0)
+            | (EHole,  0) 
+            | (ENil,   0)             
+            | (E_int _,0)      
+            | (EBool _,0)      -> shape
+            | (EUnOp ( op,l), 0) -> EUnOp(op, child)
+            | (EBinOp (_, op,r), 0) -> EUnOp(child, op, r)
+            | (EBinOp (l, op,_), 1) -> EUnOp(l, op, child)
+            | (ELet (varn, _, r), 0) ->  ELet(varn,child,r)
+            | (ELet (varn, l, _), 1) ->  ELet(varn,l,child)
+            | (EIF (_, c, r), 0)     ->  EIF(child,c,r)
+            | (EIF (l, _, r), 1)     ->  EIF(l,child,r)
+            | (EIF (l, c, _), 2)     ->  EIF(l,c,child)
+            | (EFun (varn, l),0)     -> EFun(varn,child)
+            | (EFix (varn, l),0)     -> EFix(varn,child)
+            | (EPair (_,r),0)        -> EPair(child,r)
+            | (EPair (l,_),1)        -> EPair(l,child)
+            | _ -> child (* Do nothing if child is out of range etc... *) 
+            )
         end
       | Move Child n -> 
         begin match tree with 

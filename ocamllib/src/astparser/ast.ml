@@ -206,7 +206,7 @@ module Action = struct
     (*| Del                     (* Action Number: 0 *)
     (* | Finish                  Action Number: 1 *)*)
     | Move of dir             (* Action Number: 2-5 *)
-    | Construct of Expr.t      (* Action Number: 6- (36 ish) *)
+    | Construct of (Expr.t *int)      (* Action Number: 6- (36 ish) *)
 
   type tag = int
 
