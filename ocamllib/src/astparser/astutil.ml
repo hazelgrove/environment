@@ -240,5 +240,5 @@ let rec unzip_ast  (tree : Expr.z_t) : Expr.t =
   | EFun_L (var, child) -> EFun(var, unzip_ast child) 
   | EFix_L (var, child) -> EFix(var, unzip_ast child)
 
-let serialize (zast : Expr.z_t) : string = 
-  Core.Sexp.to_string (Expr.sexp_of_z_t zast)
+(* let serialize (zast : Expr.z_t) : string = 
+  Core.Sexp.to_string (Expr.sexp_of_z_t zast) *)

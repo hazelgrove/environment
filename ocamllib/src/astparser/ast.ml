@@ -1,4 +1,4 @@
-open Sexplib.Std
+(* open Sexplib.Std *)
 
 (* Basic types *)
 module Typ = struct
@@ -18,7 +18,7 @@ end
 
 (* Variables *)
 module Var = struct
-  type t = (string) [@@deriving sexp]
+  type t = string
   (* need to add in some sort of hole idk how this works *)
   (* Check if two variable identifiers are equal *)
   let equal = String.equal
@@ -26,8 +26,8 @@ end
 
 (* AST Definition *)
 module Expr = struct
-  type unop = OpNeg [@@deriving sexp]
-  type binop = OpPlus | OpMinus | OpTimes | OpDiv | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe | OpCon | OpAp [@@deriving sexp]
+  type unop = OpNeg
+  type binop = OpPlus | OpMinus | OpTimes | OpDiv | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe | OpCon | OpAp
 
   type t =
     | EVar of Var.t                         (* Node Descriptor Number : 35 - 37 *)
@@ -42,7 +42,7 @@ module Expr = struct
     | EPair of t * t
     | EHole                                 (* Node Descriptor Number : 19 *)
     | ENil
-  [@@deriving sexp]
+  (* [@@deriving sexp] *)
 
   type z_t = 
     | Cursor of t
@@ -58,7 +58,7 @@ module Expr = struct
     | EFix_L   of Var.t * z_t 
     | EPair_L of z_t * t
     | EPair_R of t * z_t
-    [@@deriving sexp]
+    (* [@@deriving sexp] *)
 
   type tag = int
 
