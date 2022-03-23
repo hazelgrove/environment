@@ -15,6 +15,9 @@ RUN opam install dune --yes
 RUN opam install menhir --yes
 RUN opam install ounit2 --yes
 RUN opam install ocamlformat.0.20.1 --yes
+RUN opam install ppx_sexp_conv --yes
+RUN opam install sexplib --yes
+RUN opam install core --yes
 
 # Copy all files
 COPY . .
