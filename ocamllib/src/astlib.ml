@@ -20,7 +20,7 @@ type testType = (int * int)
 let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   let rec act_on (tree : Expr.z_t) : Expr.z_t = 
     match action with 
-      | Construct (shape, childno) -> 
+      | Construct shape -> 
         begin match tree with 
           | EUnOp_L (op, r_child) -> EUnOp_L (op, act_on r_child) 
           | EBinOp_L (l_child, op, r_child) -> EBinOp_L (act_on l_child, op, r_child)
@@ -35,25 +35,24 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
           | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
           | Cursor subtree -> Cursor(
-             match (shape,childno) with    MAKE CUSTOM TYPE 
+             match shape with 
             | Var varname -> EVar varname
             | Hole  -> EHole
             | Nil   -> ENil
-            | Int  value -> Eint value      
+            | Int  value -> EInt value      
             | Bool value  -> EBool value
-            | UnOp op -> EUnOp(op, child)
-            | BinOp_L -> EUnOp(child, op, EHole )
-            | BinOp_R -> EUnOp(EHole, op, child)
-            | Let_L   ->  ELet(varn,child,EHole)
-            | Let_R   ->  ELet(varn,EHole,child)
-            | IF_L     ->  EIF(child,EHole,EHole)
-            | IF_C     ->  EIF(EHole,child,EHole)
-            | IF_R     ->  EIF(EHole,EHole,child)
-            | Fun varname  -> EFun(varname,child)
-            | Fix varname  -> EFix(varname,child)
-            | Pair_L       -> EPair(child,EHole)
-            | Pair_R       -> EPair(EHole,child)
-            | _ -> child (* Do nothing if child is out of range etc... *) 
+            | UnOp op -> EUnOp(op, subtree)
+            | BinOp_L op -> EBinOp(subtree, op, EHole )
+            | BinOp_R op -> EBinOp(EHole, op, subtree)
+            | Let_L varname  ->  ELet(varname,subtree,EHole)
+            | Let_R varname ->  ELet(varname,EHole,subtree)
+            | If_L     ->  EIf(subtree,EHole,EHole)
+            | If_C     ->  EIf(EHole,subtree,EHole)
+            | If_R     ->  EIf(EHole,EHole,subtree)
+            | Fun varname  -> EFun(varname,subtree)
+            | Fix varname  -> EFix(varname,subtree)
+            | Pair_L       -> EPair(subtree,EHole)
+            | Pair_R       -> EPair(EHole,subtree)
             ) 
         end
       | Move Child n -> 
@@ -170,26 +169,25 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
 TODO: Comments on how this function works
 TODO: Seems to have some bugs
 *)
-(* let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
+let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
   let rec make_var_arr (i:int)  = 
     (* create an array of 10 falses *)
     if i <10 then false :: (make_var_arr (i+1) ) else [];
   in  
 
-  let update_var_arr (varname:string) (varlist: bool list)  =(
+  let update_var_arr (varname:string) (varlist: bool list) : bool list  =(
     (* if a variable is in scope, mark its value to true *)
-    let rec update_arr (i:int) (l: bool list) = 
+    let rec update_arr (i:int) (l: bool list): bool list = 
       match l with 
-      | a ::tl -> (if ("v" ^ (string_of_int i) = varname) || a )
-                  :: update_arr i+1 tl 
+      | a ::tl -> ( ("v" ^ (string_of_int i) = varname) || a ) :: (update_arr (i+1) tl) 
       | []  -> []
     in update_arr 0 varlist
-  )
+  ) in 
 
-  let acts_init: Action.avail_actions  =
-    { move_parent = match expr with | Cursor _ -> false | _-> true; 
+  let acts_init : Action.avail_actions  = 
+    { move_parent = (match expr with | Cursor _ -> false | _-> true) ; 
       max_child = 0; 
-      in_scope = make_var_arr 0)
+      in_scope = make_var_arr 0 }
   in 
   (* now finally we recurse *)
   let rec recurse (expr:Expr.z_t) (state :Action.avail_actions):Action.avail_actions = 
@@ -206,24 +204,24 @@ TODO: Seems to have some bugs
     | EPair_R (_, child) -> recurse child state
     (*functions: update  *)
     | EFun_L (varname, child)
-      | ELet_R (varname, child) -> 
+    | ELet_R (varname, _,child) -> 
       recurse child {move_parent=state.move_parent;
                      max_child=state.max_child; 
                      in_scope = update_var_arr varname state.in_scope}
     (*Now finally we do our cursor logic *)
     |Cursor subtree -> 
       {move_parent=state.move_parent;
-       max_child =  match subtree with 
-        |EVar | EInt | EBool | EHole | ENil -> 0 
-        |EUnOp | Efun | Efix  -> 1 
-        |EBinOp |ELet |Epair -> 2 
-        |Eif -> 3 
+       max_child =  (match subtree with 
+        |EVar _ | EInt _ | EBool _ | EHole | ENil -> 0  
+        |EUnOp _| EFun _ | EFix _  -> 1 
+        |EBinOp _ |ELet _ |EPair _  -> 2 
+        |EIf _  -> 3 )
         ; 
         in_scope = state.in_scope
       }
   in 
   recurse expr acts_init 
-)  *)
+)  
 
 (* Given an assignment number, load the unit test
   Input: 

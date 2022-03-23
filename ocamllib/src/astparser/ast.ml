@@ -193,7 +193,7 @@ module Value = struct
 end
 
 module Action = struct
-  begin type shape = 
+  type shape = 
     | Var of Var.t
     | Hole 
     | Nil
@@ -204,17 +204,16 @@ module Action = struct
     | BinOp_R of Expr.binop 
     | Let_L of Var.t 
     | Let_R of Var.t
-    | If_L  of 
+    | If_L  
     | If_C 
     | If_R 
     | Fun   of Var.t
     | Fix   of Var.t
     | Pair_L 
     | Pair_R
+  
 
-
-
-  end
+  
   type dir = 
     | Parent
     | Child of int
