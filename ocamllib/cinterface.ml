@@ -100,7 +100,7 @@ let change_ast_c (root : int) (action : int) : int =
   let edges = edge_to_list (get_edges ()) in
   let e = c_to_expr nodes edges root in
   let action = Action.tag_to_action action in
-  let ((nodes, edges), root) = expr_to_c (change_ast e action) in (* TODO : implement a function with type int -> Action.t *)
+  let ((nodes, edges), root) = expr_to_c (unzip_ast (change_ast (select_root e) action)) in (* TODO : implement a function with type int -> Action.t *)
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
   root

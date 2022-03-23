@@ -114,10 +114,10 @@ let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
   List.filter (fun (start, _, _) -> start = start_node) edges
 
 (* Change list representation to tree representation of AST *)
-let rec c_to_expr (nodes : node list) (edges : edge list) (curr_node : int) : Expr.t =
-  let tag = List.nth nodes curr_node in
+let rec c_to_expr (nodes : node list) (edges : edge list) (root : int) : Expr.t =
+  let tag = List.nth nodes root in
   if tag >= 30 then Expr.tag_to_node tag None None None else
-  let adj_nodes = get_adj_nodes edges curr_node in
+  let adj_nodes = get_adj_nodes edges root in
   let get_nth_child n = 
     let nth_child = List.filter (fun (_, _, child_num) -> child_num = n) adj_nodes in
     match nth_child with
@@ -239,3 +239,6 @@ let rec unzip_ast  (tree : Expr.z_t) : Expr.t =
   | EPair_R (l, r) ->  EPair (l, unzip_ast r)
   | EFun_L (var, child) -> EFun(var, unzip_ast child) 
   | EFix_L (var, child) -> EFix(var, unzip_ast child)
+
+(* let serialize (zast : Expr.z_t) : string = 
+  Core.Sexp.to_string (Expr.sexp_of_z_t zast) *)

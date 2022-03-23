@@ -7,5 +7,5 @@
 (executable
  (name cinterface)
  (libraries astutils astlib)
- (modes (native object))
+ (modes (native shared_object))
 )
