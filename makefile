@@ -4,7 +4,9 @@ OCAMLLIB := ocamllib
 OCAML_DIR = $(shell ocamlc -where)
 
 astclib: $(CLIB)/astlib.c
-	gcc -shared -Wall -Werror -fPIC -o $(CLIB)/astclib.so -I $(OCAML_DIR) $(CLIB)/astlib.c $(CLIB)/ocamlInterface.c $(OCAMLLIB)/_build/default/cinterface.so -lcurses
+	gcc -shared -Wall -Werror -fPIC -o $(CLIB)/astclib.so \
+	$(CLIB)/astlib.c $(CLIB)/ocamlInterface.c $(OCAMLLIB)/_build/default/cinterface.so -lcurses \
+	-Wl,-rpath,$(OCAMLLIB)/_build/default/
 
 astparser:
 	ocamlbuild -use-menhir main.byte -I ocamllib/astparser

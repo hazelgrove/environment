@@ -40,7 +40,7 @@ class ASTEnv(gym.Env):
             'assignment': gym.spaces.Discrete(num_assignments)
         })
         
-        self.astclib = ctypes.CDLL('clib/astclib.so') # Used to call C functions
+        self.astclib = ctypes.CDLL('./clib/astclib.so') # Used to call C functions
         self.state = None
         
         self.states = []
