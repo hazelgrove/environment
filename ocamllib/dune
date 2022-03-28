@@ -1,0 +1,11 @@
+(env
+  (dev
+    (flags (:standard -w -27))
+  )
+)
+
+(executable
+ (name cinterface)
+ (libraries astutils astlib)
+ (modes (native shared_object))
+)

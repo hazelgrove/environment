@@ -1,0 +1,12 @@
+(menhir
+ (modules parser)
+)
+
+(ocamllex lexer)
+
+(library
+ (name astutils)
+ (wrapped false)
+ (libraries core sexplib)
+ (preprocess (pps ppx_sexp_conv))
+)
