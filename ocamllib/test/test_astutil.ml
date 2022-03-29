@@ -6,7 +6,7 @@ open Ast
 
 
 (* Test eval *)
-let test_int = fun _ -> assert_equal (Value.VInt 1) (eval (Expr.EInt 1))
+let test_int = fun _ -> assert_equal (Value.VInt 1) (eval (Expr.EInt 1) 100)
 
 (* Run *)
 let tests = 

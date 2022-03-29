@@ -62,6 +62,16 @@ module Expr = struct
 
   type tag = int
 
+  let rec size (e : t) : int = 
+    match e with
+      | EVar _ | EInt _ | EBool _ | EHole | ENil -> 1
+      | EUnOp (_, e) -> 1 + size e
+      | EBinOp (e1, _, e2) -> 1 + size e1 + size e2
+      | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
+      | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
+      | EFix (_, ebody) | EFun (_, ebody) -> 1 + 1 + size ebody
+      | EPair (e1, e2) -> 1 + size e1 + size e2
+
   let node_to_tag (node : t) : tag = 
     match node with
       | EUnOp (OpNeg, _) -> 0
@@ -186,6 +196,7 @@ module Value = struct
     | VFun of Var.t * Expr.t
     | VPair of t * t
     | VNil
+    | VError
   
   let rec to_expr (v : t) =
     match v with
@@ -194,6 +205,7 @@ module Value = struct
       | VFun (x, e) -> Expr.EFun (x, e)
       | VPair (e1, e2) -> Expr.EPair (to_expr e1, to_expr e2)
       | VNil -> ENil
+      | _ -> raise (Failure "Cannot be changed to expr")
 end
 
 module Action = struct

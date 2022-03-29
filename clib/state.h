@@ -4,6 +4,7 @@
 #define MAX_NUM_NODES 10
 #define MAX_NUM_TESTS 10
 #define NUM_ACTIONS 5
+#define MAX_TREE_LENGTH 10000
 
 /*
 Struct defining the AST structure
@@ -39,10 +40,12 @@ typedef struct{
     */
     int permitted_actions[NUM_ACTIONS];
 
+    char zast[MAX_TREE_LENGTH];
+
     /*
     The index of the root of the tree.
     */
-    int root;
+    int cursor;
 
     /*
     The number of nodes

@@ -1,9 +1,11 @@
 #include <stdio.h>
+#include <string.h>
 
 #define CAML_NAME_SPACE
 #include "caml/mlvalues.h"
 #include "caml/callback.h"
 #include "caml/bigarray.h"
+#include "caml/alloc.h"
 
 #include "state.h"
 
@@ -11,29 +13,56 @@ extern State curr_state;
 
 
 int run_unit_tests(){
-    static const value * run_unit_test_closure = NULL;
-    if (run_unit_test_closure == NULL) run_unit_test_closure = caml_named_value("run_unit_tests");
-    return Bool_val(caml_callback(*run_unit_test_closure, Val_int(curr_state.root)));
+    static const value *run_unit_test_closure = NULL;
+    if (run_unit_test_closure == NULL) {
+        run_unit_test_closure = caml_named_value("run_unit_tests");
+        if (run_unit_test_closure == NULL)
+            exit(1);
+    }
+    return Bool_val(caml_callback(*run_unit_test_closure, Val_int(0)));
 }
 
-void change_ast(int action){
-    static const value * change_node_closure = NULL;
-    if (change_node_closure == NULL) change_node_closure = caml_named_value("change_ast");
-    int root = Int_val(caml_callback2(*change_node_closure, Val_int(curr_state.root), Val_int(action)));
-    curr_state.root = root;
+void change_zast(int action){
+    static const value *change_zast_closure = NULL;
+    if (change_zast_closure == NULL) {
+        change_zast_closure = caml_named_value("change_zast");
+        if (change_zast_closure == NULL)
+            exit(1);
+    }
+    value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
+    strcpy(curr_state.zast, strdup(String_val(caml_callback2(*change_zast_closure, ser_zast, Val_int(action)))));
+}
+
+void get_ast(){
+    static const value *get_ast_closure = NULL;
+    if (get_ast_closure == NULL) {
+        get_ast_closure = caml_named_value("get_ast");
+        if (get_ast_closure == NULL)
+            exit(1);
+    }
+    value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
+    int cursor = Int_val(caml_callback(*get_ast_closure, ser_zast));
+    curr_state.cursor = cursor;
 }
 
 void load_tests(int assignment){
-    static const value * load_tests_closure = NULL;
-    if (load_tests_closure == NULL) load_tests_closure = caml_named_value("load_tests");
+    static const value *load_tests_closure = NULL;
+    if (load_tests_closure == NULL) {
+        load_tests_closure = caml_named_value("load_tests");
+        if (load_tests_closure == NULL)
+            exit(1);
+    }
     caml_callback(*load_tests_closure, Val_int(assignment));
 }
 
 void load_starter_code(int assignment, int index){
-    static const value * load_starter_code_closure = NULL;
-    if (load_starter_code_closure == NULL) load_starter_code_closure = caml_named_value("load_starter_code");
-    int root = Int_val(caml_callback2(*load_starter_code_closure, Val_int(assignment), Val_int(index)));
-    curr_state.root = root;
+    static const value *load_starter_code_closure = NULL;
+    if (load_starter_code_closure == NULL) {
+        load_starter_code_closure = caml_named_value("load_starter_code");
+        if (load_starter_code_closure == NULL)
+            exit(1);
+    }
+    strcpy(curr_state.zast, strdup(String_val(caml_callback2(*load_starter_code_closure, Val_int(assignment), Val_int(index)))));
 }
 
 
@@ -99,7 +128,7 @@ CAMLprim value get_unit_tests(value bigarray){
 void print_code(){
     static const value * print_code_closure = NULL;
     if (print_code_closure == NULL) print_code_closure = caml_named_value("print_code");
-    String_val(caml_callback(*print_code_closure, Val_int(curr_state.root)));
+    caml_callback(*print_code_closure, Val_int(0));
 }
 
 

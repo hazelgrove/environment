@@ -94,17 +94,20 @@ let list_to_tests (l : (int * int) list) : (int32, int32_elt, c_layout) Array2.t
   let _ = list_to_edge_aux l tests 0 in
   tests
 
-(* change_ast function that will be called by C *)
-let change_ast_c (root : int) (action : int) : int =
-  let nodes = array1_to_list (get_nodes ()) in
-  let edges = edge_to_list (get_edges ()) in
-  let e = c_to_expr nodes edges root in
+(* Called by C. Changes zast according to the action *)
+let change_zast_c (ser_zast : string) (action : int) : string =
+  let zast = deserialize ser_zast in 
   let action = Action.tag_to_action action in
-  let ((nodes, edges), root) = expr_to_c (unzip_ast (change_ast (select_root e) action)) in (* TODO : implement a function with type int -> Action.t *)
+  let zast = change_ast zast action in
+  serialize zast
+  
+(* Return the nodes, edges, and cursor position indicated by the serialized zast *)
+let get_ast_c (ser_zast : string) : int = 
+  let zast = deserialize ser_zast in 
+  let ((nodes, edges), cursor, _) = expr_to_c zast in 
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
-  root
-
+  cursor
 
 (* run_unittests function that will be called by C *)
 let run_unit_tests_c (root : int) : bool =
@@ -120,12 +123,10 @@ let load_tests_c (assignment : int) : unit =
   pass_unit_tests (list_to_tests unit_tests)
 
 (* load_assignment function that will be called by C *)
-let load_starter_code_c (assignment : int) (index : int) : int =
+let load_starter_code_c (assignment : int) (index : int) : string =
   let e = load_starter_code "data" assignment index in
-  let ((nodes, edges), root) = expr_to_c e in
-  let _ = pass_nodes (list_to_array1 nodes) in
-  let _ = pass_edges (list_to_edge edges) in
-  root
+  let zast = select_root e in
+  serialize zast
 
 (* For debugging use *)
 let print_code_c (root : int) : unit =
@@ -137,7 +138,8 @@ let print_code_c (root : int) : unit =
   ()
 
 let _ = Callback.register "run_unit_tests" run_unit_tests_c
-let _ = Callback.register "change_ast" change_ast_c
+let _ = Callback.register "change_zast" change_zast_c
+let _ = Callback.register "get_ast" get_ast_c
 let _ = Callback.register "load_tests" load_tests_c
 let _ = Callback.register "load_starter_code" load_starter_code_c
 let _ = Callback.register "print_code" print_code_c

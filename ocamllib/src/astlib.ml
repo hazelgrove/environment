@@ -152,9 +152,13 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
         begin match f with
           | EFun (_, _) | EFix (_, _) -> 
             let (test_input, test_output) = test in
-            let output = eval (Expr.ELet (id, f, EBinOp(EVar id, Expr.OpAp, EInt test_input))) in
+            let output = 
+              try eval (Expr.ELet (id, f, EBinOp(EVar id, Expr.OpAp, EInt test_input))) 100 with
+                | _ -> VError
+            in
             begin match output with
               | VInt n -> n = test_output
+              | VError -> false
               | _ -> false
             end
           | _ -> false
@@ -169,7 +173,7 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
 TODO: Comments on how this function works
 TODO: Seems to have some bugs
 *)
-let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
+let possible_actions (expr: Expr.z_t) : Action.avail_actions =( 
   let rec make_var_arr (i:int)  = 
     (* create an array of 10 falses *)
     if i <10 then false :: (make_var_arr (i+1) ) else [];

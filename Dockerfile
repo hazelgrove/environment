@@ -23,4 +23,4 @@ RUN opam install core --yes
 COPY . .
 
 
-CMD ["bash", "dockerrun.sh"]
+ENTRYPOINT [ "/RL_env/entrypoint.sh" ]
