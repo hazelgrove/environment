@@ -6,5 +6,5 @@ let _ =
   print_endline "";
 
   print_string "Testing astutil.ml...";
-  run_test_tt_main Test_astutil.tests;
+  run_test_tt_main Test_astutil.unit_tests;
   print_endline "";
