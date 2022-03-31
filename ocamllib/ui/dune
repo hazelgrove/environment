@@ -1,4 +1,3 @@
 (executable
  (name cmd)
- (libraries astutils astlib)
-)
+ (libraries astutils astlib))

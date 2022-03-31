@@ -17,11 +17,14 @@ astclib: $(CLIB)/astlib.c
 	-L./$(OCAMLLIB)/_build/default -lcinterface \
 	-Wl,-rpath,./$(OCAMLLIB)/_build/default
 
+watch: 
+	cd $(OCAMLLIB) && dune build @fmt --auto-promote --watch && cd ../
+
 astparser:
 	ocamlbuild -use-menhir main.byte -I ocamllib/astparser
 
 ocamlinterface:
-	cd $(OCAMLLIB) && dune build && cd ../
+	cd $(OCAMLLIB) && dune build @fmt --auto-promote && cd ../
 
 astenv:
 	make ocamlinterface
