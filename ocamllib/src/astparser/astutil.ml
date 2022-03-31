@@ -4,6 +4,35 @@ exception SyntaxError of string
 exception RuntimeError of string
 exception NotImplemented
 
+(*
+    Parse a string into an ast
+    Input :
+      - s : a string resembling the code
+    Output : 
+      - an ast corresponding to s
+*)
+let parse (s : string) : Expr.t =
+  let lexbuf = Lexing.from_string s in
+  let ast = Parser.main Lexer.read lexbuf in
+  ast
+
+(*
+  Parse a file (assuming it is a well-typed .ml file) into an ast
+  Input :
+    - filename : directory of the .ml file
+  Output :
+    - an ast corresponding to the .ml file at the directory filename
+*)
+let parse_file filename =
+  let read_whole_file filename =
+    let ch = open_in filename in
+    let s = really_input_string ch (in_channel_length ch) in
+    close_in ch;
+    s
+  in
+  let s = read_whole_file filename in
+  parse s
+
 let rec unzip_ast (tree : Expr.z_t) : Expr.t =
   match tree with
   | Cursor arg -> arg
@@ -22,9 +51,19 @@ let rec unzip_ast (tree : Expr.z_t) : Expr.t =
   | EFun_L (var, child) -> EFun (var, unzip_ast child)
   | EFix_L (var, child) -> EFix (var, unzip_ast child)
 
-(* Substitute the variable x in e2 with e1 (i.e. [e1/x]e2) *)
+(*
+  Substitute the variable x in e2 with e1 (i.e. [e1/x]e2)
+  Inputs :
+    - e1 : expression to be substituted for x
+    - x : variable to substitue
+    - e2 : expression where x needs to be substituted
+  Output :
+    - e2 with the variable x substituted with e1
+*)
 let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
+  (* Shorthand for the function substituting the variable x with e1 *)
   let subx = subst e1 x in
+  (* Substitute if condition is not met *)
   let subx_unless cond = if cond then Fun.id else subx in
   match e2 with
   | EBool _ | EInt _ | ENil | EHole -> e2
@@ -38,20 +77,37 @@ let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
   | EFix (y, e_body) -> EFix (y, subx_unless (Var.equal x y) e_body)
   | EPair (e_l, e_r) -> EPair (subx e_l, subx e_r)
 
-(* Evalutate the expression e *)
+(*
+  Evalutate the expression e
+  Inputs :
+    - e : expression to be evaluated
+    - stack : number of stack frames to be allocated towards the evaluation
+  Outputs :
+    - the value of the expression e
+  Raises :
+    - SyntaxError :
+      - "Variable not bound" : iff there is a free variable
+      - "Hole in expression" : iff there is an empty hole in the expression
+    - RuntimeError :
+      - "Stack overflow" : iff the number of stack frames used exceeds stack
+      - "Expected [type]" : iff there is a type error
+    - NotImplemented :
+      - iff OpCons is used
+*)
 let rec eval (e : Expr.t) (stack : int) : Value.t =
-  let expecting_num (v : Value.t) : int =
-    match v with VInt n -> n | _ -> raise (RuntimeError "Cannot be evaluated")
+  (* Checks if v is an int, and return the value of the int *)
+  let expecting_int (v : Value.t) : int =
+    match v with VInt n -> n | _ -> raise (RuntimeError "Expected int")
   in
+  (* Checks if v is a bool, and return the value of the bool *)
   let expecting_bool (v : Value.t) : bool =
-    match v with
-    | VBool b -> b
-    | _ -> raise (RuntimeError "Cannot be evaluated")
+    match v with VBool b -> b | _ -> raise (RuntimeError "Expected bool")
   in
+  (* Checks if v is a function, and returns its argument name and body *)
   let expecting_fun (v : Value.t) : Var.t * Expr.t =
     match v with
     | VFun (x, body) -> (x, body)
-    | _ -> raise (RuntimeError "Cannot be evaluated")
+    | _ -> raise (RuntimeError "Expected function")
   in
   if stack = 0
   then raise (RuntimeError "Stack overflow")
@@ -63,7 +119,7 @@ let rec eval (e : Expr.t) (stack : int) : Value.t =
     | ENil -> VNil
     | EUnOp (op, e) -> (
         let v = eval e stack in
-        match op with OpNeg -> VInt (-1 * expecting_num v))
+        match op with OpNeg -> VInt (-1 * expecting_int v))
     | EBinOp (e1, op, e2) -> (
         let v1 = eval e1 stack in
         let v2 = eval e2 stack in
@@ -79,7 +135,7 @@ let rec eval (e : Expr.t) (stack : int) : Value.t =
               | OpTimes -> ( * )
               | _ -> ( / )
             in
-            VInt (f (expecting_num v1) (expecting_num v2))
+            VInt (f (expecting_int v1) (expecting_int v2))
         | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
             let f =
               match op with
@@ -90,7 +146,7 @@ let rec eval (e : Expr.t) (stack : int) : Value.t =
               | OpNe -> ( != )
               | _ -> ( = )
             in
-            VBool (f (expecting_num v1) (expecting_num v2))
+            VBool (f (expecting_int v1) (expecting_int v2))
         | OpCon -> raise NotImplemented)
     | EIf (e_cond, e_then, e_else) ->
         let b = expecting_bool (eval e_cond stack) in
@@ -102,36 +158,28 @@ let rec eval (e : Expr.t) (stack : int) : Value.t =
     | EFix (x, e_body) ->
         let unrolled = subst (EFix (x, e_body)) x e_body in
         eval unrolled stack
-    | _ -> raise (SyntaxError "Invalid syntax")
+    | EVar _ -> raise (SyntaxError "Variable not bound")
+    | EHole -> raise (SyntaxError "Hole in expression")
 
-(* Parse a string into an ast *)
-let parse s =
-  let lexbuf = Lexing.from_string s in
-  let ast = Parser.main Lexer.read lexbuf in
-  ast
+let%test_module "Test eval" =
+  (module struct
+    let%test _ = eval (parse "1") 100 = Value.VInt 1
+  end)
 
-(* Parse a file (assuming it is a well-typed .ml file) into an ast *)
-let parse_file filename =
-  let read_whole_file filename =
-    let ch = open_in filename in
-    let s = really_input_string ch (in_channel_length ch) in
-    close_in ch;
-    s
-  in
-  let s = read_whole_file filename in
-  parse s
-
+(* Each edge is represented as (index of start node, index of end node, edge type) *)
 type edge = int * int * int
 type node = int
 type graph = node list * edge list
-type varlist = (Var.t * int) list
 
-let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
-  List.filter (fun (start, _, _) -> start = start_node) edges
+(* A list of variables and the node index of their declaration in the code *)
+type varlist = (Var.t * int) list
 
 (* Change list representation to tree representation of AST *)
 let rec c_to_expr (nodes : node list) (edges : edge list) (root : int) : Expr.t
     =
+  let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
+    List.filter (fun (start, _, _) -> start = start_node) edges
+  in
   let tag = List.nth nodes root in
   if tag >= 30
   then Expr.tag_to_node tag None None None

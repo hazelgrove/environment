@@ -31,7 +31,7 @@ astenv:
 	make astclib
 
 ocamltest:
-	cd $(OCAMLLIB) && dune runtest && cd ../
+	dune runtest
 
 clean:
 	cd $(OCAMLLIB) && dune clean && cd ../
