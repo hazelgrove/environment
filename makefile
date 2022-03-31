@@ -3,6 +3,14 @@ OCAMLLIB := ocamllib
 
 OCAML_DIR = $(shell ocamlc -where)
 
+deps: 
+	pip install -r requirements.txt
+	opam switch import opam.export --yes
+
+change-deps:
+	pip list --format=freeze > requirements.txt
+	opam switch export opam.export
+
 astclib: $(CLIB)/astlib.c
 	gcc -shared -Wall -Werror -fPIC -o $(CLIB)/astclib.so \
 	$(CLIB)/astlib.c $(CLIB)/ocamlInterface.c $(OCAMLLIB)/_build/default/libcinterface.so -lcurses \

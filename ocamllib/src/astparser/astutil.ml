@@ -1,6 +1,7 @@
 open Ast
 
 exception SyntaxError of string
+exception RuntimeError of string
 exception NotImplemented
 
 let rec unzip_ast  (tree : Expr.z_t) : Expr.t =
@@ -35,39 +36,66 @@ let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
     | EPair (e_l, e_r) -> EPair (subx e_l, subx e_r)
 
 
-let expecting_num (v : Value.t): int =
-  match v with
-  | VInt n -> n
-  | _ -> raise (Failure "Cannot be evaluated")
-
-let expecting_bool (v : Value.t): bool =
-  match v with
-  | VBool b -> b
-  | _ -> raise (Failure "Cannot be evaluated")
-
-let expecting_fun (v : Value.t): (Var.t * Expr.t) =
-  match v with
-  | VFun (x, body) -> (x, body)
-  | _ -> raise (Failure "Cannot be evaluated")  
-
 (* Evalutate the expression e *)
 let rec eval (e : Expr.t) (stack : int) : Value.t =
-  let eval_unop (op: Expr.unop) (v: Value.t): Value.t =
-    match op with
-    | OpNeg ->
-        let n = expecting_num v in
-        VInt (-1 * n)
+  let expecting_num (v : Value.t): int =
+    match v with
+    | VInt n -> n
+    | _ -> raise (RuntimeError "Cannot be evaluated")
+  in
+  let expecting_bool (v : Value.t): bool =
+    match v with
+    | VBool b -> b
+    | _ -> raise (RuntimeError "Cannot be evaluated")
+  in
+  let expecting_fun (v : Value.t): (Var.t * Expr.t) =
+    match v with
+    | VFun (x, body) -> (x, body)
+    | _ -> raise (RuntimeError "Cannot be evaluated")  
   in
   if stack = 0 then 
-    raise (Failure "Stack overflow")
+    raise (RuntimeError "Stack overflow")
   else
     match e with
       | EInt n -> VInt n
       | EBool b -> VBool b
       | EFun (x, e_body) -> VFun (x, e_body)
       | ENil -> VNil
-      | EUnOp (unop, e) -> eval_unop unop (eval e stack)
-      | EBinOp (e_l, binop, e_r) -> eval_binop (eval e_l stack) binop (eval e_r stack) stack
+      | EUnOp (op, e) -> 
+        let v = eval e stack in
+        begin match op with
+          | OpNeg -> VInt (-1 * (expecting_num v))
+        end
+      | EBinOp (e1, op, e2) -> 
+        let v1 = eval e1 stack in
+        let v2 = eval e2 stack in
+        begin match op with
+          | OpAp -> 
+            let (x, body) = expecting_fun v1 in
+            eval (subst (Value.to_expr v2) x body) (stack - 1)
+          | OpPlus | OpMinus | OpTimes | OpDiv ->
+            let f =
+              match op with
+              | OpPlus -> (+)
+              | OpMinus -> (-)
+              | OpTimes -> ( * )
+              | _ -> (/)
+            in
+            VInt (f (expecting_num v1) (expecting_num v2))
+          | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
+            let f =
+              match op with
+              | OpLt -> (<)
+              | OpLe -> (<=)
+              | OpGt -> (>)
+              | OpGe -> (>=)
+              | OpNe -> (!=)
+              | _ -> (=)
+            in
+            VBool (f (expecting_num v1) (expecting_num v2))
+          | OpCon ->
+            raise NotImplemented
+        end
       | EIf (e_cond, e_then, e_else) ->
         let b = expecting_bool (eval e_cond stack) in
         if b then eval e_then stack else eval e_else stack
@@ -77,35 +105,8 @@ let rec eval (e : Expr.t) (stack : int) : Value.t =
       | EPair (e_l, e_r) -> VPair (eval e_l stack, eval e_r stack)
       | EFix (x, e_body) ->
         let unrolled = subst (EFix (x, e_body)) x e_body in
-        eval unrolled (stack - 1)
-      | _ -> raise (Failure "Invalid syntax")
-and eval_binop (v_l: Value.t) (op: Expr.binop) (v_r: Value.t) (stack : int) : Value.t =
-  match op with
-  | OpAp ->
-    let (x, body) = expecting_fun v_l in
-    eval (subst (Value.to_expr v_r) x body) stack
-  | OpPlus | OpMinus | OpTimes | OpDiv ->
-    let f =
-      match op with
-      | OpPlus -> (+)
-      | OpMinus -> (-)
-      | OpTimes -> ( * )
-      | _ -> (/)
-    in
-    VInt (f (expecting_num v_l) (expecting_num v_r))
-  | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
-    let f =
-      match op with
-      | OpLt -> (<)
-      | OpLe -> (<=)
-      | OpGt -> (>)
-      | OpGe -> (>=)
-      | OpNe -> (!=)
-      | _ -> (=)
-    in
-    VBool (f (expecting_num v_l) (expecting_num v_r))
-  | OpCon ->
-    raise NotImplemented
+        eval unrolled stack
+      | _ -> raise (SyntaxError "Invalid syntax")
   
 (* Parse a string into an ast *)
 let parse s =
