@@ -121,7 +121,7 @@ let change_zast_c (ser_zast : string) (action : int) : string =
 (* Return the nodes, edges, and cursor position indicated by the serialized zast *)
 let get_ast_c (ser_zast : string) : int =
   let zast = deserialize ser_zast in
-  let (nodes, edges), cursor, _ = expr_to_c zast in
+  let (nodes, edges), cursor, _ = Expr.to_list zast in
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
   cursor
@@ -131,7 +131,7 @@ let run_unit_tests_c (root : int) : bool =
   let tests = tests_to_list (get_unit_tests ()) in
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
-  let e = c_to_expr nodes edges root in
+  let e = Expr.from_list nodes edges root in
   run_unit_tests tests e
 
 (* load_assignment function that will be called by C *)
@@ -149,7 +149,7 @@ let load_starter_code_c (assignment : int) (index : int) : string =
 let print_code_c (root : int) : unit =
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
-  let e = c_to_expr nodes edges root in
+  let e = Expr.from_list nodes edges root in
   let s = code_to_string e in
   let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl") in
   ()
