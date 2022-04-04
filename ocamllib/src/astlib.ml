@@ -171,11 +171,8 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
   | [] -> true
   | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
 
-(*
-   TODO: Comments on how this function works
-   TODO: Seems to have some bugs
-*)
-let possible_actions (expr : Expr.z_t) : Action.avail_actions =
+
+  let possible_actions (expr : Expr.z_t) : Action.avail_actions =
   let rec make_var_arr (i : int) =
     (* create an array of 10 falses *)
     if i < 10 then false :: make_var_arr (i + 1) else []
@@ -317,7 +314,6 @@ and resolve_fun (e : Expr.t) : string =
   match e with
   | EFun (x, e) -> " " ^ x ^ resolve_fun e
   | _ -> " = " ^ code_to_string e ^ " "
->>>>>>> 649c785baf99028e6b838582559bfd001e1f1bee
 
 
 let rec synthesis (context: Assumptions.t) (e: Expr.t) : Typ.t option = 

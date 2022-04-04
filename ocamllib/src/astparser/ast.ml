@@ -10,6 +10,7 @@ module Typ = struct
     | List of t            (* for now we represent lists as their own type *)
     [@@deriving sexp]
 
+
   (* Check if two types are equal *)
   (* let rec equal (ty : t) (ty' : t) : bool =
     match (ty, ty') with
@@ -111,7 +112,9 @@ module Expr = struct
     | EIf_C of t * z_t * t
     | EIf_R of t * t * z_t
     | EFun_L of Var.t * Typ.t * z_t 
+    | EFun_T of Var.t * Typ.z_t *t   (* TOOD: need to fix all our rerucsion operations now *)
     | EFix_L   of Var.t *Typ.t * z_t 
+    | EFix_T of Var.t * Typ.z_t*t    (* TOOD: need to fix all our rerucsion operations now *)
     | EPair_L of z_t * t
     | EPair_R of t * z_t
   [@@deriving sexp]
@@ -125,7 +128,7 @@ module Expr = struct
     | EBinOp (e1, _, e2) -> 1 + size e1 + size e2
     | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
     | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
-    | EFix (_, ebody) | EFun (_, ebody) -> 1 + 1 + size ebody
+    | EFix (_,_,  ebody) | EFun (_,_, ebody) -> 1 + 1 + size ebody
     | EPair (e1, e2) -> 1 + size e1 + size e2
 
   let node_to_tag (node : t) : tag =
@@ -297,10 +300,12 @@ module Action = struct
 
   type tag = int
 
-  type avail_actions = {
-    move_parent : bool;
-    max_child : int;
-    in_scope : bool list;
+  type cursorInfo = {
+    current_term: Expr.t; (*the currently focussed term (use to decide whether we can go down) *)
+    parent_term: (Expr.t) option ; (* parent of current term (use to decide whether we can go up)  *)
+    ctx: (Var.t * int ) list;  (*mapping of vars in scope to types (use to determine vars in scope)    *)
+    expected_ty: (Typ.t) option; (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
+    actual_ty: Typ.t; (* result of calling Syn on current_term (use to determine wrapping viability)  *)
   }
   (*  Contains short-form avaliable actions*)
   (* In the format (Parent avaliable,
