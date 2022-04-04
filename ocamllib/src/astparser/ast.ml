@@ -83,9 +83,9 @@ module Expr = struct
     | EIf_C of t * z_t * t
     | EIf_R of t * t * z_t
     | EFun_L of Var.t * Typ.t * z_t 
-    | EFun_T of Var.t * Typ.z_t *t   (* TOOD: need to fix all our rerucsion operations now *)
+    | EFun_T of Var.t * Typ.t *t   (* TOOD: need to fix all our rerucsion operations now *)
     | EFix_L   of Var.t *Typ.t * z_t 
-    | EFix_T of Var.t * Typ.z_t*t    (* TOOD: need to fix all our rerucsion operations now *)
+    | EFix_T of Var.t * Typ.t*t    (* TOOD: need to fix all our rerucsion operations now *)
     | EPair_L of z_t * t
     | EPair_R of t * z_t
   [@@deriving sexp]
@@ -117,7 +117,7 @@ module Expr = struct
         | OpNe -> 10
         | OpCon -> 11
         | OpAp -> 12)
-    | ELet (_, _, _, _) -> 13
+    | ELet (_, _, _) -> 13
     | EIf (_, _, _) -> 14
     | EFun (_, _, _) -> 15
     | EFix (_, _, _) -> 16
@@ -151,7 +151,7 @@ module Expr = struct
     | 10 -> EBinOp (EHole, OpNe, EHole)
     | 11 -> EBinOp (EHole, OpCon, EHole)
     | 12 -> EBinOp (EHole, OpAp, EHole)
-    | 13 -> ELet ("", THole, EHole, EHole)
+    | 13 -> ELet ("", EHole, EHole)
     | 14 -> EIf (EHole, EHole, EHole)
     | 15 -> EFun ("", THole, EHole)
     | 16 -> EFix ("", THole, EHole)
@@ -182,17 +182,17 @@ module Expr = struct
     | EVar _ | EInt _ | EBool _ | EHole | ENil -> 1
     | EUnOp (_, e) -> 1 + size e
     | EBinOp (e1, _, e2) -> 1 + size e1 + size e2
-    | ELet (_, _, edef, ebody) -> 1 + 1 + 1 + size edef + size ebody
+    | ELet (_, edef, ebody) -> 1 + 1 + 1 + size edef + size ebody
     | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
     | EFix (_, _, ebody) | EFun (_, _, ebody) -> 1 + 1 + 1 + size ebody
     | EPair (e1, e2) -> 1 + size e1 + size e2
 
   let rec from_val (v : value) : t =
     match v with
-      | VInt n -> Expr.EInt n
-      | VBool b -> Expr.EBool b
-      | VFun (x,typ, e) -> Expr.EFun (x,typ, e) 
-      | VPair (e1, e2) -> Expr.EPair (to_expr e1, to_expr e2)
+      | VInt n -> EInt n
+      | VBool b -> EBool b
+      | VFun (x,typ, e) -> EFun (x,typ, e) 
+      | VPair (e1, e2) -> EPair (from_val e1, from_val e2)
       | VNil -> ENil
     | _ -> raise (Failure "Cannot be changed to expr")
 
@@ -357,7 +357,7 @@ module Expr = struct
   (* Convert an unzipped ast into a zipped one, by selecting the root *)
   let select_root (e : t) : z_t = Cursor e
 
-  (* let rec unzip_ast (tree : z_t) : t =
+  let rec unzip_ast (tree : z_t) : t =
      match tree with
      | Cursor arg -> arg
      | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
@@ -372,8 +372,8 @@ module Expr = struct
      | EIf_R (l, c, r) -> EIf (l, c, unzip_ast r)
      | EPair_L (l, r) -> EPair (unzip_ast l, r)
      | EPair_R (l, r) -> EPair (l, unzip_ast r)
-     | EFun_L (var, child) -> EFun (var, unzip_ast child)
-     | EFix_L (var, child) -> EFix (var, unzip_ast child) *)
+     | EFun_L (var_n,var_t, child) -> EFun (var_n,var_t, unzip_ast child)
+     | EFix_L (var_n,var_t, child) -> EFix (var_n,var_t unzip_ast child)
 end
 
 module Action = struct
@@ -424,6 +424,7 @@ module Action = struct
                    max child number (if 0 no children exist),
                    can_construct?
                    A list of 10 bools indicating if variables 'v0' ... 'v9' have been seen )*)
+
 
   let tag_to_action (action : tag) =
     let _ = action in
