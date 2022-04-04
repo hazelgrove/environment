@@ -7,15 +7,15 @@ exception SyntaxError of string
 exception IOError of string
 exception NotImplemented of unit
 
-type testType = (int * int)
+type testType = int * int
 
-(* 
-    Given an zippered AST, apply the action 
-    Input: 
-      - e : an AST with cursor (TODO: implement zast)
-      - action : action applied to e
-    Output:
-      the modified AST
+(*
+     Given an zippered AST, apply the action
+     Input:
+       - e : an AST with cursor (TODO: implement zast)
+       - action : action applied to e
+     Output:
+       the modified AST
 *)
 let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   let rec act_on (tree : Expr.z_t) : Expr.z_t = 
@@ -135,130 +135,149 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   in
   act_on tree
 
-(* 
-  Given a unit test set and AST, check if AST passes tests
-  Input: 
-    - test_set : a list of tests of testType with inputs and their corresponding output
-    - code : the code to be evaluated upon
-  Output:
-    true, if code passes all tests
-    false, otherwise
+(*
+   Given a unit test set and AST, check if AST passes tests
+   Input:
+     - test_set : a list of tests of testType with inputs and their corresponding output
+     - code : the code to be evaluated upon
+   Output:
+     true, if code passes all tests
+     false, otherwise
 *)
 let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
-  let run_test (test: testType) (code : Expr.t) : bool =
+  let run_test (test : testType) (code : Expr.t) : bool =
     (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
     match code with
-      | Expr.ELet (id, f, Expr.EHole) -> 
-        begin match f with
-          | EFun _ | EFix _ -> 
-            let (test_input, test_output) = test in
-            let output = eval (Expr.ELet (id, f, EBinOp(EVar id, Expr.OpAp, EInt test_input))) in
-            begin match output with
-              | VInt n -> n = test_output
-              | _ -> false
-            end
-          | _ -> false
-        end
-      | _ -> false
+    | Expr.ELet (id, f, Expr.EHole) -> (
+        match f with
+        | EFun (_, _) | EFix (_, _) -> (
+            let test_input, test_output = test in
+            let output =
+              try
+                eval
+                  (Expr.ELet
+                     (id, f, EBinOp (EVar id, Expr.OpAp, EInt test_input)))
+                  100
+              with _ -> VError
+            in
+            match output with
+            | VInt n -> n = test_output
+            | VError -> false
+            | _ -> false)
+        | _ -> false)
+    | _ -> false
   in
   match test_set with
-    | [] -> true
-    | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
-    
-(* 
-TODO: Comments on how this function works
-TODO: Seems to have some bugs
+  | [] -> true
+  | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
+
+(*
+   TODO: Comments on how this function works
+   TODO: Seems to have some bugs
 *)
-let possible_actions (expr: Expr.z_t ) : Action.avail_actions =( 
-  let rec make_var_arr (i:int)  = 
+let possible_actions (expr : Expr.z_t) : Action.avail_actions =
+  let rec make_var_arr (i : int) =
     (* create an array of 10 falses *)
-    if i <10 then false :: (make_var_arr (i+1) ) else [];
-  in  
+    if i < 10 then false :: make_var_arr (i + 1) else []
+  in
 
-  let update_var_arr (varname:string) (varlist: bool list) : bool list  =(
+  let update_var_arr (varname : string) (varlist : bool list) : bool list =
     (* if a variable is in scope, mark its value to true *)
-    let rec update_arr (i:int) (l: bool list): bool list = 
-      match l with 
-      | a ::tl -> ( ("v" ^ (string_of_int i) = varname) || a ) :: (update_arr (i+1) tl) 
-      | []  -> []
-    in update_arr 0 varlist
-  ) in 
+    let rec update_arr (i : int) (l : bool list) : bool list =
+      match l with
+      | a :: tl ->
+          ("v" ^ string_of_int i = varname || a) :: update_arr (i + 1) tl
+      | [] -> []
+    in
+    update_arr 0 varlist
+  in
 
-  let acts_init : Action.avail_actions  = 
-    { move_parent = (match expr with | Cursor _ -> false | _-> true) ; 
-      max_child = 0; 
-      in_scope = make_var_arr 0 }
-  in 
+  let acts_init : Action.avail_actions =
+    {
+      move_parent = (match expr with Cursor _ -> false | _ -> true);
+      max_child = 0;
+      in_scope = make_var_arr 0;
+    }
+  in
   (* now finally we recurse *)
-  let rec recurse (expr:Expr.z_t) (state :Action.avail_actions):Action.avail_actions = 
-    match expr with 
-    | EUnOp_L (_, child) 
-    | EBinOp_L (child,_,_) 
-    | EBinOp_R (_, _, child) 
-    | ELet_L (_,child,_)  (* variable not in self-scope in definition*)
-    | EIf_L (child, _, _) 
-    | EIf_C (_,child, _) 
-    | EIf_R (_, _, child) 
-    | EFix_L (_, child) 
-    | EPair_L (child, _) 
-    | EPair_R (_, child) -> recurse child state
+  let rec recurse (expr : Expr.z_t) (state : Action.avail_actions) :
+      Action.avail_actions =
+    match expr with
+    | EUnOp_L (_, child)
+    | EBinOp_L (child, _, _)
+    | EBinOp_R (_, _, child)
+    | ELet_L (_, child, _) (* variable not in self-scope in definition*)
+    | EIf_L (child, _, _)
+    | EIf_C (_, child, _)
+    | EIf_R (_, _, child)
+    | EFix_L (_, child)
+    | EPair_L (child, _)
+    | EPair_R (_, child) ->
+        recurse child state
     (*functions: update  *)
-    | EFun_L (varname,_, child)
-    | ELet_R (varname, _,child) -> 
-      recurse child {move_parent=state.move_parent;
-                     max_child=state.max_child; 
-                     in_scope = update_var_arr varname state.in_scope}
+    | EFun_L (varname, child) | ELet_R (varname, _, child) ->
+        recurse child
+          {
+            move_parent = state.move_parent;
+            max_child = state.max_child;
+            in_scope = update_var_arr varname state.in_scope;
+          }
     (*Now finally we do our cursor logic *)
-    |Cursor subtree -> 
-      {move_parent=state.move_parent;
-       max_child =  (match subtree with 
-        |EVar _ | EInt _ | EBool _ | EHole | ENil -> 0  
-        |EUnOp _| EFun _ | EFix _  -> 1 
-        |EBinOp _ |ELet _ |EPair _  -> 2 
-        |EIf _  -> 3 )
-        ; 
-        in_scope = state.in_scope
-      }
-  in 
-  recurse expr acts_init 
-)  
+    | Cursor subtree ->
+        {
+          move_parent = state.move_parent;
+          max_child =
+            (match subtree with
+            | EVar _ | EInt _ | EBool _ | EHole | ENil -> 0
+            | EUnOp _ | EFun _ | EFix _ -> 1
+            | EBinOp _ | ELet _ | EPair _ -> 2
+            | EIf _ -> 3);
+          in_scope = state.in_scope;
+        }
+  in
+  recurse expr acts_init
 
 (* Given an assignment number, load the unit test
-  Input: 
-    - assignment : index of assignment
-  Output:
-    - the unit test for the assignment
+   Input:
+     - assignment : index of assignment
+   Output:
+     - the unit test for the assignment
 *)
 let load_tests (directory : string) (assignment : int) : testType list =
-  let filename = directory  ^ "/" ^ string_of_int assignment ^ "/test.ml" in
+  let filename = directory ^ "/" ^ string_of_int assignment ^ "/test.ml" in
   let tests_cons = parse_file filename in
-  let rec combine_tests (tests_cons : Expr.t) : (testType list) = 
+  let rec combine_tests (tests_cons : Expr.t) : testType list =
     match tests_cons with
-      | EBinOp (EPair (EInt a, EInt b), OpCon, ENil) -> [(a, b)]
-      | EBinOp (EPair (EInt a, EInt b), OpCon, tl) -> (a, b) :: combine_tests tl
-      | _ -> raise (IOError "Test file in incorrect format.")
-  in 
+    | EBinOp (EPair (EInt a, EInt b), OpCon, ENil) -> [ (a, b) ]
+    | EBinOp (EPair (EInt a, EInt b), OpCon, tl) -> (a, b) :: combine_tests tl
+    | _ -> raise (IOError "Test file in incorrect format.")
+  in
   combine_tests tests_cons
 
 (* Given an assignment number, load the code
-  Input: 
-    - assignment : index of assignment
-  Output:
-    - the code for the assignment
+   Input:
+     - assignment : index of assignment
+   Output:
+     - the code for the assignment
 *)
-let load_starter_code (directory : string) (assignment : int) (index : int) : Expr.t =
-  let filename = directory  ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index ^ ".ml" in
+let load_starter_code (directory : string) (assignment : int) (index : int) :
+    Expr.t =
+  let filename =
+    directory ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index
+    ^ ".ml"
+  in
   parse_file filename
 
 (* Change tree representation to string to better interpret graph *)
-let rec code_to_string (e : Expr.t) : string = 
+let rec code_to_string (e : Expr.t) : string =
   match e with
-    | EVar x -> x ^ " "
-    | EInt n -> string_of_int n ^ " "
-    | EBool b -> string_of_bool b ^ " "
-    | EUnOp (_, e) -> "(-" ^ code_to_string e ^ ") "
-    | EBinOp (e1, op, e2) -> 
-      let op_string = begin match op with
+  | EVar x -> x ^ " "
+  | EInt n -> string_of_int n ^ " "
+  | EBool b -> string_of_bool b ^ " "
+  | EUnOp (_, e) -> "(-" ^ code_to_string e ^ ") "
+  | EBinOp (e1, op, e2) ->
+      let op_string =
+        match op with
         | OpPlus -> "+"
         | OpMinus -> "-"
         | OpTimes -> "*"
@@ -271,28 +290,36 @@ let rec code_to_string (e : Expr.t) : string =
         | OpNe -> "!="
         | OpCon -> "::"
         | OpAp -> " "
-      end
       in
-      "(" ^ code_to_string e1 ^ " " ^ op_string ^ " " ^ code_to_string e2  ^ ") "
-    | EIf (cond, e1, e2) -> "(if " ^ code_to_string cond ^ " then " ^ code_to_string e1 ^ " else " ^ code_to_string e2 ^ ") "
-    | ELet (x, EFix (_, e1), EHole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
-    | ELet (x, EFix (_, e1), e2) -> "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ code_to_string e2 ^ " "
-    | ELet (x, EFun (arg, e1), EHole) -> "let " ^ x ^ resolve_fun (EFun (arg, e1)) ^ " "
-    | ELet (x, EFun (arg, e1), e2) -> "let " ^ x ^ resolve_fun (EFun (arg, e1)) ^ " in " ^ code_to_string e2 ^ " "
-    | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " "
-    | ELet (x, e1, e2) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " in " ^ code_to_string e2 ^ " "
-    | EFix (_, _) -> raise (SyntaxError "Incorrect syntax with fix")
-    | EFun (x,_, e) -> "(fun " ^ x ^ " -> " ^ code_to_string e ^ ") "
-    | EPair (e1, e2) -> "(" ^ code_to_string e1 ^ ", " ^ code_to_string e2 ^ ") "
-    | EHole -> "<HOLE> "
-    | ENil -> "[] "
+      "(" ^ code_to_string e1 ^ " " ^ op_string ^ " " ^ code_to_string e2 ^ ") "
+  | EIf (cond, e1, e2) ->
+      "(if " ^ code_to_string cond ^ " then " ^ code_to_string e1 ^ " else "
+      ^ code_to_string e2 ^ ") "
+  | ELet (x, EFix (_, e1), EHole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
+  | ELet (x, EFix (_, e1), e2) ->
+      "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ code_to_string e2 ^ " "
+  | ELet (x, EFun (arg, e1), EHole) ->
+      "let " ^ x ^ resolve_fun (EFun (arg, e1)) ^ " "
+  | ELet (x, EFun (arg, e1), e2) ->
+      "let " ^ x
+      ^ resolve_fun (EFun (arg, e1))
+      ^ " in " ^ code_to_string e2 ^ " "
+  | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " "
+  | ELet (x, e1, e2) ->
+      "let " ^ x ^ " = " ^ code_to_string e1 ^ " in " ^ code_to_string e2 ^ " "
+  | EFix (_, _) -> raise (SyntaxError "Incorrect syntax with fix")
+  | EFun (x, e) -> "(fun " ^ x ^ " -> " ^ code_to_string e ^ ") "
+  | EPair (e1, e2) -> "(" ^ code_to_string e1 ^ ", " ^ code_to_string e2 ^ ") "
+  | EHole -> "<HOLE> "
+  | ENil -> "[] "
+
 and resolve_fun (e : Expr.t) : string =
-  match e with 
-    | EFun (x,_, e) -> " " ^ x ^ resolve_fun e
-    | _ -> " = " ^ code_to_string e  ^ " "
+  match e with
+  | EFun (x, e) -> " " ^ x ^ resolve_fun e
+  | _ -> " = " ^ code_to_string e ^ " "
+>>>>>>> 649c785baf99028e6b838582559bfd001e1f1bee
 
 
-(*syn and ana *)
 let rec synthesis (context: Assumptions.t) (e: Expr.t) : Typ.t option = 
   begin match e with
   | EVar x -> Assumptions.lookup context x 
@@ -353,4 +380,3 @@ and analysis  (context:Assumptions.t) (e: Expr.t) (targ: Typ.t): bool =
   | EIf (argl, argc, argr) -> analysis context argl Bool && analysis context argc targ && analysis context argr targ 
   | ELet(varn,vart, dec, body) -> analysis context dec vart && analysis (Assumptions.extend context (varn,vart)) body targ
   | _ -> Typ.equal (synthesis context e) targ 
-

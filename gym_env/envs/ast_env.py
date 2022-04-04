@@ -8,6 +8,7 @@ from typing import List
 max_num_nodes = 10
 num_actions = 5
 max_num_tests = 10
+max_tree_length = 10000
 
 
 class State(ctypes.Structure):
@@ -15,7 +16,8 @@ class State(ctypes.Structure):
                 ("tests", (ctypes.c_int * max_num_tests) * 2),
                 ("nodes", ctypes.c_int * max_num_nodes),
                 ("permitted_actions", ctypes.c_int * num_actions),
-                ("root", ctypes.c_int),
+                ("zast", ctypes.c_char * max_tree_length),
+                ("cursor", ctypes.c_int),
                 ("num_nodes", ctypes.c_int),
                 ("num_edges", ctypes.c_int),
                 ("num_tests", ctypes.c_int),
@@ -37,10 +39,12 @@ class ASTEnv(gym.Env):
             'nodes': gym.spaces.MultiDiscrete(node_nvec),
             'edges': gym.spaces.MultiDiscrete(edge_nvec),
             'permitted_actions': gym.spaces.MultiBinary(num_actions),
+            'cursor_position': gym.spaces.Discrete(max_num_nodes),
+            'var_in_scope': gym.spaces.MultiDiscrete(max_num_nodes),
             'assignment': gym.spaces.Discrete(num_assignments)
         })
         
-        self.astclib = ctypes.CDLL('clib/astclib.so') # Used to call C functions
+        self.astclib = ctypes.CDLL('./clib/astclib.so') # Used to call C functions
         self.state = None
         
         self.states = []
@@ -68,7 +72,6 @@ class ASTEnv(gym.Env):
         
         return state, reward, done, {}
 
-    # TODO: Reset to original AST
     def reset(self):
         assignment = self.observation_space.spaces['assignment'].sample()
         states = self.states[assignment]
@@ -76,14 +79,10 @@ class ASTEnv(gym.Env):
         
         return self.get_state()
         
-    # # TODO: Put a visual?
-    def render(self, mode="human"):
-        state = self.get_state()
-        
+    def render(self):
         print("Current state:")
-        self.astclib.print_code(ctypes.byref(self.state))
+        self.astclib.print_curr_state(ctypes.byref(self.state))
 
-    # TODO: Anything that needs to be cleaned up
     def close(self):
         self.astclib.close_c()
     
@@ -93,4 +92,5 @@ class ASTEnv(gym.Env):
                 'num_nodes': self.state.num_nodes,
                 'edges': np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
                 'num_edges': self.state.num_edges,
-                'assignment': self.state.assignment}
+                'assignment': self.state.assignment,
+                'cursor': self.state.cursor}

@@ -7,5 +7,8 @@ int main(){
     State state;
     init_assignment(&state, 1, 1);
 
-    print_stuff();
+    take_action(&state, 1);
+    int reward = check_ast(&state);
+
+    printf("%d\n", reward);
 }

@@ -1,4 +1,3 @@
 (library
  (name astlib)
- (libraries unix astutils)
-)
+ (libraries unix astutils))

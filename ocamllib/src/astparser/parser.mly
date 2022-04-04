@@ -38,7 +38,8 @@ expr:
     { Expr.EBool true }
 | FALSE
     { Expr.EBool false }
-| x = ID {Expr.EVar x}
+| x = ID 
+    {Expr.EVar x}
 | LPAREN es = separated_list(COMMA, e = expr { e }) RPAREN
     { 
     let rec resolve_tuple es =

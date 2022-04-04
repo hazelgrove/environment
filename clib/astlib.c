@@ -1,6 +1,5 @@
 #include "astlib.h"
 
-
 /*
 Mutates AST according to action taken
 
@@ -12,7 +11,8 @@ Mutates:
     - ast->nodes, ast->edges
 */
 void take_action(State *ast, int action){
-    change_ast(action);
+    change_zast(action);
+    get_ast();
     copy_ast(ast, &curr_state);
 }
 
@@ -62,6 +62,7 @@ Mutates:
 */
 void init_assignment(State *ast, int assignment, int index){
     load_starter_code(assignment, index);
+    get_ast();
     load_tests(assignment);
 
     curr_state.assignment = assignment;
@@ -79,6 +80,8 @@ Input:
 */
 void print_curr_state(State *ast){
     copy_ast(&curr_state, ast);
+    printf("%s\n", curr_state.zast);
+    fflush(stdout);
     print_code();
 }
 
@@ -117,6 +120,8 @@ void init_c(){
 
     curr_state.assignment = -1;
     curr_state.code = -1;
+
+    strcpy(curr_state.zast, "");
 }
 
 
@@ -154,7 +159,7 @@ void copy_ast(State *astdst, const State *astsrc){
         astdst->tests[i][0] = astsrc->tests[i][0];
         astdst->tests[i][1] = astsrc->tests[i][1];
     }
-    astdst->root = astsrc->root;
+    astdst->cursor = astsrc->cursor;
     astdst->num_nodes = astsrc->num_nodes;
     astdst->num_edges = astsrc->num_edges;
     astdst->num_tests = astsrc->num_tests;
