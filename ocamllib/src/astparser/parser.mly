@@ -26,21 +26,16 @@ main:
 expr:
 | e = boolean
     { e }
-| LET x = ID t = option(tyann) EQ e1 = expr e2 = option(e = scope { e })
+| LET x = ID  EQ e1 = expr e2 = option(e = scope { e })
     { 
-    let typ = 
-        match t with
-        | None -> Typ.THole
-        | Some typ -> typ
-    in
     let ebody = 
         match e2 with
         | None -> Expr.EHole
         | Some e -> e
     in
-    Expr.ELet (x, typ, e1, ebody)
+    Expr.ELet (x, e1, ebody)
     }
-| LET x = ID args = arg+ t = option(tyann) EQ e1 = expr; e2 = option(scope)
+| LET x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
@@ -48,26 +43,14 @@ expr:
             | [(a, ty)] -> Expr.EFun(a, ty, e)
             | (a, ty) :: tl -> Expr.EFun(a, ty, resolve_fun tl e)
     in
-    let typ = 
-        match t with
-        | None -> Typ.THole
-        | Some typ -> 
-            let rec get_fun_type args = 
-                match args with
-                | [] -> raise (Failure "Incorrect syntax")
-                | [(_, ty)] -> if ty = Typ.THole then Typ.THole else Typ.TArrow (ty, typ)
-                | (_, ty) :: tl -> if ty = Typ.THole then Typ.THole else Typ.TArrow (ty, get_fun_type tl)
-            in
-            get_fun_type args
-    in
     let ebody = 
         match e2 with
         | None -> Expr.EHole
         | Some e -> e
     in
-    Expr.ELet (x, typ, resolve_fun args e1, ebody)
+    Expr.ELet (x, resolve_fun args e1, ebody)
     }
-| LET REC x = ID args = arg+ t = option(tyann) EQ e1 = expr; e2 = option(scope)
+| LET REC x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
@@ -75,24 +58,12 @@ expr:
             | [(a, ty)] -> Expr.EFun(a, ty, e)
             | (a, ty) :: tl -> Expr.EFun(a, ty, resolve_fun tl e)
     in
-    let typ = 
-        match t with
-        | None -> Typ.THole
-        | Some typ -> 
-            let rec get_fun_type args = 
-                match args with
-                | [] -> raise (Failure "Incorrect syntax")
-                | [(_, ty)] -> if ty = Typ.THole then Typ.THole else Typ.TArrow (ty, typ)
-                | (_, ty) :: tl -> if ty = Typ.THole then Typ.THole else Typ.TArrow (ty, get_fun_type tl)
-            in
-            get_fun_type args
-    in
     let ebody = 
         match e2 with
         | None -> Expr.EHole
         | Some e -> e
     in
-    Expr.ELet (x, typ, EFix (x, typ, resolve_fun args e1), ebody)
+    Expr.ELet (x, EFix (x, THole, resolve_fun args e1), ebody)
     }
 | IF econd = expr THEN ethen = expr ELSE eelse = expr 
     {

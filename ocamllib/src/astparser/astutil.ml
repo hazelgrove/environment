@@ -37,10 +37,9 @@ let%test_module "Test parse" =
       = EFun ("x", TInt, EBinOp (EVar "x", OpPlus, EInt 1))
 
     let%test _ =
-      parse "let f (x : int) : bool = x != 2 in f 1"
+      parse "let f (x : int) = x != 2 in f 1"
       = ELet
           ( "f",
-            TArrow (TInt, TBool),
             EFun ("x", TInt, EBinOp (EVar "x", OpNe, EInt 2)),
             EBinOp (EVar "f", OpAp, EInt 1) )
 
@@ -48,21 +47,19 @@ let%test_module "Test parse" =
       parse "let f x (y : int) = x + y"
       = ELet
           ( "f",
-            THole,
             EFun
               ("x", THole, EFun ("y", TInt, EBinOp (EVar "x", OpPlus, EVar "y"))),
             EHole )
 
     let%test _ =
       parse
-        "let rec fact (n : int) : int = if n = 0 then 1 else n * fact (n - 1) \
-         in fact 4"
+        "let rec fact (n : int) = if n = 0 then 1 else n * fact (n - 1) in \
+         fact 4"
       = ELet
           ( "fact",
-            TArrow (TInt, TInt),
             EFix
               ( "fact",
-                TArrow (TInt, TInt),
+                THole,
                 EFun
                   ( "n",
                     TInt,
@@ -80,8 +77,8 @@ let%test_module "Test parse" =
 
     (* Let and if expressions *)
     let%test _ =
-      parse "let x : bool = true in if x then 2 else 3"
-      = ELet ("x", TBool, EBool true, EIf (EVar "x", EInt 2, EInt 3))
+      parse "let x = true in if x then 2 else 3"
+      = ELet ("x", EBool true, EIf (EVar "x", EInt 2, EInt 3))
 
     (* Pairs *)
     let%test _ =
@@ -126,8 +123,8 @@ let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
   | EBinOp (e_l, op, e_r) -> EBinOp (subx e_l, op, subx e_r)
   | EIf (e_cond, e_then, e_else) -> EIf (subx e_cond, subx e_then, subx e_else)
   | EFun (y, ty, e_body) -> EFun (y, ty, subx_unless (Var.equal x y) e_body)
-  | ELet (y, ty, e_def, e_body) ->
-      ELet (y, ty, subx e_def, subx_unless (Var.equal x y) e_body)
+  | ELet (y, e_def, e_body) ->
+      ELet (y, subx e_def, subx_unless (Var.equal x y) e_body)
   | EFix (y, ty, e_body) -> EFix (y, ty, subx_unless (Var.equal x y) e_body)
   | EPair (e_l, e_r) -> EPair (subx e_l, subx e_r)
 
@@ -205,7 +202,7 @@ let rec eval (e : Expr.t) (stack : int) : Expr.value =
     | EIf (e_cond, e_then, e_else) ->
         let b = expecting_bool (eval e_cond stack) in
         if b then eval e_then stack else eval e_else stack
-    | ELet (x, _, e_def, e_body) ->
+    | ELet (x, e_def, e_body) ->
         let v_def = eval e_def stack in
         eval (subst (Expr.from_val v_def) x e_body) stack
     | EPair (e_l, e_r) -> VPair (eval e_l stack, eval e_r stack)

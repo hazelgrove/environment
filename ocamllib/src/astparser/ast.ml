@@ -10,10 +10,10 @@ module Var = struct
   let equal = String.equal
 end
 
-
-module Assumptions = struct 
+module Assumptions = struct
   type assumption = Var.t * Typ.t
   type t = assumption list
+
   let empty : t = []
 
   let lookup (ctx : t) (x : Var.t) : Typ.t option =
@@ -29,14 +29,11 @@ module Assumptions = struct
     | None -> (x, ty) :: ctx
     | Some _ ->
         List.fold_right
-          (fun (y, ty') new_ctx -> let ty = 
-            if Var.equal x y 
-            then ty else ty' in (y, ty) :: new_ctx)
-          ctx 
-          empty
+          (fun (y, ty') new_ctx ->
+            let ty = if Var.equal x y then ty else ty' in
+            (y, ty) :: new_ctx)
+          ctx empty
 end
-
-
 
 (* AST Definition *)
 module Expr = struct
@@ -58,15 +55,15 @@ module Expr = struct
   [@@deriving sexp]
 
   type t =
-    | EVar of Var.t                         (* Node Descriptor Number : 35 - 37 *)
-    | EInt of int                           (* Node Descriptor Number : 30 - 34 *)
-    | EBool of bool                         (* Node Descriptor Number : 0 - 1 *)
-    | EUnOp of unop * t                     (* Node Descriptor Number : 2 *)
-    | EBinOp of t * binop * t               (* Node Descriptor Number : 3 - 14 *)
-    | ELet of Var.t*  t * t                 (* Node Descriptor Number : 15 *)
-    | EIf of t * t * t                      (* Node Descriptor Number : 16 *)
-    | EFun of Var.t * Typ.t * t      (* Node Descriptor Number : 17 *)
-    | EFix of Var.t * Typ.t * t                     (* Node Descriptor Number : 18 *)
+    | EVar of Var.t (* Node Descriptor Number : 35 - 37 *)
+    | EInt of int (* Node Descriptor Number : 30 - 34 *)
+    | EBool of bool (* Node Descriptor Number : 0 - 1 *)
+    | EUnOp of unop * t (* Node Descriptor Number : 2 *)
+    | EBinOp of t * binop * t (* Node Descriptor Number : 3 - 14 *)
+    | ELet of Var.t * t * t (* Node Descriptor Number : 15 *)
+    | EIf of t * t * t (* Node Descriptor Number : 16 *)
+    | EFun of Var.t * Typ.t * t (* Node Descriptor Number : 17 *)
+    | EFix of Var.t * Typ.t * t (* Node Descriptor Number : 18 *)
     | EPair of t * t
     | EHole (* Node Descriptor Number : 19 *)
     | ENil
@@ -82,10 +79,10 @@ module Expr = struct
     | EIf_L of z_t * t * t
     | EIf_C of t * z_t * t
     | EIf_R of t * t * z_t
-    | EFun_L of Var.t * Typ.t * z_t 
-    | EFun_T of Var.t * Typ.t *t   (* TOOD: need to fix all our rerucsion operations now *)
-    | EFix_L   of Var.t *Typ.t * z_t 
-    | EFix_T of Var.t * Typ.t*t    (* TOOD: need to fix all our rerucsion operations now *)
+    | EFun_L of Var.t * Typ.t * z_t
+    | EFun_T of Var.t * Typ.t * t (* TOOD: need to fix all our rerucsion operations now *)
+    | EFix_L of Var.t * Typ.t * z_t
+    | EFix_T of Var.t * Typ.t * t (* TOOD: need to fix all our rerucsion operations now *)
     | EPair_L of z_t * t
     | EPair_R of t * z_t
   [@@deriving sexp]
@@ -189,11 +186,11 @@ module Expr = struct
 
   let rec from_val (v : value) : t =
     match v with
-      | VInt n -> EInt n
-      | VBool b -> EBool b
-      | VFun (x,typ, e) -> EFun (x,typ, e) 
-      | VPair (e1, e2) -> EPair (from_val e1, from_val e2)
-      | VNil -> ENil
+    | VInt n -> EInt n
+    | VBool b -> EBool b
+    | VFun (x, typ, e) -> EFun (x, typ, e)
+    | VPair (e1, e2) -> EPair (from_val e1, from_val e2)
+    | VNil -> ENil
     | _ -> raise (Failure "Cannot be changed to expr")
 
   (* Each edge is represented as (index of start node, index of end node, edge type) *)
@@ -230,7 +227,7 @@ module Expr = struct
           ( from_list nodes edges (get_nth_child adj_nodes 1),
             op,
             from_list nodes edges (get_nth_child adj_nodes 2) )
-    | ELet (_, _, _, _) ->
+    | ELet (_, _, _) ->
         let adj_nodes = get_adj_nodes edges root in
         let varname =
           match from_list nodes edges (get_nth_child adj_nodes 1) with
@@ -239,9 +236,8 @@ module Expr = struct
         in
         ELet
           ( varname,
-            Typ.from_list nodes edges (get_nth_child adj_nodes 2),
-            from_list nodes edges (get_nth_child adj_nodes 3),
-            from_list nodes edges (get_nth_child adj_nodes 4) )
+            from_list nodes edges (get_nth_child adj_nodes 2),
+            from_list nodes edges (get_nth_child adj_nodes 3) )
     | EIf (_, _, _) ->
         let adj_nodes = get_adj_nodes edges root in
         EIf
@@ -335,17 +331,12 @@ module Expr = struct
            in
            let edges = add_edge edges (root, new_root, 2) in
            (add_subtree e nodes edges root 3, root, vars)
-       | ELet (x, ty, edef, ebody) ->
+       | ELet (x, edef, ebody) ->
            let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
            let edges = add_edge edges (root, new_root, 1) in
-           let (ty_nodes, ty_edges), new_root = Typ.to_list ty in
-           let (nodes, edges), new_root =
-             append_type_tree nodes edges ty_nodes ty_edges new_root
-           in
-           let edges = add_edge edges (root, new_root, 2) in
-           let nodes, edges = add_subtree edef nodes edges root 3 in
+           let nodes, edges = add_subtree edef nodes edges root 2 in
            let vars = add_var x new_root vars in
-           (add_subtree ebody nodes edges root 4, root, vars)
+           (add_subtree ebody nodes edges root 3, root, vars)
        | EIf (econd, ethen, eelse) ->
            let nodes, edges = add_subtree econd nodes edges root 1 in
            let nodes, edges = add_subtree ethen nodes edges root 2 in
@@ -357,7 +348,7 @@ module Expr = struct
   (* Convert an unzipped ast into a zipped one, by selecting the root *)
   let select_root (e : t) : z_t = Cursor e
 
-  let rec unzip_ast (tree : z_t) : t =
+  (* let rec unzip_ast (tree : z_t) : t =
      match tree with
      | Cursor arg -> arg
      | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
@@ -372,8 +363,8 @@ module Expr = struct
      | EIf_R (l, c, r) -> EIf (l, c, unzip_ast r)
      | EPair_L (l, r) -> EPair (unzip_ast l, r)
      | EPair_R (l, r) -> EPair (l, unzip_ast r)
-     | EFun_L (var_n,var_t, child) -> EFun (var_n,var_t, unzip_ast child)
-     | EFix_L (var_n,var_t, child) -> EFix (var_n,var_t unzip_ast child)
+     | EFun_L (var_n, var_t, child) -> EFun (var_n, var_t, unzip_ast child)
+     | EFix_L (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child) *)
 end
 
 module Action = struct
@@ -388,12 +379,12 @@ module Action = struct
     | BinOp_R of Expr.binop
     | Let_L of Var.t
     | Let_R of Var.t
-    | If_L  
-    | If_C 
-    | If_R 
-    | Fun   of Var.t*Typ.t
-    | Fix   of Var.t*Typ.t
-    | Pair_L 
+    | If_L
+    | If_C
+    | If_R
+    | Fun of Var.t * Typ.t
+    | Fix of Var.t * Typ.t
+    | Pair_L
     | Pair_R
 
   type dir = Parent | Child of int
@@ -413,18 +404,22 @@ module Action = struct
   type tag = int
 
   type cursorInfo = {
-    current_term: Expr.t; (*the currently focussed term (use to decide whether we can go down) *)
-    parent_term: (Expr.t) option ; (* parent of current term (use to decide whether we can go up)  *)
-    ctx: (Var.t * int ) list;  (*mapping of vars in scope to types (use to determine vars in scope)    *)
-    expected_ty: (Typ.t) option; (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
-    actual_ty: Typ.t; (* result of calling Syn on current_term (use to determine wrapping viability)  *)
+    current_term : Expr.t;
+    (*the currently focussed term (use to decide whether we can go down) *)
+    parent_term : Expr.t option;
+    (* parent of current term (use to decide whether we can go up)  *)
+    ctx : (Var.t * int) list;
+    (*mapping of vars in scope to types (use to determine vars in scope)    *)
+    expected_ty : Typ.t option;
+    (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
+    actual_ty : Typ.t;
+        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
   }
   (*  Contains short-form avaliable actions*)
   (* In the format (Parent avaliable,
                    max child number (if 0 no children exist),
                    can_construct?
                    A list of 10 bools indicating if variables 'v0' ... 'v9' have been seen )*)
-
 
   let tag_to_action (action : tag) =
     let _ = action in
