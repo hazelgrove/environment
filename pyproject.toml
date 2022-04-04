@@ -4,6 +4,22 @@ version = "0.1.0"
 description = ""
 authors = ["Ethan Brooks <ethanabrooks@gmail.com>"]
 
+[tool.black]
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.vscode
+  | \__pycache__
+  | \venv
+  | _build
+)/
+'''
+
+[tool.isort]
+profile = "black"
+
 [tool.poetry.dependencies]
 python = "^3.8"
 torch = [

@@ -348,23 +348,25 @@ module Expr = struct
   (* Convert an unzipped ast into a zipped one, by selecting the root *)
   let select_root (e : t) : z_t = Cursor e
 
-  (* let rec unzip_ast (tree : z_t) : t =
-     match tree with
-     | Cursor arg -> arg
-     | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
-     | EBinOp_L (l_child, binop, r_child) ->
-         EBinOp (unzip_ast l_child, binop, r_child)
-     | EBinOp_R (l_child, binop, r_child) ->
-         EBinOp (l_child, binop, unzip_ast r_child)
-     | ELet_L (var, l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
-     | ELet_R (var, l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
-     | EIf_L (l, c, r) -> EIf (unzip_ast l, c, r)
-     | EIf_C (l, c, r) -> EIf (l, unzip_ast c, r)
-     | EIf_R (l, c, r) -> EIf (l, c, unzip_ast r)
-     | EPair_L (l, r) -> EPair (unzip_ast l, r)
-     | EPair_R (l, r) -> EPair (l, unzip_ast r)
-     | EFun_L (var_n, var_t, child) -> EFun (var_n, var_t, unzip_ast child)
-     | EFix_L (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child) *)
+  let rec unzip_ast (tree : z_t) : t =
+    match tree with
+    | Cursor arg -> arg
+    | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
+    | EBinOp_L (l_child, binop, r_child) ->
+        EBinOp (unzip_ast l_child, binop, r_child)
+    | EBinOp_R (l_child, binop, r_child) ->
+        EBinOp (l_child, binop, unzip_ast r_child)
+    | ELet_L (var, l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
+    | ELet_R (var, l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
+    | EIf_L (l, c, r) -> EIf (unzip_ast l, c, r)
+    | EIf_C (l, c, r) -> EIf (l, unzip_ast c, r)
+    | EIf_R (l, c, r) -> EIf (l, c, unzip_ast r)
+    | EPair_L (l, r) -> EPair (unzip_ast l, r)
+    | EPair_R (l, r) -> EPair (l, unzip_ast r)
+    | EFun_L (var_n, var_t, child) -> EFun (var_n, var_t, unzip_ast child)
+    | EFix_L (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child)
+    | EFun_T (var_n, var_t, child) -> EFun (var_n, var_t, child)
+    | EFix_T (var_n, var_t, child) -> EFix (var_n, var_t, child)
 end
 
 module Action = struct
