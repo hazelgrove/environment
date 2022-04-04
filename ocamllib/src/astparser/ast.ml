@@ -80,9 +80,9 @@ module Expr = struct
     | EIf_C of t * z_t * t
     | EIf_R of t * t * z_t
     | EFun_L of Var.t * Typ.t * z_t
-    | EFun_T of Var.t * Typ.t * t (* TOOD: need to fix all our rerucsion operations now *)
+    (*| EFun_T of Var.t * Typ.t * t (* TOOD: need to fix all our rerucsion operations now *)  *)
     | EFix_L of Var.t * Typ.t * z_t
-    | EFix_T of Var.t * Typ.t * t (* TOOD: need to fix all our rerucsion operations now *)
+    (*| EFix_T of Var.t * Typ.t * t (* TOOD: need to fix all our rerucsion operations now *)  *)
     | EPair_L of z_t * t
     | EPair_R of t * z_t
   [@@deriving sexp]
