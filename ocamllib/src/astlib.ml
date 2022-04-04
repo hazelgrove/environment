@@ -30,8 +30,8 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
           | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
           | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
-          | EFun_L (var, child) -> EFun_L (var, act_on child)
-          | EFix_L (var, child) -> EFix_L (var, act_on child)
+          | EFun_L (var, typ, child) -> EFun_L (var, typ,act_on child)
+          | EFix_L (var,typ , child) -> EFix_L (var, typ, act_on child)
           | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
           | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
           | Cursor subtree -> Cursor(
@@ -49,8 +49,8 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
             | If_L     ->  EIf(subtree,EHole,EHole)
             | If_C     ->  EIf(EHole,subtree,EHole)
             | If_R     ->  EIf(EHole,EHole,subtree)
-            | Fun varname  -> EFun(varname,subtree)
-            | Fix varname  -> EFix(varname,subtree)
+            | Fun (varname,typ)  -> EFun(varname,typ,subtree)
+            | Fix (varname,typ)  -> EFix(varname,typ,subtree)
             | Pair_L       -> EPair(subtree,EHole)
             | Pair_R       -> EPair(EHole,subtree)
             ) 
@@ -65,8 +65,8 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EIf_L (l, c, r) -> EIf_L (act_on l, c,r)  
           | EIf_C (l, c, r) -> EIf_C (l, act_on c, r)
           | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
-          | EFun_L (var, child) -> EFun_L (var, act_on child)
-          | EFix_L (var, child) -> EFix_L (var, act_on child)
+          | EFun_L (var, typ, child) -> EFun_L (var, typ, act_on child)
+          | EFix_L (var, typ, child) -> EFix_L (var, typ, act_on child)
           | EPair_L (l_child, r_child) -> EPair_L ( act_on l_child, r_child) 
           | EPair_R (l_child, r_child) -> EPair_R ( l_child, act_on r_child) 
           | Cursor subtree -> 
@@ -77,8 +77,8 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
                   | EBinOp (arg_l, op, arg_r) -> EBinOp_L (Cursor (arg_l), op, arg_r)
                   | ELet (varn, arg_l, arg_r) -> ELet_L (varn, Cursor(arg_l),arg_r)
                   | EIf (arg_l, arg_c,arg_r) -> EIf_L (Cursor (arg_l), arg_c,arg_r)
-                  | EFun (varname, arg_l) -> EFun_L (varname, Cursor (arg_l))
-                  | EFix (varname, arg_l) -> EFix_L (varname, Cursor (arg_l))
+                  | EFun (varname, typ, arg_l) -> EFun_L (varname, typ, Cursor (arg_l))
+                  | EFix (varname, typ, arg_l) -> EFix_L (varname, typ, Cursor (arg_l))
                   | EPair (arg_l, arg_r) -> EPair_L (Cursor (arg_l),  arg_r)
                   | _ -> tree  (*all invalid actions are noops*)
                 ) 
@@ -126,10 +126,10 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EIf_R (l, c, Cursor arg) -> Cursor (EIf (l, c, arg))
           | EIf_R (l, c, r) -> EIf_R (l, c, act_on r)
 
-          | EFun_L (var, Cursor arg) ->  Cursor (EFun (var, arg))
-          | EFun_L (var, child) -> EFun_L (var, act_on child)
-          | EFix_L (var, Cursor arg) -> Cursor (EFun (var, arg))
-          | EFix_L (var, child) -> EFix_L (var, act_on child)
+          | EFun_L (var, typ, Cursor arg) ->  Cursor (EFun (var, typ, arg))
+          | EFun_L (var, typ, child) -> EFun_L (var, typ, act_on child)
+          | EFix_L (var, typ, Cursor arg) -> Cursor (EFun (var, typ, arg))
+          | EFix_L (var, typ, child) -> EFix_L (var, typ, act_on child)
           | _ -> tree
         end
   in
@@ -150,7 +150,7 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
     match code with
       | Expr.ELet (id, f, Expr.EHole) -> 
         begin match f with
-          | EFun (_, _) | EFix (_, _) -> 
+          | EFun _ | EFix _ -> 
             let (test_input, test_output) = test in
             let output = eval (Expr.ELet (id, f, EBinOp(EVar id, Expr.OpAp, EInt test_input))) in
             begin match output with
@@ -203,7 +203,7 @@ let possible_actions (expr: Expr.z_t ) : Action.avail_actions =(
     | EPair_L (child, _) 
     | EPair_R (_, child) -> recurse child state
     (*functions: update  *)
-    | EFun_L (varname, child)
+    | EFun_L (varname,_, child)
     | ELet_R (varname, _,child) -> 
       recurse child {move_parent=state.move_parent;
                      max_child=state.max_child; 
@@ -282,11 +282,75 @@ let rec code_to_string (e : Expr.t) : string =
     | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " "
     | ELet (x, e1, e2) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " in " ^ code_to_string e2 ^ " "
     | EFix (_, _) -> raise (SyntaxError "Incorrect syntax with fix")
-    | EFun (x, e) -> "(fun " ^ x ^ " -> " ^ code_to_string e ^ ") "
+    | EFun (x,_, e) -> "(fun " ^ x ^ " -> " ^ code_to_string e ^ ") "
     | EPair (e1, e2) -> "(" ^ code_to_string e1 ^ ", " ^ code_to_string e2 ^ ") "
     | EHole -> "<HOLE> "
     | ENil -> "[] "
 and resolve_fun (e : Expr.t) : string =
   match e with 
-    | EFun (x, e) -> " " ^ x ^ resolve_fun e
+    | EFun (x,_, e) -> " " ^ x ^ resolve_fun e
     | _ -> " = " ^ code_to_string e  ^ " "
+
+
+(*syn and ana *)
+let rec synthesis (context: Assumptions.t) (e: Expr.t) : Typ.t option = 
+  begin match e with
+  | EVar x -> Assumptions.lookup context x 
+  | EInt _  -> Int
+  | EBool _ -> Bool 
+  | EUnOp (OpNeg, arg) -> if analysis context arg Num then Some Num else None
+  | EBinOp (argl, OpPlus | OpMinus | OpTimes | OpDiv, argr) -> 
+      if analysis context argl Num  && analysis context argr Num then Some Num else None 
+  | EBinOp (argl, OpGt | OpGe | OpLt | OpLe , argr) -> 
+    if analysis context argl Num  && analysis context argr Num then Some Bool else None 
+  | EBinOp (argl, OpEq | OpNe , argr) -> (* equal is a special case*)
+    if (analysis context argl Num && analysis context argr Num) 
+      || (analysis context argl Bool && analysis context argr Bool) then Some Bool else None
+  | EBinop (arrow, OpAp, arg) -> 
+    (match synthesis context arrow with 
+      | Some Arrow (in_t, out_t) -> if analysis context arg in_t then Some out_t else None 
+      | _ -> None )
+  | EBinOp ( hd, OpCon, tl) -> 
+    (match synthesis context tl with 
+      | Some List (list_t) -> if analysis context hd list_t then Some (List list_t)  else None 
+      | _ -> None )
+  | EPair (l_pair, r_pair) -> (
+    match synthesis context l_pair, synthesis context r_pair with 
+    | Some l_t, Some r_t  -> Some (Pair (l_t,r_t))
+    | _ -> None )
+  | EIf (argl, argc,argr) -> (if analysis context argl Bool then (
+    match synthesis context r_pair with 
+    | Some out_t -> if analysis context argc out_t && analysis context argr out_t 
+        then Some out_t else None 
+    | _ -> None 
+    )
+    else None) 
+  | ELet (varn, dec, body) -> ( match synthesis context dec with
+    | Some var_t -> synthesis (Assumptions.extend context (varn,var_t)) body 
+    | _ -> None)
+  (* | ELet (varn, Some vart, dec, body) -> if analysis context dec vart 
+    then synthesis (Assumptions.extend context (varn,var_t)) body 
+    else None *)
+  | EFun (varn, vart, body) ->(
+    match synthesis (Assumptions.extend context (varn,vart)) body with 
+    | Some outtype -> Some (Arrow (vart,outtype))
+    | _ -> None )
+  (* | EFun (varn, vart, Some outtype, body) -> 
+    if analysis (Assumptions.extend context (varn,vart)) body outtype
+      then Some Arrow (vart,outtype) else None  *)
+  | EFix (varn, vart, body) -> 
+    if analysis (Assumptions.extend context (varn,vart)) body vart 
+      then Some vart else None 
+  | EHole |ENil -> None 
+  | _ -> None 
+end
+
+and analysis  (context:Assumptions.t) (e: Expr.t) (targ: Typ.t): bool =
+  match e with
+  | EFun (varn, vart, expr) -> Typ.equal (synthesis (Assumptions.extend context (varn,vart)) expr) targ
+  | EFix (varn,vart , arg) -> (Typ.equal vart targ) && (analysis context arg, targ) 
+  | EPair (lpair, rpair)  -> let l_t, r_t = targ in analysis context lpair l_t && analysis context rpair tart_r 
+  | EIf (argl, argc, argr) -> analysis context argl Bool && analysis context argc targ && analysis context argr targ 
+  | ELet(varn,vart, dec, body) -> analysis context dec vart && analysis (Assumptions.extend context (varn,vart)) body targ
+  | _ -> Typ.equal (synthesis context e) targ 
+

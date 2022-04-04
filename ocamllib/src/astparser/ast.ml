@@ -6,14 +6,27 @@ module Typ = struct
     | Int
     | Bool
     | Arrow of t * t
+    | Pair of t * t 
+    | List of t            (* for now we represent lists as their own type *)
+    [@@deriving sexp]
 
   (* Check if two types are equal *)
-  let rec equal (ty : t) (ty' : t) : bool =
+  (* let rec equal (ty : t) (ty' : t) : bool =
     match (ty, ty') with
     | (Int, Int)
     | (Bool, Bool) -> true
     | (Arrow (tin1, tout1), Arrow (tin2, tout2)) -> (equal tin1 tin2) && (equal tout1 tout2)
     | _ -> false
+  *)
+  let rec equal type1 type2 = 
+    match (type1, type2) with
+    | (Int, Int)  
+    | (Bool, Bool) -> true 
+    | (Arrow (a1, b1), Arrow (a2,b2)) 
+    | (Pair  (a1, b1), Pair (a2,b2)) -> (equal a1 a2) && (equal b1 b2)  
+    |  (List t1, List t2) -> (equal t1 t2) 
+    | _ -> false 
+
 end
 
 (* Variables *)
@@ -23,6 +36,34 @@ module Var = struct
   (* Check if two variable identifiers are equal *)
   let equal = String.equal
 end
+
+
+module Assumptions = struct 
+  type assumption = Var.t * Typ.t
+  type t = assumption list
+  let empty : t = []
+
+  let lookup (ctx : t) (x : Var.t) : Typ.t option =
+    List.fold_left
+      (fun found (y, ty) ->
+        match found with
+        | Some _ -> found
+        | None -> if Var.equal x y then Some ty else None)
+      None ctx
+
+  let extend (ctx : t) ((x, ty) : assumption) : t =
+    match lookup ctx x with
+    | None -> (x, ty) :: ctx
+    | Some _ ->
+        List.fold_right
+          (fun (y, ty') new_ctx -> let ty = 
+            if Var.equal x y 
+            then ty else ty' in (y, ty) :: new_ctx)
+          ctx 
+          empty
+end
+
+
 
 (* AST Definition *)
 module Expr = struct
@@ -35,10 +76,10 @@ module Expr = struct
     | EBool of bool                         (* Node Descriptor Number : 0 - 1 *)
     | EUnOp of unop * t                     (* Node Descriptor Number : 2 *)
     | EBinOp of t * binop * t               (* Node Descriptor Number : 3 - 14 *)
-    | ELet of Var.t * t * t                 (* Node Descriptor Number : 15 *)
+    | ELet of Var.t*  t * t                 (* Node Descriptor Number : 15 *)
     | EIf of t * t * t                      (* Node Descriptor Number : 16 *)
-    | EFun of Var.t * t                     (* Node Descriptor Number : 17 *)
-    | EFix of Var.t * t                     (* Node Descriptor Number : 18 *)
+    | EFun of Var.t * Typ.t * t      (* Node Descriptor Number : 17 *)
+    | EFix of Var.t * Typ.t * t                     (* Node Descriptor Number : 18 *)
     | EPair of t * t
     | EHole                                 (* Node Descriptor Number : 19 *)
     | ENil
@@ -54,8 +95,8 @@ module Expr = struct
     | EIf_L of z_t * t * t
     | EIf_C of t * z_t * t
     | EIf_R of t * t * z_t
-    | EFun_L of Var.t * z_t 
-    | EFix_L   of Var.t * z_t 
+    | EFun_L of Var.t * Typ.t * z_t 
+    | EFix_L   of Var.t *Typ.t * z_t 
     | EPair_L of z_t * t
     | EPair_R of t * z_t
     [@@deriving sexp]
@@ -82,9 +123,9 @@ module Expr = struct
         )
       | ELet (_, _, _) -> 13
       | EIf (_, _, _) -> 14
-      | EFun (_, _) -> 15
-      | EFix (_, _) -> 16
-      | EPair (_, _) -> 17
+      | EFun (_,_, _) -> 15
+      | EFix (_,_,_) -> 16
+      | EPair (_,_) -> 17
       | EHole -> 30
       | EBool false -> 31
       | EBool true -> 32
@@ -126,8 +167,8 @@ module Expr = struct
       | 12 -> EBinOp (check_child child1, OpAp, check_child child2)
       | 13 -> ELet (expr_to_var (check_child child1), check_child child2, check_child child3)
       | 14 -> EIf (check_child child1, check_child child2, check_child child3)
-      | 15 -> EFun (expr_to_var (check_child child1), check_child child2)
-      | 16 -> EFix (expr_to_var (check_child child1), check_child child2)
+      | 15 -> EFun (expr_to_var (check_child child1),Bool (*TODO: discuss how to do this in lab*), check_child child2)
+      | 16 -> EFix (expr_to_var (check_child child1),Bool (*TODO: discuss how to do this in lab*), check_child child2)
       | 17 -> EPair (check_child child1, check_child child2)
       | 30 -> EHole
       | 31 -> EBool false
@@ -142,6 +183,7 @@ module Expr = struct
       | 40 -> EVar "z"
       | 41 -> ENil
       | _ -> raise (Failure "Not supported")
+
 
   let tag_to_word (tag : tag) : string = 
     match tag with
@@ -179,11 +221,11 @@ module Expr = struct
 end
 
 (* Values *)
-module Value = struct
+module Value = struct (*might have broken some things *)
   type t = 
     | VInt of int
     | VBool of bool
-    | VFun of Var.t * Expr.t
+    | VFun of Var.t*Typ.t * Expr.t
     | VPair of t * t
     | VNil
   
@@ -191,7 +233,7 @@ module Value = struct
     match v with
       | VInt n -> Expr.EInt n
       | VBool b -> Expr.EBool b
-      | VFun (x, e) -> Expr.EFun (x, e)
+      | VFun (x,typ, e) -> Expr.EFun (x,typ, e) 
       | VPair (e1, e2) -> Expr.EPair (to_expr e1, to_expr e2)
       | VNil -> ENil
 end
@@ -211,8 +253,8 @@ module Action = struct
     | If_L  
     | If_C 
     | If_R 
-    | Fun   of Var.t
-    | Fix   of Var.t
+    | Fun   of Var.t*Typ.t
+    | Fix   of Var.t*Typ.t
     | Pair_L 
     | Pair_R
   
