@@ -1,34 +1,5 @@
+open Type
 open Sexplib.Std
-
-(* Basic types *)
-module Typ = struct
-  type t =
-    | Int
-    | Bool
-    | Arrow of t * t
-    | Pair of t * t 
-    | List of t            (* for now we represent lists as their own type *)
-    [@@deriving sexp]
-
-
-  (* Check if two types are equal *)
-  (* let rec equal (ty : t) (ty' : t) : bool =
-    match (ty, ty') with
-    | Int, Int | Bool, Bool -> true
-    | Arrow (tin1, tout1), Arrow (tin2, tout2) ->
-        equal tin1 tin2 && equal tout1 tout2
-    | _ -> false
-  *)
-  let rec equal type1 type2 = 
-    match (type1, type2) with
-    | (Int, Int)  
-    | (Bool, Bool) -> true 
-    | (Arrow (a1, b1), Arrow (a2,b2)) 
-    | (Pair  (a1, b1), Pair (a2,b2)) -> (equal a1 a2) && (equal b1 b2)  
-    |  (List t1, List t2) -> (equal t1 t2) 
-    | _ -> false 
-
-end
 
 (* Variables *)
 module Var = struct
@@ -119,142 +90,104 @@ module Expr = struct
     | EPair_R of t * z_t
   [@@deriving sexp]
 
+  type value =
+    | VInt of int
+    | VBool of bool
+    | VFun of Var.t * Typ.t * t
+    | VPair of value * value
+    | VNil
+    | VError
+
   type tag = int
 
+  let node_to_tag (node : t) : tag =
+    match node with
+    | EUnOp (OpNeg, _) -> 0
+    | EBinOp (_, op, _) -> (
+        match op with
+        | OpPlus -> 1
+        | OpMinus -> 2
+        | OpTimes -> 3
+        | OpDiv -> 4
+        | OpLt -> 5
+        | OpLe -> 6
+        | OpGt -> 7
+        | OpGe -> 8
+        | OpEq -> 9
+        | OpNe -> 10
+        | OpCon -> 11
+        | OpAp -> 12)
+    | ELet (_, _, _, _) -> 13
+    | EIf (_, _, _) -> 14
+    | EFun (_, _, _) -> 15
+    | EFix (_, _, _) -> 16
+    | EPair (_, _) -> 17
+    | EHole -> 30
+    | EBool false -> 31
+    | EBool true -> 32
+    | EInt -2 -> 33
+    | EInt -1 -> 34
+    | EInt 0 -> 35
+    | EInt 1 -> 36
+    | EInt 2 -> 37
+    | EVar "x" -> 38
+    | EVar "y" -> 39
+    | EVar "z" -> 40
+    | ENil -> 41
+    | _ -> raise (Failure "Not supported yet")
+
+  let tag_to_node (tag : tag) : t =
+    match tag with
+    | 0 -> EUnOp (OpNeg, EHole)
+    | 1 -> EBinOp (EHole, OpPlus, EHole)
+    | 2 -> EBinOp (EHole, OpMinus, EHole)
+    | 3 -> EBinOp (EHole, OpTimes, EHole)
+    | 4 -> EBinOp (EHole, OpDiv, EHole)
+    | 5 -> EBinOp (EHole, OpLt, EHole)
+    | 6 -> EBinOp (EHole, OpLe, EHole)
+    | 7 -> EBinOp (EHole, OpGt, EHole)
+    | 8 -> EBinOp (EHole, OpGe, EHole)
+    | 9 -> EBinOp (EHole, OpEq, EHole)
+    | 10 -> EBinOp (EHole, OpNe, EHole)
+    | 11 -> EBinOp (EHole, OpCon, EHole)
+    | 12 -> EBinOp (EHole, OpAp, EHole)
+    | 13 -> ELet ("", THole, EHole, EHole)
+    | 14 -> EIf (EHole, EHole, EHole)
+    | 15 -> EFun ("", THole, EHole)
+    | 16 -> EFix ("", THole, EHole)
+    | 17 -> EPair (EHole, EHole)
+    | 30 -> EHole
+    | 31 -> EBool false
+    | 32 -> EBool true
+    | 33 -> EInt (-2)
+    | 34 -> EInt (-1)
+    | 35 -> EInt 0
+    | 36 -> EInt 1
+    | 37 -> EInt 2
+    | 38 -> EVar "x"
+    | 39 -> EVar "y"
+    | 40 -> EVar "z"
+    | 41 -> ENil
+    | _ -> raise (Failure "Not supported")
+
+  (*
+     Return the size of the AST
+     Input :
+       - e : the AST
+     Output :
+       - the size of the AST
+  *)
   let rec size (e : t) : int =
     match e with
     | EVar _ | EInt _ | EBool _ | EHole | ENil -> 1
     | EUnOp (_, e) -> 1 + size e
     | EBinOp (e1, _, e2) -> 1 + size e1 + size e2
-    | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
+    | ELet (_, _, edef, ebody) -> 1 + 1 + 1 + size edef + size ebody
     | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
-    | EFix (_,_,  ebody) | EFun (_,_, ebody) -> 1 + 1 + size ebody
+    | EFix (_, _, ebody) | EFun (_, _, ebody) -> 1 + 1 + 1 + size ebody
     | EPair (e1, e2) -> 1 + size e1 + size e2
 
-  let node_to_tag (node : t) : tag =
-    match node with
-      | EUnOp (OpNeg, _) -> 0
-      | EBinOp (_, op, _) ->
-        (match op with
-          | OpPlus -> 1
-          | OpMinus -> 2
-          | OpTimes -> 3
-          | OpDiv -> 4
-          | OpLt -> 5
-          | OpLe -> 6
-          | OpGt -> 7
-          | OpGe -> 8
-          | OpEq -> 9
-          | OpNe -> 10
-          | OpCon -> 11
-          | OpAp -> 12
-        )
-      | ELet (_, _, _) -> 13
-      | EIf (_, _, _) -> 14
-      | EFun (_,_, _) -> 15
-      | EFix (_,_,_) -> 16
-      | EPair (_,_) -> 17
-      | EHole -> 30
-      | EBool false -> 31
-      | EBool true -> 32
-      | EInt (-2) -> 33
-      | EInt (-1) -> 34
-      | EInt 0 -> 35
-      | EInt 1 -> 36
-      | EInt 2 -> 37
-      | EVar "x" -> 38
-      | EVar "y" -> 39
-      | EVar "z" -> 40
-      | ENil -> 41
-      | _ -> raise (Failure "Not supported yet")
-
-  let tag_to_node (tag : tag) (child1 : t option) (child2 : t option) (child3 : t option) : t = 
-    let check_child (child : t option) : t =
-      match child with Some e -> e | _ -> raise (Failure "Incorrect syntax")
-    in
-    let expr_to_var (e : t) : Var.t =
-      match e with EVar s -> s | _ -> raise (Failure "Incorrect syntax")
-    in
-    match tag with
-      | 0 -> EUnOp (OpNeg, check_child child1)
-      | 1 -> EBinOp (check_child child1, OpPlus, check_child child2)
-      | 2 -> EBinOp (check_child child1, OpMinus, check_child child2)
-      | 3 -> EBinOp (check_child child1, OpTimes, check_child child2)
-      | 4 -> EBinOp (check_child child1, OpDiv, check_child child2)
-      | 5 -> EBinOp (check_child child1, OpLt, check_child child2)
-      | 6 -> EBinOp (check_child child1, OpLe, check_child child2)
-      | 7 -> EBinOp (check_child child1, OpGt, check_child child2)
-      | 8 -> EBinOp (check_child child1, OpGe, check_child child2)
-      | 9 -> EBinOp (check_child child1, OpEq, check_child child2)
-      | 10 -> EBinOp (check_child child1, OpNe, check_child child2)
-      | 11 -> EBinOp (check_child child1, OpCon, check_child child2)
-      | 12 -> EBinOp (check_child child1, OpAp, check_child child2)
-      | 13 -> ELet (expr_to_var (check_child child1), check_child child2, check_child child3)
-      | 14 -> EIf (check_child child1, check_child child2, check_child child3)
-      | 15 -> EFun (expr_to_var (check_child child1),Bool (*TODO: discuss how to do this in lab*), check_child child2)
-      | 16 -> EFix (expr_to_var (check_child child1),Bool (*TODO: discuss how to do this in lab*), check_child child2)
-      | 17 -> EPair (check_child child1, check_child child2)
-      | 30 -> EHole
-      | 31 -> EBool false
-      | 32 -> EBool true
-      | 33 -> EInt (-2)
-      | 34 -> EInt (-1)
-      | 35 -> EInt 0
-      | 36 -> EInt 1
-      | 37 -> EInt 2
-      | 38 -> EVar "x"
-      | 39 -> EVar "y"
-      | 40 -> EVar "z"
-      | 41 -> ENil
-      | _ -> raise (Failure "Not supported")
-
-
-  let tag_to_word (tag : tag) : string = 
-    match tag with
-    | 0 -> "-"
-    | 1 -> "+"
-    | 2 -> "-"
-    | 3 -> "*"
-    | 4 -> "/"
-    | 5 -> "<"
-    | 6 -> "<="
-    | 7 -> ">"
-    | 8 -> ">="
-    | 9 -> "="
-    | 10 -> "!="
-    | 11 -> "::"
-    | 12 -> "(ap)"
-    | 13 -> "let"
-    | 14 -> "if"
-    | 15 -> "fun"
-    | 16 -> "fix"
-    | 17 -> "pair"
-    | 30 -> "hole"
-    | 31 -> "false"
-    | 32 -> "true"
-    | 33 -> "-2"
-    | 34 -> "-1"
-    | 35 -> "0"
-    | 36 -> "1"
-    | 37 -> "2"
-    | 38 -> "x"
-    | 39 -> "y"
-    | 40 -> "z"
-    | 41 -> "[]"
-    | _ -> raise (Failure "Not supported")
-end
-
-(* Values *)
-module Value = struct
-  type t =
-    | VInt of int
-    | VBool of bool
-    | VFun of Var.t*Typ.t * Expr.t
-    | VPair of t * t
-    | VNil
-    | VError
-
-  let rec to_expr (v : t) =
+  let rec from_val (v : value) : t =
     match v with
       | VInt n -> Expr.EInt n
       | VBool b -> Expr.EBool b
@@ -262,6 +195,185 @@ module Value = struct
       | VPair (e1, e2) -> Expr.EPair (to_expr e1, to_expr e2)
       | VNil -> ENil
     | _ -> raise (Failure "Cannot be changed to expr")
+
+  (* Each edge is represented as (index of start node, index of end node, edge type) *)
+  type edge = int * int * int
+  type node = int
+  type graph = node list * edge list
+
+  (* A list of variables and the node index of their declaration in the code *)
+  type varlist = (Var.t * int) list
+
+  let rec from_list (nodes : node list) (edges : edge list) (root : int) : t =
+    let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
+      List.filter (fun (start, _, _) -> start = start_node) edges
+    in
+    let get_nth_child (edges : edge list) (n : int) : int =
+      let child = List.filter (fun (_, _, idx) -> idx = n) edges in
+      match child with
+      | [] -> raise (TranslationError "No child when there should be")
+      | [ (_, stop, _) ] -> stop
+      | _ -> raise (TranslationError "More than one child at this position")
+    in
+    let tag = List.nth nodes root in
+    let new_node = tag_to_node tag in
+    match new_node with
+    | EInt n -> EInt n
+    | EBool b -> EBool b
+    | EVar x -> EVar x
+    | EUnOp (op, _) ->
+        let adj_nodes = get_adj_nodes edges root in
+        EUnOp (op, from_list nodes edges (get_nth_child adj_nodes 1))
+    | EBinOp (_, op, _) ->
+        let adj_nodes = get_adj_nodes edges root in
+        EBinOp
+          ( from_list nodes edges (get_nth_child adj_nodes 1),
+            op,
+            from_list nodes edges (get_nth_child adj_nodes 2) )
+    | ELet (_, _, _, _) ->
+        let adj_nodes = get_adj_nodes edges root in
+        let varname =
+          match from_list nodes edges (get_nth_child adj_nodes 1) with
+          | EVar x -> x
+          | _ -> raise (SyntaxError "Expression in variable name")
+        in
+        ELet
+          ( varname,
+            Typ.from_list nodes edges (get_nth_child adj_nodes 2),
+            from_list nodes edges (get_nth_child adj_nodes 3),
+            from_list nodes edges (get_nth_child adj_nodes 4) )
+    | EIf (_, _, _) ->
+        let adj_nodes = get_adj_nodes edges root in
+        EIf
+          ( from_list nodes edges (get_nth_child adj_nodes 1),
+            from_list nodes edges (get_nth_child adj_nodes 2),
+            from_list nodes edges (get_nth_child adj_nodes 3) )
+    | EFun (_, _, _) ->
+        let adj_nodes = get_adj_nodes edges root in
+        let varname =
+          match from_list nodes edges (get_nth_child adj_nodes 1) with
+          | EVar x -> x
+          | _ -> raise (SyntaxError "Expression in variable name")
+        in
+        EFun
+          ( varname,
+            Typ.from_list nodes edges (get_nth_child adj_nodes 2),
+            from_list nodes edges (get_nth_child adj_nodes 3) )
+    | EFix (_, _, _) ->
+        let adj_nodes = get_adj_nodes edges root in
+        let varname =
+          match from_list nodes edges (get_nth_child adj_nodes 1) with
+          | EVar x -> x
+          | _ -> raise (SyntaxError "Expression in variable name")
+        in
+        EFix
+          ( varname,
+            Typ.from_list nodes edges (get_nth_child adj_nodes 2),
+            from_list nodes edges (get_nth_child adj_nodes 3) )
+    | EPair (_, _) ->
+        let adj_nodes = get_adj_nodes edges root in
+        EPair
+          ( from_list nodes edges (get_nth_child adj_nodes 1),
+            from_list nodes edges (get_nth_child adj_nodes 2) )
+    | EHole -> EHole
+    | ENil -> ENil
+
+  (* let rec to_list (e : z_t) : graph * CursorInfo =
+     let add_node (nodes : node list) (tag : int) : node list * int =
+       let new_nodes = nodes @ [ tag ] in
+       (new_nodes, List.length nodes)
+     in
+     let add_edge (edges : edge list) (new_edge : edge) : edge list =
+       new_edge :: edges
+     in
+     let add_var (var : Var.t) (index : int) (vars : varlist) : varlist =
+       (var, index) :: vars
+     in
+     let find_var (target : string) (vars : varlist) : int =
+       let indices =
+         List.filter (fun (var, index) -> Var.equal target var) vars
+       in
+       match indices with
+       | (_, index) :: tl -> index
+       | [] -> raise (SyntaxError "Expression not closed")
+     in
+     let append_type_tree (nodes : node list) (edges : edge list)
+         (ty_nodes : node list) (ty_edges : edge list) (root : int) : graph * int
+         =
+       let len = List.length nodes in
+       let ty_edges =
+         List.map (fun (x, y, z) -> (x + len, y + len, z)) ty_edges
+       in
+       ((nodes @ ty_nodes, edges @ ty_edges), root + len)
+     in
+     let rec to_list_aux (e : t) (nodes : node list) (edges : edge list)
+         (vars : varlist) : graph * int * varlist =
+       let add_subtree (e : t) (nodes : node list) (edges : edge list)
+           (root : int) (num_child : int) : graph =
+         let (nodes, edges), new_root, _ = to_list_aux e nodes edges vars in
+         let edges = add_edge edges (root, new_root, num_child) in
+         (nodes, edges)
+       in
+       let tag = node_to_tag e in
+       let nodes, root = add_node nodes tag in
+       match e with
+       | EInt _ | EBool _ | EHole | ENil -> ((nodes, edges), root, vars)
+       | EVar x ->
+           let edges = add_edge edges (find_var x vars, root, -1) in
+           ((nodes, edges), root, vars)
+       | EUnOp (_, e) -> (add_subtree e nodes edges root 1, root, vars)
+       | EBinOp (e1, _, e2) | EPair (e1, e2) ->
+           let nodes, edges = add_subtree e1 nodes edges root 1 in
+           (add_subtree e2 nodes edges root 2, root, vars)
+       | EFun (x, ty, e) | EFix (x, ty, e) ->
+           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
+           let edges = add_edge edges (root, new_root, 1) in
+           let vars = add_var x new_root vars in
+           let (ty_nodes, ty_edges), new_root = Typ.to_list ty in
+           let (nodes, edges), new_root =
+             append_type_tree nodes edges ty_nodes ty_edges new_root
+           in
+           let edges = add_edge edges (root, new_root, 2) in
+           (add_subtree e nodes edges root 3, root, vars)
+       | ELet (x, ty, edef, ebody) ->
+           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
+           let edges = add_edge edges (root, new_root, 1) in
+           let (ty_nodes, ty_edges), new_root = Typ.to_list ty in
+           let (nodes, edges), new_root =
+             append_type_tree nodes edges ty_nodes ty_edges new_root
+           in
+           let edges = add_edge edges (root, new_root, 2) in
+           let nodes, edges = add_subtree edef nodes edges root 3 in
+           let vars = add_var x new_root vars in
+           (add_subtree ebody nodes edges root 4, root, vars)
+       | EIf (econd, ethen, eelse) ->
+           let nodes, edges = add_subtree econd nodes edges root 1 in
+           let nodes, edges = add_subtree ethen nodes edges root 2 in
+           (add_subtree eelse nodes edges root 3, root, vars)
+     in
+     let graph, _, _ = to_list_aux (unzip_ast e) [] [] in
+     (graph, get_cursor_info e) *)
+
+  (* Convert an unzipped ast into a zipped one, by selecting the root *)
+  let select_root (e : t) : z_t = Cursor e
+
+  (* let rec unzip_ast (tree : z_t) : t =
+     match tree with
+     | Cursor arg -> arg
+     | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
+     | EBinOp_L (l_child, binop, r_child) ->
+         EBinOp (unzip_ast l_child, binop, r_child)
+     | EBinOp_R (l_child, binop, r_child) ->
+         EBinOp (l_child, binop, unzip_ast r_child)
+     | ELet_L (var, l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
+     | ELet_R (var, l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
+     | EIf_L (l, c, r) -> EIf (unzip_ast l, c, r)
+     | EIf_C (l, c, r) -> EIf (l, unzip_ast c, r)
+     | EIf_R (l, c, r) -> EIf (l, c, unzip_ast r)
+     | EPair_L (l, r) -> EPair (unzip_ast l, r)
+     | EPair_R (l, r) -> EPair (l, unzip_ast r)
+     | EFun_L (var, child) -> EFun (var, unzip_ast child)
+     | EFix_L (var, child) -> EFix (var, unzip_ast child) *)
 end
 
 module Action = struct

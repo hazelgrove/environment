@@ -148,15 +148,15 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
   let run_test (test : testType) (code : Expr.t) : bool =
     (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
     match code with
-    | Expr.ELet (id, f, Expr.EHole) -> (
+    | Expr.ELet (id, _, f, Expr.EHole) -> (
         match f with
-        | EFun (_, _) | EFix (_, _) -> (
+        | EFun (_, _, _) | EFix (_, _, _) -> (
             let test_input, test_output = test in
             let output =
               try
                 eval
                   (Expr.ELet
-                     (id, f, EBinOp (EVar id, Expr.OpAp, EInt test_input)))
+                     (id, THole, f, EBinOp (EVar id, Expr.OpAp, EInt test_input)))
                   100
               with _ -> VError
             in
@@ -264,115 +264,3 @@ let load_starter_code (directory : string) (assignment : int) (index : int) :
     ^ ".ml"
   in
   parse_file filename
-
-(* Change tree representation to string to better interpret graph *)
-let rec code_to_string (e : Expr.t) : string =
-  match e with
-  | EVar x -> x ^ " "
-  | EInt n -> string_of_int n ^ " "
-  | EBool b -> string_of_bool b ^ " "
-  | EUnOp (_, e) -> "(-" ^ code_to_string e ^ ") "
-  | EBinOp (e1, op, e2) ->
-      let op_string =
-        match op with
-        | OpPlus -> "+"
-        | OpMinus -> "-"
-        | OpTimes -> "*"
-        | OpDiv -> "/"
-        | OpLt -> "<"
-        | OpLe -> "<="
-        | OpGt -> ">"
-        | OpGe -> ">="
-        | OpEq -> "="
-        | OpNe -> "!="
-        | OpCon -> "::"
-        | OpAp -> " "
-      in
-      "(" ^ code_to_string e1 ^ " " ^ op_string ^ " " ^ code_to_string e2 ^ ") "
-  | EIf (cond, e1, e2) ->
-      "(if " ^ code_to_string cond ^ " then " ^ code_to_string e1 ^ " else "
-      ^ code_to_string e2 ^ ") "
-  | ELet (x, EFix (_, e1), EHole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
-  | ELet (x, EFix (_, e1), e2) ->
-      "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ code_to_string e2 ^ " "
-  | ELet (x, EFun (arg, e1), EHole) ->
-      "let " ^ x ^ resolve_fun (EFun (arg, e1)) ^ " "
-  | ELet (x, EFun (arg, e1), e2) ->
-      "let " ^ x
-      ^ resolve_fun (EFun (arg, e1))
-      ^ " in " ^ code_to_string e2 ^ " "
-  | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ code_to_string e1 ^ " "
-  | ELet (x, e1, e2) ->
-      "let " ^ x ^ " = " ^ code_to_string e1 ^ " in " ^ code_to_string e2 ^ " "
-  | EFix (_, _) -> raise (SyntaxError "Incorrect syntax with fix")
-  | EFun (x, e) -> "(fun " ^ x ^ " -> " ^ code_to_string e ^ ") "
-  | EPair (e1, e2) -> "(" ^ code_to_string e1 ^ ", " ^ code_to_string e2 ^ ") "
-  | EHole -> "<HOLE> "
-  | ENil -> "[] "
-
-and resolve_fun (e : Expr.t) : string =
-  match e with
-  | EFun (x, e) -> " " ^ x ^ resolve_fun e
-  | _ -> " = " ^ code_to_string e ^ " "
-
-
-let rec synthesis (context: Assumptions.t) (e: Expr.t) : Typ.t option = 
-  begin match e with
-  | EVar x -> Assumptions.lookup context x 
-  | EInt _  -> Int
-  | EBool _ -> Bool 
-  | EUnOp (OpNeg, arg) -> if analysis context arg Num then Some Num else None
-  | EBinOp (argl, OpPlus | OpMinus | OpTimes | OpDiv, argr) -> 
-      if analysis context argl Num  && analysis context argr Num then Some Num else None 
-  | EBinOp (argl, OpGt | OpGe | OpLt | OpLe , argr) -> 
-    if analysis context argl Num  && analysis context argr Num then Some Bool else None 
-  | EBinOp (argl, OpEq | OpNe , argr) -> (* equal is a special case*)
-    if (analysis context argl Num && analysis context argr Num) 
-      || (analysis context argl Bool && analysis context argr Bool) then Some Bool else None
-  | EBinop (arrow, OpAp, arg) -> 
-    (match synthesis context arrow with 
-      | Some Arrow (in_t, out_t) -> if analysis context arg in_t then Some out_t else None 
-      | _ -> None )
-  | EBinOp ( hd, OpCon, tl) -> 
-    (match synthesis context tl with 
-      | Some List (list_t) -> if analysis context hd list_t then Some (List list_t)  else None 
-      | _ -> None )
-  | EPair (l_pair, r_pair) -> (
-    match synthesis context l_pair, synthesis context r_pair with 
-    | Some l_t, Some r_t  -> Some (Pair (l_t,r_t))
-    | _ -> None )
-  | EIf (argl, argc,argr) -> (if analysis context argl Bool then (
-    match synthesis context r_pair with 
-    | Some out_t -> if analysis context argc out_t && analysis context argr out_t 
-        then Some out_t else None 
-    | _ -> None 
-    )
-    else None) 
-  | ELet (varn, dec, body) -> ( match synthesis context dec with
-    | Some var_t -> synthesis (Assumptions.extend context (varn,var_t)) body 
-    | _ -> None)
-  (* | ELet (varn, Some vart, dec, body) -> if analysis context dec vart 
-    then synthesis (Assumptions.extend context (varn,var_t)) body 
-    else None *)
-  | EFun (varn, vart, body) ->(
-    match synthesis (Assumptions.extend context (varn,vart)) body with 
-    | Some outtype -> Some (Arrow (vart,outtype))
-    | _ -> None )
-  (* | EFun (varn, vart, Some outtype, body) -> 
-    if analysis (Assumptions.extend context (varn,vart)) body outtype
-      then Some Arrow (vart,outtype) else None  *)
-  | EFix (varn, vart, body) -> 
-    if analysis (Assumptions.extend context (varn,vart)) body vart 
-      then Some vart else None 
-  | EHole |ENil -> None 
-  | _ -> None 
-end
-
-and analysis  (context:Assumptions.t) (e: Expr.t) (targ: Typ.t): bool =
-  match e with
-  | EFun (varn, vart, expr) -> Typ.equal (synthesis (Assumptions.extend context (varn,vart)) expr) targ
-  | EFix (varn,vart , arg) -> (Typ.equal vart targ) && (analysis context arg, targ) 
-  | EPair (lpair, rpair)  -> let l_t, r_t = targ in analysis context lpair l_t && analysis context rpair tart_r 
-  | EIf (argl, argc, argr) -> analysis context argl Bool && analysis context argc targ && analysis context argr targ 
-  | ELet(varn,vart, dec, body) -> analysis context dec vart && analysis (Assumptions.extend context (varn,vart)) body targ
-  | _ -> Typ.equal (synthesis context e) targ 
