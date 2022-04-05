@@ -178,11 +178,26 @@ module Expr = struct
     match e with
     | EVar _ | EInt _ | EBool _ | EHole | ENil -> 1
     | EUnOp (_, e) -> 1 + size e
-    | EBinOp (e1, _, e2) -> 1 + size e1 + size e2
-    | ELet (_, edef, ebody) -> 1 + 1 + 1 + size edef + size ebody
+    | EBinOp (e1, _, e2) | EPair (e1, e2) -> 1 + size e1 + size e2
+    | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
     | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
-    | EFix (_, _, ebody) | EFun (_, _, ebody) -> 1 + 1 + 1 + size ebody
-    | EPair (e1, e2) -> 1 + size e1 + size e2
+    | EFix (_, ty, ebody) | EFun (_, ty, ebody) ->
+        1 + 1 + Typ.size ty + size ebody
+
+  let%test_module "Test Expr.size" =
+    (module struct
+      let%test _ = size (EInt 10) = 1
+      let%test _ = size (EUnOp (OpNeg, EBinOp (EHole, OpPlus, EVar "x"))) = 4
+
+      let%test _ =
+        size
+          (ELet
+             ( "x",
+               EIf (EBool true, EInt 3, EInt 4),
+               EFun ("f", TProd (TInt, TInt), EBinOp (EVar "f", OpAp, EVar "x"))
+             ))
+        = 14
+    end)
 
   let rec from_val (v : value) : t =
     match v with
@@ -192,6 +207,29 @@ module Expr = struct
     | VPair (e1, e2) -> EPair (from_val e1, from_val e2)
     | VNil -> ENil
     | _ -> raise (Failure "Cannot be changed to expr")
+
+  (* Convert an unzipped ast into a zipped one, by selecting the root *)
+  let select_root (e : t) : z_t = Cursor e
+
+  let rec unzip_ast (tree : z_t) : t =
+    match tree with
+    | Cursor arg -> arg
+    | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
+    | EBinOp_L (l_child, binop, r_child) ->
+        EBinOp (unzip_ast l_child, binop, r_child)
+    | EBinOp_R (l_child, binop, r_child) ->
+        EBinOp (l_child, binop, unzip_ast r_child)
+    | ELet_L (var, l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
+    | ELet_R (var, l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
+    | EIf_L (l, c, r) -> EIf (unzip_ast l, c, r)
+    | EIf_C (l, c, r) -> EIf (l, unzip_ast c, r)
+    | EIf_R (l, c, r) -> EIf (l, c, unzip_ast r)
+    | EPair_L (l, r) -> EPair (unzip_ast l, r)
+    | EPair_R (l, r) -> EPair (l, unzip_ast r)
+    | EFun_L (var_n, var_t, child) -> EFun (var_n, var_t, unzip_ast child)
+    | EFix_L (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child)
+    | EFun_T (var_n, var_t, child) -> EFun (var_n, var_t, child)
+    | EFix_T (var_n, var_t, child) -> EFix (var_n, var_t, child)
 
   (* Each edge is represented as (index of start node, index of end node, edge type) *)
   type edge = int * int * int
@@ -274,99 +312,164 @@ module Expr = struct
     | EHole -> EHole
     | ENil -> ENil
 
-  (* let rec to_list (e : z_t) : graph * CursorInfo =
-     let add_node (nodes : node list) (tag : int) : node list * int =
-       let new_nodes = nodes @ [ tag ] in
-       (new_nodes, List.length nodes)
-     in
-     let add_edge (edges : edge list) (new_edge : edge) : edge list =
-       new_edge :: edges
-     in
-     let add_var (var : Var.t) (index : int) (vars : varlist) : varlist =
-       (var, index) :: vars
-     in
-     let find_var (target : string) (vars : varlist) : int =
-       let indices =
-         List.filter (fun (var, index) -> Var.equal target var) vars
-       in
-       match indices with
-       | (_, index) :: tl -> index
-       | [] -> raise (SyntaxError "Expression not closed")
-     in
-     let append_type_tree (nodes : node list) (edges : edge list)
-         (ty_nodes : node list) (ty_edges : edge list) (root : int) : graph * int
-         =
-       let len = List.length nodes in
-       let ty_edges =
-         List.map (fun (x, y, z) -> (x + len, y + len, z)) ty_edges
-       in
-       ((nodes @ ty_nodes, edges @ ty_edges), root + len)
-     in
-     let rec to_list_aux (e : t) (nodes : node list) (edges : edge list)
-         (vars : varlist) : graph * int * varlist =
-       let add_subtree (e : t) (nodes : node list) (edges : edge list)
-           (root : int) (num_child : int) : graph =
-         let (nodes, edges), new_root, _ = to_list_aux e nodes edges vars in
-         let edges = add_edge edges (root, new_root, num_child) in
-         (nodes, edges)
-       in
-       let tag = node_to_tag e in
-       let nodes, root = add_node nodes tag in
-       match e with
-       | EInt _ | EBool _ | EHole | ENil -> ((nodes, edges), root, vars)
-       | EVar x ->
-           let edges = add_edge edges (find_var x vars, root, -1) in
-           ((nodes, edges), root, vars)
-       | EUnOp (_, e) -> (add_subtree e nodes edges root 1, root, vars)
-       | EBinOp (e1, _, e2) | EPair (e1, e2) ->
-           let nodes, edges = add_subtree e1 nodes edges root 1 in
-           (add_subtree e2 nodes edges root 2, root, vars)
-       | EFun (x, ty, e) | EFix (x, ty, e) ->
-           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
-           let edges = add_edge edges (root, new_root, 1) in
-           let vars = add_var x new_root vars in
-           let (ty_nodes, ty_edges), new_root = Typ.to_list ty in
-           let (nodes, edges), new_root =
-             append_type_tree nodes edges ty_nodes ty_edges new_root
-           in
-           let edges = add_edge edges (root, new_root, 2) in
-           (add_subtree e nodes edges root 3, root, vars)
-       | ELet (x, edef, ebody) ->
-           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
-           let edges = add_edge edges (root, new_root, 1) in
-           let nodes, edges = add_subtree edef nodes edges root 2 in
-           let vars = add_var x new_root vars in
-           (add_subtree ebody nodes edges root 3, root, vars)
-       | EIf (econd, ethen, eelse) ->
-           let nodes, edges = add_subtree econd nodes edges root 1 in
-           let nodes, edges = add_subtree ethen nodes edges root 2 in
-           (add_subtree eelse nodes edges root 3, root, vars)
-     in
-     let graph, _, _ = to_list_aux (unzip_ast e) [] [] in
-     (graph, get_cursor_info e) *)
+  let%test_module "Test Expr.from_list" =
+    (module struct
+      let%test _ = from_list [ 35 ] [] 0 = EInt 0
 
-  (* Convert an unzipped ast into a zipped one, by selecting the root *)
-  let select_root (e : t) : z_t = Cursor e
+      let%test _ =
+        from_list
+          [ 15; 38; 24; 1; 3; 37; 38; 36 ]
+          [
+            (0, 1, 1);
+            (0, 2, 2);
+            (0, 3, 3);
+            (3, 4, 1);
+            (3, 7, 2);
+            (4, 5, 1);
+            (4, 6, 2);
+            (6, 1, -1);
+          ]
+          0
+        = EFun
+            ( "x",
+              THole,
+              EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) )
+    end)
 
-  let rec unzip_ast (tree : z_t) : t =
-    match tree with
-    | Cursor arg -> arg
-    | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
-    | EBinOp_L (l_child, binop, r_child) ->
-        EBinOp (unzip_ast l_child, binop, r_child)
-    | EBinOp_R (l_child, binop, r_child) ->
-        EBinOp (l_child, binop, unzip_ast r_child)
-    | ELet_L (var, l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
-    | ELet_R (var, l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
-    | EIf_L (l, c, r) -> EIf (unzip_ast l, c, r)
-    | EIf_C (l, c, r) -> EIf (l, unzip_ast c, r)
-    | EIf_R (l, c, r) -> EIf (l, c, unzip_ast r)
-    | EPair_L (l, r) -> EPair (unzip_ast l, r)
-    | EPair_R (l, r) -> EPair (l, unzip_ast r)
-    | EFun_L (var_n, var_t, child) -> EFun (var_n, var_t, unzip_ast child)
-    | EFix_L (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child)
-    | EFun_T (var_n, var_t, child) -> EFun (var_n, var_t, child)
-    | EFix_T (var_n, var_t, child) -> EFix (var_n, var_t, child)
+  type cursorInfo = unit (* Dummy type to be removed*)
+
+  let get_cursor_info (e : z_t) =
+    let _ = e in
+    ()
+  (* Dummy function to be removed *)
+
+  let to_list (e : z_t) : graph * cursorInfo =
+    let add_node (nodes : node list) (tag : int) : node list * int =
+      let new_nodes = nodes @ [ tag ] in
+      (new_nodes, List.length nodes)
+    in
+    let add_edge (edges : edge list) (new_edge : edge) : edge list =
+      new_edge :: edges
+    in
+    let add_var (var : Var.t) (index : int) (vars : varlist) : varlist =
+      (var, index) :: vars
+    in
+    let find_var (target : string) (vars : varlist) : int =
+      let indices =
+        List.filter (fun (var, index) -> Var.equal target var) vars
+      in
+      match indices with
+      | (_, index) :: tl -> index
+      | [] -> raise (SyntaxError "Expression not closed")
+    in
+    let append_type_tree (nodes : node list) (edges : edge list)
+        (ty_nodes : node list) (ty_edges : edge list) (root : int) : graph * int
+        =
+      let len = List.length nodes in
+      let ty_edges =
+        List.map (fun (x, y, z) -> (x + len, y + len, z)) ty_edges
+      in
+      ((nodes @ ty_nodes, edges @ ty_edges), root + len)
+    in
+    let rec to_list_aux (e : t) (nodes : node list) (edges : edge list)
+        (vars : varlist) : graph * int * varlist =
+      let add_subtree (e : t) (nodes : node list) (edges : edge list)
+          (root : int) (num_child : int) : graph =
+        let (nodes, edges), new_root, _ = to_list_aux e nodes edges vars in
+        let edges = add_edge edges (root, new_root, num_child) in
+        (nodes, edges)
+      in
+      let tag = node_to_tag e in
+      let nodes, root = add_node nodes tag in
+      match e with
+      | EInt _ | EBool _ | EHole | ENil -> ((nodes, edges), root, vars)
+      | EVar x ->
+          let edges = add_edge edges (find_var x vars, root, -1) in
+          ((nodes, edges), root, vars)
+      | EUnOp (_, e) -> (add_subtree e nodes edges root 1, root, vars)
+      | EBinOp (e1, _, e2) | EPair (e1, e2) ->
+          let nodes, edges = add_subtree e1 nodes edges root 1 in
+          (add_subtree e2 nodes edges root 2, root, vars)
+      | EFun (x, ty, e) | EFix (x, ty, e) ->
+          let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
+          let edges = add_edge edges (root, new_root, 1) in
+          let vars = add_var x new_root vars in
+          let (ty_nodes, ty_edges), new_root = Typ.to_list ty in
+          let (nodes, edges), new_root =
+            append_type_tree nodes edges ty_nodes ty_edges new_root
+          in
+          let edges = add_edge edges (root, new_root, 2) in
+          (add_subtree e nodes edges root 3, root, vars)
+      | ELet (x, edef, ebody) ->
+          let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
+          let edges = add_edge edges (root, new_root, 1) in
+          let nodes, edges = add_subtree edef nodes edges root 2 in
+          let vars = add_var x new_root vars in
+          (add_subtree ebody nodes edges root 3, root, vars)
+      | EIf (econd, ethen, eelse) ->
+          let nodes, edges = add_subtree econd nodes edges root 1 in
+          let nodes, edges = add_subtree ethen nodes edges root 2 in
+          (add_subtree eelse nodes edges root 3, root, vars)
+    in
+    let graph, _, _ = to_list_aux (unzip_ast e) [] [] [] in
+    (graph, get_cursor_info e)
+
+  (* Change tree representation to string to better interpret graph *)
+  let rec to_string (e : t) : string =
+    match e with
+    | EVar x -> x ^ " "
+    | EInt n -> string_of_int n ^ " "
+    | EBool b -> string_of_bool b ^ " "
+    | EUnOp (_, e) -> "(-" ^ to_string e ^ ") "
+    | EBinOp (e1, op, e2) ->
+        let op_string =
+          match op with
+          | OpPlus -> "+"
+          | OpMinus -> "-"
+          | OpTimes -> "*"
+          | OpDiv -> "/"
+          | OpLt -> "<"
+          | OpLe -> "<="
+          | OpGt -> ">"
+          | OpGe -> ">="
+          | OpEq -> "="
+          | OpNe -> "!="
+          | OpCon -> "::"
+          | OpAp -> " "
+        in
+        "(" ^ to_string e1 ^ " " ^ op_string ^ " " ^ to_string e2 ^ ") "
+    | EIf (cond, e1, e2) ->
+        "(if " ^ to_string cond ^ " then " ^ to_string e1 ^ " else "
+        ^ to_string e2 ^ ") "
+    | ELet (x, EFix (_, _, e1), EHole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
+    | ELet (x, EFix (_, _, e1), e2) ->
+        "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ to_string e2 ^ " "
+    | ELet (x, EFun (arg, ty, e1), EHole) ->
+        "let " ^ x ^ resolve_fun (EFun (arg, ty, e1)) ^ " "
+    | ELet (x, EFun (arg, ty, e1), e2) ->
+        "let " ^ x
+        ^ resolve_fun (EFun (arg, ty, e1))
+        ^ " in " ^ to_string e2 ^ " "
+    | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ to_string e1 ^ " "
+    | ELet (x, e1, e2) ->
+        "let " ^ x ^ " = " ^ to_string e1 ^ " in " ^ to_string e2 ^ " "
+    | EFix (_, _, _) -> raise (SyntaxError "Incorrect syntax with fix")
+    | EFun (x, ty, e) ->
+        if ty = Typ.THole
+        then "(fun " ^ x ^ " -> " ^ to_string e ^ ") "
+        else
+          "(fun (" ^ x ^ " : " ^ Typ.to_string ty ^ ") -> " ^ to_string e ^ ") "
+    | EPair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
+    | EHole -> "<HOLE> "
+    | ENil -> "[] "
+
+  and resolve_fun (e : t) : string =
+    match e with
+    | EFun (x, ty, e) ->
+        if ty = Typ.THole
+        then " " ^ x ^ resolve_fun e
+        else " (" ^ x ^ " : " ^ Typ.to_string ty ^ ") " ^ resolve_fun e
+    | _ -> " = " ^ to_string e ^ " "
 end
 
 module Action = struct

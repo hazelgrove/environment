@@ -16,6 +16,24 @@ module Typ = struct
         equal tin1 tin2 && equal tout1 tout2
     | _ -> false
 
+  (*
+     Return the size of the Type Tree
+     Input :
+       - e : the Type Tree
+     Output :
+       - the size of the Type Tree
+  *)
+  let rec size (tree : t) : int =
+    match tree with
+    | TInt | TBool | THole -> 1
+    | TArrow (t1, t2) | TProd (t1, t2) -> 1 + size t1 + size t2
+
+  let%test_module "Test Typ.size" =
+    (module struct
+      let%test _ = size (TArrow (TProd (TInt, TInt), TBool)) = 5
+      let%test _ = size (TArrow (TArrow (TInt, TInt), TProd (TBool, THole))) = 7
+    end)
+
   let node_to_tag (node : t) : int =
     match node with
     | TInt -> 20
@@ -65,6 +83,17 @@ module Typ = struct
             from_list nodes edges (get_nth_child adj_nodes 2) )
     | THole -> THole
 
+  let%test_module "Test Typ.from_list" =
+    (module struct
+      let%test _ = from_list [ 20 ] [] 0 = TInt
+
+      let%test _ =
+        from_list [ 23; 22; 20; 21; 24 ]
+          [ (0, 1, 1); (0, 4, 2); (1, 2, 1); (1, 3, 2) ]
+          0
+        = TProd (TArrow (TInt, TBool), THole)
+    end)
+
   let to_list (tree : t) : graph * int =
     let add_node (nodes : node list) (tag : int) : node list * int =
       let new_nodes = nodes @ [ tag ] in
@@ -90,4 +119,23 @@ module Typ = struct
           (add_subtree t2 nodes edges root 2, root)
     in
     to_list_aux tree [] []
+
+  let%test_module "Test Typ.to_list" =
+    (module struct
+      let check_id tree =
+        let (nodes, edges), root = to_list tree in
+        let changed_tree = from_list nodes edges root in
+        tree = changed_tree
+
+      let%test _ = check_id TInt
+      let%test _ = check_id (TProd (TArrow (TInt, TBool), THole))
+    end)
+
+  let rec to_string (tree : t) : string =
+    match tree with
+    | TInt -> "int "
+    | TBool -> "bool "
+    | TArrow (t1, t2) -> to_string t1 ^ "-> " ^ to_string t2
+    | TProd (t1, t2) -> to_string t1 ^ "* " ^ to_string t2
+    | THole -> "? "
 end

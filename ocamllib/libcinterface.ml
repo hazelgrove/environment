@@ -119,12 +119,13 @@ let change_zast_c (ser_zast : string) (action : int) : string =
   serialize zast
 
 (* Return the nodes, edges, and cursor position indicated by the serialized zast *)
-let get_ast_c (ser_zast : string) : int =
+(* TODO: change cursorInfo *)
+let get_ast_c (ser_zast : string) : unit =
   let zast = deserialize ser_zast in
-  let (nodes, edges), cursor, _ = Expr.to_list zast in
+  let (nodes, edges), cursorInfo = Expr.to_list zast in
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
-  cursor
+  cursorInfo
 
 (* run_unittests function that will be called by C *)
 let run_unit_tests_c (root : int) : bool =
@@ -142,7 +143,7 @@ let load_tests_c (assignment : int) : unit =
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (assignment : int) (index : int) : string =
   let e = load_starter_code "data" assignment index in
-  let zast = select_root e in
+  let zast = Expr.select_root e in
   serialize zast
 
 (* For debugging use *)
@@ -150,7 +151,7 @@ let print_code_c (root : int) : unit =
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
   let e = Expr.from_list nodes edges root in
-  let s = code_to_string e in
+  let s = Expr.to_string e in
   let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl") in
   ()
 
