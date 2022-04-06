@@ -5,24 +5,42 @@ exception NotImplemented
 
 (* Basic types *)
 module Typ = struct
-  type t = TInt | TBool | TArrow of t * t | TProd of t * t | THole
+  type t = 
+  | TInt 
+  | TBool 
+  | TArrow of t * t 
+  | TProd of t * t 
+  | THole
+  | TList of t  (* temporarily include lists *)
   [@@deriving sexp]
+
+  type z_t = 
+  | Cursor of  t
+  | Arrow_L of z_t * t 
+  | Arrow_R of t * z_t 
+  | Prod_L of z_t * t
+  | Prod_R of t* z_t 
+  | List_L of z_t 
 
   (* Check if two types are equal *)
   let rec equal (ty : t) (ty' : t) : bool =
     match (ty, ty') with
-    | TInt, TInt | TBool, TBool | THole, THole -> true
+    | TInt, TInt 
+    | TBool, TBool 
+    | THole, THole -> true
     | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
         equal tin1 tin2 && equal tout1 tout2
+    | TList t_1 , TList t_2 ->  equal t_1 t_2 
     | _ -> false
 
   let node_to_tag (node : t) : int =
-    match node with
+    match node with    (* HOW ARE THESE NUMBERS CHOSEN*)
     | TInt -> 20
     | TBool -> 21
     | TArrow (_, _) -> 22
     | TProd (_, _) -> 23
-    | THole -> 24
+    | TList _ -> 24
+    | THole -> 25
 
   let tag_to_node (tag : int) : t =
     match tag with
@@ -30,7 +48,8 @@ module Typ = struct
     | 21 -> TBool
     | 22 -> TArrow (THole, THole)
     | 23 -> TProd (THole, THole)
-    | 24 -> THole
+    | 24 -> TList  (THole)
+    | 25 -> THole
     | _ -> raise (SyntaxError "Unrecognized type")
 
   type edge = int * int * int
@@ -63,6 +82,9 @@ module Typ = struct
         TProd
           ( from_list nodes edges (get_nth_child adj_nodes 1),
             from_list nodes edges (get_nth_child adj_nodes 2) )
+    | TList _ -> 
+        let adj_nodes = get_adj_nodes edges root in 
+        TList (from_list nodes edges (get_nth_child adj_nodes 1))
     | THole -> THole
 
   let to_list (tree : t) : graph * int =
@@ -85,6 +107,7 @@ module Typ = struct
       let nodes, root = add_node nodes tag in
       match tree with
       | TInt | TBool | THole -> ((nodes, edges), root)
+      | TList t1 ->  ((add_subtree t1 nodes edges root 1), root)
       | TArrow (t1, t2) | TProd (t1, t2) ->
           let nodes, edges = add_subtree t1 nodes edges root 1 in
           (add_subtree t2 nodes edges root 2, root)

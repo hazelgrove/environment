@@ -274,81 +274,12 @@ module Expr = struct
     | EHole -> EHole
     | ENil -> ENil
 
-  (* let rec to_list (e : z_t) : graph * CursorInfo =
-     let add_node (nodes : node list) (tag : int) : node list * int =
-       let new_nodes = nodes @ [ tag ] in
-       (new_nodes, List.length nodes)
-     in
-     let add_edge (edges : edge list) (new_edge : edge) : edge list =
-       new_edge :: edges
-     in
-     let add_var (var : Var.t) (index : int) (vars : varlist) : varlist =
-       (var, index) :: vars
-     in
-     let find_var (target : string) (vars : varlist) : int =
-       let indices =
-         List.filter (fun (var, index) -> Var.equal target var) vars
-       in
-       match indices with
-       | (_, index) :: tl -> index
-       | [] -> raise (SyntaxError "Expression not closed")
-     in
-     let append_type_tree (nodes : node list) (edges : edge list)
-         (ty_nodes : node list) (ty_edges : edge list) (root : int) : graph * int
-         =
-       let len = List.length nodes in
-       let ty_edges =
-         List.map (fun (x, y, z) -> (x + len, y + len, z)) ty_edges
-       in
-       ((nodes @ ty_nodes, edges @ ty_edges), root + len)
-     in
-     let rec to_list_aux (e : t) (nodes : node list) (edges : edge list)
-         (vars : varlist) : graph * int * varlist =
-       let add_subtree (e : t) (nodes : node list) (edges : edge list)
-           (root : int) (num_child : int) : graph =
-         let (nodes, edges), new_root, _ = to_list_aux e nodes edges vars in
-         let edges = add_edge edges (root, new_root, num_child) in
-         (nodes, edges)
-       in
-       let tag = node_to_tag e in
-       let nodes, root = add_node nodes tag in
-       match e with
-       | EInt _ | EBool _ | EHole | ENil -> ((nodes, edges), root, vars)
-       | EVar x ->
-           let edges = add_edge edges (find_var x vars, root, -1) in
-           ((nodes, edges), root, vars)
-       | EUnOp (_, e) -> (add_subtree e nodes edges root 1, root, vars)
-       | EBinOp (e1, _, e2) | EPair (e1, e2) ->
-           let nodes, edges = add_subtree e1 nodes edges root 1 in
-           (add_subtree e2 nodes edges root 2, root, vars)
-       | EFun (x, ty, e) | EFix (x, ty, e) ->
-           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
-           let edges = add_edge edges (root, new_root, 1) in
-           let vars = add_var x new_root vars in
-           let (ty_nodes, ty_edges), new_root = Typ.to_list ty in
-           let (nodes, edges), new_root =
-             append_type_tree nodes edges ty_nodes ty_edges new_root
-           in
-           let edges = add_edge edges (root, new_root, 2) in
-           (add_subtree e nodes edges root 3, root, vars)
-       | ELet (x, edef, ebody) ->
-           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
-           let edges = add_edge edges (root, new_root, 1) in
-           let nodes, edges = add_subtree edef nodes edges root 2 in
-           let vars = add_var x new_root vars in
-           (add_subtree ebody nodes edges root 3, root, vars)
-       | EIf (econd, ethen, eelse) ->
-           let nodes, edges = add_subtree econd nodes edges root 1 in
-           let nodes, edges = add_subtree ethen nodes edges root 2 in
-           (add_subtree eelse nodes edges root 3, root, vars)
-     in
-     let graph, _, _ = to_list_aux (unzip_ast e) [] [] in
-     (graph, get_cursor_info e) *)
+  
 
   (* Convert an unzipped ast into a zipped one, by selecting the root *)
   let select_root (e : t) : z_t = Cursor e
 
-  (* let rec unzip_ast (tree : z_t) : t =
+  let rec unzip_ast (tree : z_t) : t =
      match tree with
      | Cursor arg -> arg
      | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
@@ -364,8 +295,25 @@ module Expr = struct
      | EPair_L (l, r) -> EPair (unzip_ast l, r)
      | EPair_R (l, r) -> EPair (l, unzip_ast r)
      | EFun_L (var_n, var_t, child) -> EFun (var_n, var_t, unzip_ast child)
-     | EFix_L (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child) *)
+     | EFix_L (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child)   
 end
+
+
+module CursorInfo = struct
+  type t = {
+    current_term : Expr.t;
+    (*the currently focussed term (use to decide whether we can go down) *)
+    parent_term : Expr.t option;
+    (* parent of current term (use to decide whether we can go up)  *)
+    ctx : (Var.t * int) list;
+    (*mapping of vars in scope to types (use to determine vars in scope)    *)
+    expected_ty : Typ.t option;
+    (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
+    actual_ty : Typ.t;
+        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
+  }
+end
+
 
 module Action = struct
   type shape =
@@ -403,18 +351,6 @@ module Action = struct
 
   type tag = int
 
-  type cursorInfo = {
-    current_term : Expr.t;
-    (*the currently focussed term (use to decide whether we can go down) *)
-    parent_term : Expr.t option;
-    (* parent of current term (use to decide whether we can go up)  *)
-    ctx : (Var.t * int) list;
-    (*mapping of vars in scope to types (use to determine vars in scope)    *)
-    expected_ty : Typ.t option;
-    (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
-    actual_ty : Typ.t;
-        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
-  }
   (*  Contains short-form avaliable actions*)
   (* In the format (Parent avaliable,
                    max child number (if 0 no children exist),
@@ -425,3 +361,5 @@ module Action = struct
     let _ = action in
     Move Parent
 end
+
+
