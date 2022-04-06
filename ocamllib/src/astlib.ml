@@ -172,6 +172,36 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
   | [] -> true
   | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
 
+let%test_module "Test run_unit_tests" =
+  (module struct
+    (* All correct *)
+    let%test _ =
+      run_unit_tests [ (1, 2); (-2, -1); (0, 1) ] (parse "let f n = n + 1")
+      = true
+
+    (* Partially correct *)
+    let%test _ =
+      run_unit_tests [ (1, 2); (-2, 0); (0, 1) ] (parse "let f n = n + 1")
+      = false
+
+    (* Incorrect *)
+    let%test _ =
+      run_unit_tests [ (1, 3); (-2, 0); (0, 2) ] (parse "let f n = n + 1")
+      = false
+
+    (* Error in code *)
+    let%test _ =
+      run_unit_tests [ (1, 2); (-2, -1); (0, 1) ] (parse "let f n = n + true")
+      = false
+
+    (* Error in format *)
+    let%test _ =
+      run_unit_tests
+        [ (1, 2); (-2, -1); (0, 1) ]
+        (parse "let f n = n + true in f 1")
+      = false
+  end)
+
 (* let possible_actions (expr : Expr.z_t) : Action.avail_actions =
    let rec make_var_arr (i : int) =
      (* create an array of 10 falses *)

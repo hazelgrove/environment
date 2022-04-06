@@ -374,7 +374,7 @@ module Expr = struct
     let rec to_list_aux (e : t) (nodes : node list) (edges : edge list)
         (vars : varlist) : graph * int * varlist =
       let add_subtree (e : t) (nodes : node list) (edges : edge list)
-          (root : int) (num_child : int) : graph =
+          (root : int) (num_child : int) (vars : varlist) : graph =
         let (nodes, edges), new_root, _ = to_list_aux e nodes edges vars in
         let edges = add_edge edges (root, new_root, num_child) in
         (nodes, edges)
@@ -386,10 +386,10 @@ module Expr = struct
       | EVar x ->
           let edges = add_edge edges (find_var x vars, root, -1) in
           ((nodes, edges), root, vars)
-      | EUnOp (_, e) -> (add_subtree e nodes edges root 1, root, vars)
+      | EUnOp (_, e) -> (add_subtree e nodes edges root 1 vars, root, vars)
       | EBinOp (e1, _, e2) | EPair (e1, e2) ->
-          let nodes, edges = add_subtree e1 nodes edges root 1 in
-          (add_subtree e2 nodes edges root 2, root, vars)
+          let nodes, edges = add_subtree e1 nodes edges root 1 vars in
+          (add_subtree e2 nodes edges root 2 vars, root, vars)
       | EFun (x, ty, e) | EFix (x, ty, e) ->
           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
           let edges = add_edge edges (root, new_root, 1) in
@@ -399,20 +399,57 @@ module Expr = struct
             append_type_tree nodes edges ty_nodes ty_edges new_root
           in
           let edges = add_edge edges (root, new_root, 2) in
-          (add_subtree e nodes edges root 3, root, vars)
+          (add_subtree e nodes edges root 3 vars, root, vars)
       | ELet (x, edef, ebody) ->
           let nodes, new_root = add_node nodes (node_to_tag (EVar x)) in
           let edges = add_edge edges (root, new_root, 1) in
-          let nodes, edges = add_subtree edef nodes edges root 2 in
+          let nodes, edges = add_subtree edef nodes edges root 2 vars in
           let vars = add_var x new_root vars in
-          (add_subtree ebody nodes edges root 3, root, vars)
+          (add_subtree ebody nodes edges root 3 vars, root, vars)
       | EIf (econd, ethen, eelse) ->
-          let nodes, edges = add_subtree econd nodes edges root 1 in
-          let nodes, edges = add_subtree ethen nodes edges root 2 in
-          (add_subtree eelse nodes edges root 3, root, vars)
+          let nodes, edges = add_subtree econd nodes edges root 1 vars in
+          let nodes, edges = add_subtree ethen nodes edges root 2 vars in
+          (add_subtree eelse nodes edges root 3 vars, root, vars)
     in
     let graph, _, _ = to_list_aux (unzip_ast e) [] [] [] in
     (graph, get_cursor_info e)
+
+  let%test_module "Test Expr.to_list" =
+    (module struct
+      let check_id e =
+        let (nodes, edges), _ = to_list (select_root e) in
+        let changed_tree = from_list nodes edges 0 in
+        e = changed_tree
+
+      let%test _ =
+        check_id
+          (EFun
+             ( "x",
+               THole,
+               EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) ))
+
+      let%test _ =
+        check_id
+          (ELet
+             ( "x",
+               EFix
+                 ( "x",
+                   THole,
+                   EFun
+                     ( "y",
+                       TInt,
+                       EIf
+                         ( EBinOp (EVar "y", OpLt, EInt 1),
+                           EInt 1,
+                           EBinOp
+                             ( EVar "y",
+                               OpTimes,
+                               EBinOp
+                                 ( EVar "x",
+                                   OpAp,
+                                   EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
+               EBinOp (EVar "x", OpAp, EInt 2) ))
+    end)
 
   (* Change tree representation to string to better interpret graph *)
   let rec to_string (e : t) : string =
