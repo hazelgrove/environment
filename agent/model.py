@@ -78,6 +78,15 @@ class Policy(nn.Module):
         return value, action_log_probs, dist_entropy, rnn_hxs
 
 
+# Our NN model
+class GNNBase(nn.Module):
+    def __init__(self):
+        super(GNNBase, self).__init__()
+
+    def forward(self):
+        pass
+
+
 class NNBase(nn.Module):
     def __init__(self, recurrent, recurrent_input_size, hidden_size):
         super(NNBase, self).__init__()
