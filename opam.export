@@ -7,11 +7,9 @@ roots: [
   "menhir.20211230"
   "ocaml.4.13.1"
   "ocaml-base-compiler.4.13.1"
-  "ocaml-lsp-server.1.9.1"
   "ocamlformat.0.20.1"
   "ounit2.2.2.4"
   "ppx_sexp_conv.v0.14.3"
-  "pyml.20211015"
   "sexplib.v0.14.0"
   "utop.2.9.0"
 ]
