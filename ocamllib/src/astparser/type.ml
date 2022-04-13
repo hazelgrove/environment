@@ -2,6 +2,7 @@ exception SyntaxError of string
 exception RuntimeError of string
 exception TranslationError of string
 exception NotImplemented
+open Var 
 
 (* Basic types *)
 module Typ = struct
@@ -21,6 +22,7 @@ module Typ = struct
   | Prod_L of z_t * t
   | Prod_R of t* z_t 
   | List_L of z_t 
+  [@@deriving sexp]
 
   (* Check if two types are equal *)
   let rec equal (ty : t) (ty' : t) : bool =
@@ -32,6 +34,25 @@ module Typ = struct
         equal tin1 tin2 && equal tout1 tout2
     | TList t_1 , TList t_2 ->  equal t_1 t_2 
     | _ -> false
+
+  (*
+     Return the size of the Type Tree
+     Input :
+       - e : the Type Tree
+     Output :
+       - the size of the Type Tree
+  *)
+  let rec size (tree : t) : int =
+    match tree with
+    | TInt | TBool | THole -> 1
+    | TList t1 -> 1 + size t1
+    | TArrow (t1, t2) | TProd (t1, t2) -> 1 + size t1 + size t2
+
+  let%test_module "Test Typ.size" =
+    (module struct
+      let%test _ = size (TArrow (TProd (TInt, TInt), TBool)) = 5
+      let%test _ = size (TArrow (TArrow (TInt, TInt), TProd (TBool, THole))) = 7
+    end)
 
   let node_to_tag (node : t) : int =
     match node with    (* HOW ARE THESE NUMBERS CHOSEN*)
@@ -56,6 +77,15 @@ module Typ = struct
   type node = int
   type graph = node list * edge list
 
+  let rec unzip (tree:z_t):t = 
+    match tree with
+    | Cursor subtree -> subtree
+    | Arrow_L (tl,tr) -> TArrow (unzip tl, tr)
+    | Prod_L (tl,tr) -> TProd (unzip tl, tr)
+    | Arrow_R (tl,tr) -> TArrow (tl, unzip tr)
+    | Prod_R  (tl,tr) -> TProd (tl, unzip tr)
+    | List_L tl  -> TList (unzip tl)
+  
   let rec from_list (nodes : node list) (edges : edge list) (root : int) : t =
     let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
       List.filter (fun (start, _, _) -> start = start_node) edges
@@ -87,6 +117,17 @@ module Typ = struct
         TList (from_list nodes edges (get_nth_child adj_nodes 1))
     | THole -> THole
 
+  let%test_module "Test Typ.from_list" =
+    (module struct
+      let%test _ = from_list [ 20 ] [] 0 = TInt
+
+      let%test _ =
+        from_list [ 23; 22; 20; 21; 24 ]
+          [ (0, 1, 1); (0, 4, 2); (1, 2, 1); (1, 3, 2) ]
+          0
+        = TProd (TArrow (TInt, TBool), THole)
+    end)
+
   let to_list (tree : t) : graph * int =
     let add_node (nodes : node list) (tag : int) : node list * int =
       let new_nodes = nodes @ [ tag ] in
@@ -113,4 +154,51 @@ module Typ = struct
           (add_subtree t2 nodes edges root 2, root)
     in
     to_list_aux tree [] []
+
+  let%test_module "Test Typ.to_list" =
+    (module struct
+      let check_id tree =
+        let (nodes, edges), root = to_list tree in
+        let changed_tree = from_list nodes edges root in
+        tree = changed_tree
+
+      let%test _ = check_id TInt
+      let%test _ = check_id (TProd (TArrow (TInt, TBool), THole))
+    end)
+
+  let rec to_string (tree : t) : string =
+    match tree with
+    | TInt -> "int "
+    | TBool -> "bool "
+    | TArrow (t1, t2) -> to_string t1 ^ "-> " ^ to_string t2
+    | TProd (t1, t2) -> to_string t1 ^ "* " ^ to_string t2
+    | TList t1 -> to_string t1 ^ " list"
+    | THole -> "? "
+end
+
+
+
+module Assumptions = struct
+  type assumption = Var.t * Typ.t
+  type t = assumption list
+
+  let empty : t = []
+
+  let lookup (ctx : t) (x : Var.t) : Typ.t option =
+    List.fold_left
+      (fun found (y, ty) ->
+        match found with
+        | Some _ -> found
+        | None -> if Var.equal x y then Some ty else None)
+      None ctx
+
+  let extend (ctx : t) ((x, ty) : assumption) : t =
+    match lookup ctx x with
+    | None -> (x, ty) :: ctx
+    | Some _ ->
+        List.fold_right
+          (fun (y, ty') new_ctx ->
+            let ty = if Var.equal x y then ty else ty' in
+            (y, ty) :: new_ctx)
+          ctx empty
 end

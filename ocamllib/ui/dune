@@ -1,3 +1,0 @@
-(executable
- (name cmd)
- (libraries astutils astlib))
