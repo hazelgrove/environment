@@ -12,6 +12,7 @@ torch = [
 ]
 stable-baselines3 = "^1.5.0"
 numpy = "^1.22.3"
+run-logger = "^0.1.0"
 
 [tool.poetry.dev-dependencies]
 ipython = "^8.0.1"
