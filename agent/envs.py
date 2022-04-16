@@ -17,6 +17,8 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnvWrapper
 from stable_baselines3.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
+from envs.ast_env import ASTEnv
+
 
 def make_env(env_id, seed, rank, log_dir, allow_early_resets):
     def _thunk():
