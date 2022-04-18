@@ -20,7 +20,7 @@ module Expr = struct
     | OpNe
     | OpCon
     | OpAp
-  [@@deriving sexp]
+    [@@deriving sexp]
 
   type t =
     | EVar of Var.t (* Node Descriptor Number : 35 - 37 *)
@@ -35,7 +35,8 @@ module Expr = struct
     | EPair of t * t
     | EHole (* Node Descriptor Number : 19 *)
     | ENil
-  [@@deriving sexp]
+    [@@deriving sexp]
+
 
   type z_t =
     | Cursor of t
@@ -53,7 +54,8 @@ module Expr = struct
     | EFix_L of Var.t * Typ.z_t * t (* TOOD: need to fix all our rerucsion operations now *) 
     | EPair_L of z_t * t
     | EPair_R of t * z_t
-  [@@deriving sexp]
+    [@@deriving sexp]
+
 
   type value =
     | VInt of int
@@ -402,23 +404,6 @@ module Expr = struct
   end
 
 
-module CursorInfo = struct
-  type t = {
-    current_term : Expr.t;
-    (*the currently focussed term (use to decide whether we can go down) *)
-    (*is_root: bool; (*boolean value of whether or not cursor is at root. simpler version of vv*)  *)
-    parent_term : Expr.t option;
-    (* parent of current term (use to decide whether we can go up)  *)
-    ctx : (Var.t * int) list;
-    (*mapping of vars in scope to types (use to determine vars in scope)    *)
-    expected_ty : Typ.t option;
-    (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
-    actual_ty : Typ.t;
-        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
-  }
-  [@@deriving sexp]
-
-end
 
 
 (* had issues refactoring this into a seperate file *)
@@ -463,6 +448,27 @@ module SyntaxTree = struct
     | ZENode  EPair_R (argl, argr)  -> size (ENode argl) + zsize (ZENode argr)+1
     | ZTNode type_tree -> Typ.size (Typ.unzip type_tree)
 end
+
+
+
+module CursorInfo = struct
+  type t = {
+    current_term : SyntaxTree.t;
+    (*the currently focussed term (use to decide whether we can go down) *)
+    (*is_root: bool; (*boolean value of whether or not cursor is at root. simpler version of vv*)  *)
+    parent_term : SyntaxTree.t option;
+    (* parent of current term (use to decide whether we can go up)  *)
+    ctx : (Var.t * int) list;
+    (*mapping of vars in scope to types (use to determine vars in scope)    *)
+    expected_ty : Typ.t option;
+    (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
+    actual_ty : Typ.t option;
+        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
+  }
+  [@@deriving sexp]
+
+end
+
 
 module Action = struct
   type shape =
