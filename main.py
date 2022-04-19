@@ -1,10 +1,11 @@
+from cProfile import run
 import os
 import time
 from collections import deque
 
 import numpy as np
 import torch
-from run_logger import initialize
+import run_logger
 
 from agent import algo, utils
 from agent.arguments import get_args
@@ -17,15 +18,26 @@ from evaluation import evaluate
 def main():
     args = get_args()
 
-    sweep_id = None
+    config = "config.yaml"
+    chart = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Google's stock price over time.",
+        "data": {
+            "data": "data",
+            "values": [] 
+            }, 
+        "transform": [{"filter": "datum.symbol==='GOOG'"}],
+        "mark": "line",
+        "encoding": {
+            "x": {"field": "update", "type": "quantitative"},
+            "y": {"field": "reward", "type": "quantitative"}
+        }
+    }
     params, logger = run_logger.initialize(
         graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
         config=config,
-        charts=charts,
-        metadata=metadata,
-        name=name if sweep_id is None else None,
-        load_id=None,
-        sweep_id=sweep_id,
+        charts=[chart],
+        load_id=None
     )
 
     torch.manual_seed(args.seed)
@@ -186,6 +198,7 @@ def main():
                     np.max(episode_rewards),
                 )
             )
+            logger.log(update=j, reward=np.mean(episode_rewards))
 
         if (
             args.eval_interval is not None
