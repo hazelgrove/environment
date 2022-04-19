@@ -25,7 +25,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
         env = gym.make(env_id)
 
         is_atari = hasattr(gym.envs, "atari") and isinstance(
-            env.unwrapped, gym.envs.atari.atari_env.AtariEnv
+            env.unwrapped, gym.envs.atari.AtariEnv
         )
         if is_atari:
             env = NoopResetEnv(env, noop_max=30)
