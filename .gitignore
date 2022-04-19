@@ -6,3 +6,4 @@ gym_basic/spaces/__pycache__
 __pycache__
 .vscode/
 *.so
+.env

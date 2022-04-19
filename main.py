@@ -4,6 +4,7 @@ from collections import deque
 
 import numpy as np
 import torch
+from run_logger import initialize
 
 from agent import algo, utils
 from agent.arguments import get_args
@@ -15,6 +16,17 @@ from evaluation import evaluate
 
 def main():
     args = get_args()
+
+    sweep_id = None
+    params, logger = run_logger.initialize(
+        graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+        config=config,
+        charts=charts,
+        metadata=metadata,
+        name=name if sweep_id is None else None,
+        load_id=None,
+        sweep_id=sweep_id,
+    )
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)

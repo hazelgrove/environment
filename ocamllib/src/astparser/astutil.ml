@@ -1,4 +1,5 @@
 open Ast
+open Var
 
 exception SyntaxError of string
 exception RuntimeError of string

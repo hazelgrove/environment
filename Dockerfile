@@ -52,7 +52,8 @@ ENV PYTHON_ENV=/root/.cache/pypoetry/virtualenvs/hazelnut-K3BlsyQa-py3.8/
 
 # Build OCaml code
 WORKDIR "/env"
-COPY . .
+COPY ocamllib .
+COPY clib .
 RUN eval $(opam config env) \
  && make astenv
 ENV OCAML_ENV=/root/.opam

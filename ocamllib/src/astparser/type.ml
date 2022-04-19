@@ -2,18 +2,37 @@ exception SyntaxError of string
 exception RuntimeError of string
 exception TranslationError of string
 exception NotImplemented
+open Var 
 
 (* Basic types *)
 module Typ = struct
-  type t = TInt | TBool | TArrow of t * t | TProd of t * t | THole
+  type t = 
+  | TInt 
+  | TBool 
+  | TArrow of t * t 
+  | TProd of t * t 
+  | THole
+  | TList of t  (* temporarily include lists *)
+  [@@deriving sexp]
+
+  type z_t = 
+  | Cursor of  t
+  | Arrow_L of z_t * t 
+  | Arrow_R of t * z_t 
+  | Prod_L of z_t * t
+  | Prod_R of t* z_t 
+  | List_L of z_t 
   [@@deriving sexp]
 
   (* Check if two types are equal *)
   let rec equal (ty : t) (ty' : t) : bool =
     match (ty, ty') with
-    | TInt, TInt | TBool, TBool | THole, THole -> true
+    | TInt, TInt 
+    | TBool, TBool 
+    | THole, THole -> true
     | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
         equal tin1 tin2 && equal tout1 tout2
+    | TList t_1 , TList t_2 ->  equal t_1 t_2 
     | _ -> false
 
   (*
@@ -26,6 +45,7 @@ module Typ = struct
   let rec size (tree : t) : int =
     match tree with
     | TInt | TBool | THole -> 1
+    | TList t1 -> 1 + size t1
     | TArrow (t1, t2) | TProd (t1, t2) -> 1 + size t1 + size t2
 
   let%test_module "Test Typ.size" =
@@ -35,12 +55,13 @@ module Typ = struct
     end)
 
   let node_to_tag (node : t) : int =
-    match node with
+    match node with    (* HOW ARE THESE NUMBERS CHOSEN*)
     | TInt -> 20
     | TBool -> 21
     | TArrow (_, _) -> 22
     | TProd (_, _) -> 23
-    | THole -> 24
+    | TList _ -> 24
+    | THole -> 25
 
   let tag_to_node (tag : int) : t =
     match tag with
@@ -48,13 +69,23 @@ module Typ = struct
     | 21 -> TBool
     | 22 -> TArrow (THole, THole)
     | 23 -> TProd (THole, THole)
-    | 24 -> THole
+    | 24 -> TList  (THole)
+    | 25 -> THole
     | _ -> raise (SyntaxError "Unrecognized type")
 
   type edge = int * int * int
   type node = int
   type graph = node list * edge list
 
+  let rec unzip (tree:z_t):t = 
+    match tree with
+    | Cursor subtree -> subtree
+    | Arrow_L (tl,tr) -> TArrow (unzip tl, tr)
+    | Prod_L (tl,tr) -> TProd (unzip tl, tr)
+    | Arrow_R (tl,tr) -> TArrow (tl, unzip tr)
+    | Prod_R  (tl,tr) -> TProd (tl, unzip tr)
+    | List_L tl  -> TList (unzip tl)
+  
   let rec from_list (nodes : node list) (edges : edge list) (root : int) : t =
     let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
       List.filter (fun (start, _, _) -> start = start_node) edges
@@ -81,6 +112,9 @@ module Typ = struct
         TProd
           ( from_list nodes edges (get_nth_child adj_nodes 1),
             from_list nodes edges (get_nth_child adj_nodes 2) )
+    | TList _ -> 
+        let adj_nodes = get_adj_nodes edges root in 
+        TList (from_list nodes edges (get_nth_child adj_nodes 1))
     | THole -> THole
 
   let%test_module "Test Typ.from_list" =
@@ -114,6 +148,7 @@ module Typ = struct
       let nodes, root = add_node nodes tag in
       match tree with
       | TInt | TBool | THole -> ((nodes, edges), root)
+      | TList t1 ->  ((add_subtree t1 nodes edges root 1), root)
       | TArrow (t1, t2) | TProd (t1, t2) ->
           let nodes, edges = add_subtree t1 nodes edges root 1 in
           (add_subtree t2 nodes edges root 2, root)
@@ -137,5 +172,33 @@ module Typ = struct
     | TBool -> "bool "
     | TArrow (t1, t2) -> to_string t1 ^ "-> " ^ to_string t2
     | TProd (t1, t2) -> to_string t1 ^ "* " ^ to_string t2
+    | TList t1 -> to_string t1 ^ " list"
     | THole -> "? "
+end
+
+
+
+module Assumptions = struct
+  type assumption = Var.t * Typ.t
+  type t = assumption list
+
+  let empty : t = []
+
+  let lookup (ctx : t) (x : Var.t) : Typ.t option =
+    List.fold_left
+      (fun found (y, ty) ->
+        match found with
+        | Some _ -> found
+        | None -> if Var.equal x y then Some ty else None)
+      None ctx
+
+  let extend (ctx : t) ((x, ty) : assumption) : t =
+    match lookup ctx x with
+    | None -> (x, ty) :: ctx
+    | Some _ ->
+        List.fold_right
+          (fun (y, ty') new_ctx ->
+            let ty = if Var.equal x y then ty else ty' in
+            (y, ty) :: new_ctx)
+          ctx empty
 end
