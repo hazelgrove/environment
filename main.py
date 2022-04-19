@@ -18,15 +18,15 @@ from evaluation import evaluate
 def main():
     args = get_args()
 
-    config = "config.yaml"
+    config = "logger_config.yaml"
     chart = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-        "description": "Google's stock price over time.",
+        "description": "Mean Episode Reward Over Update",
         "data": {
             "data": "data",
             "values": [] 
             }, 
-        "transform": [{"filter": "datum.symbol==='GOOG'"}],
+        "transform": [{}],
         "mark": "line",
         "encoding": {
             "x": {"field": "update", "type": "quantitative"},
