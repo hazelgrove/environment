@@ -16,6 +16,7 @@ atari-py = "^0.3.0"
 ale-py = "^0.7.4"
 stable-baselines3 = "^1.5.0"
 gym = {version = "0.21.0", extras = ["atari"]}
+AutoROM = {version = "^0.4.2", extras = ["accept-rom-license"]}
 
 [tool.poetry.dev-dependencies]
 ipython = "^8.0.1"

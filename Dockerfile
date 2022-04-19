@@ -34,6 +34,7 @@ RUN apt-get update -q \
       python3-pip \
       opam \
       gcc \
+      cmake \
  && apt-get clean
 WORKDIR "/deps"
 COPY pyproject.toml poetry.lock opam.export /deps/
