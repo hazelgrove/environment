@@ -404,8 +404,6 @@ module Expr = struct
   end
 
 
-
-
 (* had issues refactoring this into a seperate file *)
 module SyntaxTree = struct
   type t = (* mixed type- zippers and non-zippers*)
@@ -418,7 +416,7 @@ module SyntaxTree = struct
   | ZTNode of Typ.z_t
   [@@deriving sexp]
 
-  let rec size (tree:t) : int = 
+  let rec size (tree : t) : int = 
     match tree with
     | ENode (EVar _  |EInt _ |EBool _ | EHole | ENil ) -> 1 
     | ENode EUnOp (_,arg) -> size (ENode arg)+1
@@ -429,7 +427,7 @@ module SyntaxTree = struct
     | ENode (EFun (_,typ, arg) | EFix (_,typ, arg)) -> Typ.size typ + size (ENode arg) + 1 
     | TNode type_tree -> Typ.size type_tree
   
-  let rec zsize (tree:z_t) : int = 
+  let rec zsize (tree: z_t) : int = 
     match tree with 
     | ZENode (Cursor cursed) -> size (ENode cursed)
     | ZENode (EUnOp_L (_,argl) ) -> zsize (ZENode argl)+1
@@ -517,15 +515,275 @@ module Action = struct
     [@@deriving sexp]
   (* Action Number: 6- (36 ish) *)
 
-  type tag = int
-
   (*  Contains short-form avaliable actions*)
   (* In the format (Parent avaliable,
                    max child number (if 0 no children exist),
                    can_construct?
                    A list of 10 bools indicating if variables 'v0' ... 'v9' have been seen )*)
 
-  let tag_to_action (action : tag) =
-    let _ = action in
-    Move Parent
+  let tag_to_action (action : int) : t =
+    match action with
+      | 0 -> Move Parent
+      | 1 -> Move (Child 1)
+      | 2 -> Move (Child 2)
+      | 3 -> Move (Child 3)
+      | 10 -> Construct (Var "x")
+      | 11 -> Construct (Var "y")
+      | 12 -> Construct (Var "z")
+      | 13 -> Construct (Hole)
+      | 14 -> Construct (Nil)
+      | 15 -> Construct (Int (-2))
+      | 16 -> Construct (Int (-1))
+      | 17 -> Construct (Int 0)
+      | 18 -> Construct (Int 1)
+      | 19 -> Construct (Int 2)
+      | 20 -> Construct (Bool true)
+      | 21 -> Construct (Bool false)
+      | 22 -> Construct (UnOp OpNeg)
+      | 23 -> Construct (BinOp_L OpPlus)
+      | 23 -> Construct (BinOp_L OpMinus)
+      | 23 -> Construct (BinOp_L OpTimes)
+      | 23 -> Construct (BinOp_L OpDiv)
+      | 23 -> Construct (BinOp_L OpLt)
+      | 23 -> Construct (BinOp_L OpLe)
+      | 23 -> Construct (BinOp_L OpGt)
+      | 23 -> Construct (BinOp_L OpGe)
+      | 23 -> Construct (BinOp_L OpEq)
+      | 23 -> Construct (BinOp_L OpNe)
+      | 23 -> Construct (BinOp_L OpAp)
+      | 23 -> Construct (BinOp_L OpCon)
+      | 23 -> Construct (BinOp_R OpPlus)
+      | 23 -> Construct (BinOp_R OpMinus)
+      | 23 -> Construct (BinOp_R OpTimes)
+      | 23 -> Construct (BinOp_R OpDiv)
+      | 23 -> Construct (BinOp_R OpLt)
+      | 23 -> Construct (BinOp_R OpLe)
+      | 23 -> Construct (BinOp_R OpGt)
+      | 23 -> Construct (BinOp_R OpGe)
+      | 23 -> Construct (BinOp_R OpEq)
+      | 23 -> Construct (BinOp_R OpNe)
+      | 23 -> Construct (BinOp_R OpAp)
+      | 23 -> Construct (BinOp_R OpCon)
+      | 23 -> Construct (Let_L "x")
+      | 23 -> Construct (Let_L "y")
+      | 23 -> Construct (Let_L "z")
+      | 23 -> Construct (Let_R "x")
+      | 23 -> Construct (Let_R "y")
+      | 23 -> Construct (Let_R "z")
+      | 23 -> Construct (If_L)
+      | 23 -> Construct (If_C)
+      | 23 -> Construct (If_R)
+
+      (* TODO: Cannot enumerate all action types *)
+
+      | 23 -> Construct (Pair_L)
+      | 23 -> Construct (Pair_R)
+      | 23 -> Construct (TypInt)
+      | 23 -> Construct (TypBool)
+      | 23 -> Construct (TypArrow_L)
+      | 23 -> Construct (TypArrow_R)
+
+      (* TODO: No products? *)
+      | 23 -> Construct (TypList)
+      | 23 -> Construct (TypHole)
+      | _ -> raise (Failure "Not supported.")
+
+  (* TODO: Change number after finalize *)
+  let action_to_tag (action : t) : int =
+    match action with
+      | Move Parent -> 0
+      | Move (Child 1) -> 1
+      | Move (Child 2) -> 2
+      | Move (Child 3) -> 2
+      | Construct (Var "x") -> 2
+      | Construct (Var "y") -> 2
+      | Construct (Var "z") -> 2
+      | Construct (Hole) -> 2
+      | Construct (Nil) -> 2
+      | Construct (Int (-2)) -> 2
+      | Construct (Int (-1)) -> 2
+      | Construct (Int 0) -> 2
+      | Construct (Int 1) -> 2
+      | Construct (Int 2) -> 2
+      | Construct (Bool true) -> 2
+      | Construct (Bool false) -> 2
+      | Construct (UnOp OpNeg) -> 2
+      | Construct (BinOp_L OpPlus) -> 2
+      | Construct (BinOp_L OpMinus) -> 2
+      | Construct (BinOp_L OpTimes) -> 2
+      | Construct (BinOp_L OpDiv) -> 2
+      | Construct (BinOp_L OpLt) -> 2
+      | Construct (BinOp_L OpLe) -> 2
+      | Construct (BinOp_L OpGt) -> 2
+      | Construct (BinOp_L OpGe) -> 2
+      | Construct (BinOp_L OpEq) -> 2
+      | Construct (BinOp_L OpNe) -> 2
+      | Construct (BinOp_L OpAp) -> 2
+      | Construct (BinOp_L OpCon) -> 2
+      | Construct (BinOp_R OpPlus) -> 2
+      | Construct (BinOp_R OpMinus) -> 2
+      | Construct (BinOp_R OpTimes) -> 2
+      | Construct (BinOp_R OpDiv) -> 2
+      | Construct (BinOp_R OpLt) -> 2
+      | Construct (BinOp_R OpLe) -> 2
+      | Construct (BinOp_R OpGt) -> 2
+      | Construct (BinOp_R OpGe) -> 2
+      | Construct (BinOp_R OpEq) -> 2
+      | Construct (BinOp_R OpNe) -> 2
+      | Construct (BinOp_R OpAp) -> 2
+      | Construct (BinOp_R OpCon) -> 2
+      | Construct (Let_L "x") -> 2
+      | Construct (Let_L "y") -> 2
+      | Construct (Let_L "z") -> 2
+      | Construct (Let_R "x") -> 2
+      | Construct (Let_R "y") -> 2
+      | Construct (Let_R "z") -> 2
+      | Construct (If_L) -> 2
+      | Construct (If_C) -> 2
+      | Construct (If_R) -> 2
+      
+      (* TODO: Cannot enumerate all action types *)
+
+      | Construct (Pair_L) -> 2
+      | Construct (Pair_R) -> 2
+      | Construct (TypInt) -> 2
+      | Construct (TypBool) -> 2
+      | Construct (TypArrow_L) -> 2
+      | Construct (TypArrow_R) -> 2
+
+      (* TODO: No products? *)
+      | Construct (TypList) -> 2
+      | Construct (TypHole) -> 2
+      | _ -> raise (Failure "Not supported.")
+
+  let to_list (action_list : t list) : bool list = 
+    let action_list = List.map action_to_tag action_list in
+    let action_list = List.sort compare action_list in
+    let bool_list = Array.make 40 false in (* TODO: Change max num of actions *)
+    let rec to_bool (action_list : int list) (bool_list : bool Array.t) = 
+      match action_list with
+      | [] -> bool_list
+      | hd :: tl -> bool_list.(hd) <- true; bool_list
+    in
+    Array.to_list (to_bool action_list bool_list)
+end
+
+
+module CursorInfo = struct
+  type t = {
+    current_term : Expr.t;
+    (*the currently focussed term (use to decide whether we can go down) *)
+    (*is_root: bool; (*boolean value of whether or not cursor is at root. simpler version of vv*)  *)
+    parent_term : Expr.t option;
+    (* parent of current term (use to decide whether we can go up)  *)
+    ctx : (Var.t * int) list;
+    (*mapping of vars in scope to types (use to determine vars in scope)    *)
+    expected_ty : Typ.t option;
+    (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
+    actual_ty : Typ.t;
+        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
+  }
+  [@@deriving sexp]
+
+  let permitted_actions (cursorInfo : t) : Action.t list =
+    let action_list = [] in
+
+    (* Check move parent *)
+    let action_list = 
+      match cursorInfo.parent_term with
+      | None -> action_list
+      | _ -> (Action.Move Parent) :: action_list 
+    in
+
+    (* Check move child *)
+    let action_list = 
+      match cursorInfo.current_term with
+      | EInt _ | EBool _ | EVar _ | EHole | ENil -> action_list
+      | EUnOp _ -> (Action.Move (Child 1)) :: action_list
+      | EBinOp _ | EPair _ -> (Action.Move (Child 1)) :: (Action.Move (Child 2)) :: action_list
+      | ELet _ | EIf _ | EFun _ | EFix _ -> (Action.Move (Child 1)) :: (Action.Move (Child 2)) :: (Action.Move (Child 3)) :: action_list
+    in
+
+    (* Construct variables *)
+
+
+    (* Construct without wrapping *)
+    (* What happens if we can't wrap? *)
+    let action_list = 
+      if cursorInfo.current_term = EHole then 
+        begin match cursorInfo.expected_ty with
+        | None -> action_list (* Find a way to include all construct actions*)
+        | Some TInt -> 
+          [
+            Action.Construct (Int (-2));
+            Action.Construct (Int (-1));
+            Action.Construct (Int 0);
+            Action.Construct (Int 1);
+            Action.Construct (Int 2);
+            Action.Construct Hole;
+            Action.Construct (UnOp OpNeg);
+            Action.Construct (BinOp_L OpPlus);
+            Action.Construct (BinOp_L OpMinus);
+            Action.Construct (BinOp_L OpTimes);
+            Action.Construct (BinOp_L OpDiv);
+            Action.Construct (BinOp_L OpAp);
+            Action.Construct (BinOp_R OpPlus);
+            Action.Construct (BinOp_R OpMinus);
+            Action.Construct (BinOp_R OpTimes);
+            Action.Construct (BinOp_R OpDiv);
+            Action.Construct (BinOp_R OpAp);
+            Action.Construct (Let_L "x");
+            Action.Construct (Let_L "y");
+            Action.Construct (Let_L "z");
+            Action.Construct (Let_R "x");
+            Action.Construct (Let_R "y");
+            Action.Construct (Let_R "z");
+            Action.Construct If_L;
+            Action.Construct If_C;
+            Action.Construct If_R
+          ] @ action_list
+        | Some TBool -> 
+          [
+            Action.Construct (Bool true);
+            Action.Construct (Bool false);
+            Action.Construct Hole;
+            Action.Construct (BinOp_L OpLt);
+            Action.Construct (BinOp_L OpLe);
+            Action.Construct (BinOp_L OpGt);
+            Action.Construct (BinOp_L OpGe);
+            Action.Construct (BinOp_L OpEq);
+            Action.Construct (BinOp_L OpNe);
+            Action.Construct (BinOp_L OpAp);
+            Action.Construct (BinOp_R OpLt);
+            Action.Construct (BinOp_R OpLe);
+            Action.Construct (BinOp_R OpGt);
+            Action.Construct (BinOp_R OpGe);
+            Action.Construct (BinOp_R OpEq);
+            Action.Construct (BinOp_R OpNe);
+            Action.Construct (BinOp_R OpAp);
+            Action.Construct (Let_L "x");
+            Action.Construct (Let_L "y");
+            Action.Construct (Let_L "z");
+            Action.Construct (Let_R "x");
+            Action.Construct (Let_R "y");
+            Action.Construct (Let_R "z");
+            Action.Construct If_L;
+            Action.Construct If_C;
+            Action.Construct If_R
+          ] @ action_list
+        | Some (TArrow _) -> 
+          [
+            
+          ] @ action_list
+        | Some (TProd _) -> 
+          [
+            Action.Construct Pair_L;
+            Action.Construct Pair_R
+          ] @ action_list
+        | _ -> action_list
+      end
+      else 
+        action_list
+    in
+    action_list
 end

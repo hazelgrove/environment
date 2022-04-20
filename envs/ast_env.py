@@ -47,9 +47,7 @@ class ASTEnv(gym.Env):
             }
         )
 
-        self.astclib = ctypes.CDLL(
-            "./clib/astclib.so"
-        )  # Used to call C functions
+        self.astclib = ctypes.CDLL("./clib/astclib.so")  # Used to call C functions
         self.state = None
 
         self.states = []
@@ -67,9 +65,7 @@ class ASTEnv(gym.Env):
             self.states.append(states)
 
     def step(self, action):
-        self.astclib.take_action(
-            ctypes.byref(self.state), ctypes.c_int(action)
-        )
+        self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
         reward = self.astclib.check_ast(ctypes.byref(self.state))
 
         done = False
