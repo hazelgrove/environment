@@ -20,7 +20,7 @@ module Expr = struct
     | OpNe
     | OpCon
     | OpAp
-  [@@deriving sexp]
+    [@@deriving sexp]
 
   type t =
     | EVar of Var.t (* Node Descriptor Number : 35 - 37 *)
@@ -35,7 +35,8 @@ module Expr = struct
     | EPair of t * t
     | EHole (* Node Descriptor Number : 19 *)
     | ENil
-  [@@deriving sexp]
+    [@@deriving sexp]
+
 
   type z_t =
     | Cursor of t
@@ -53,7 +54,8 @@ module Expr = struct
     | EFix_L of Var.t * Typ.z_t * t (* TOOD: need to fix all our rerucsion operations now *) 
     | EPair_L of z_t * t
     | EPair_R of t * z_t
-  [@@deriving sexp]
+    [@@deriving sexp]
+
 
   type value =
     | VInt of int
@@ -445,6 +447,29 @@ module SyntaxTree = struct
     | ZTNode type_tree -> Typ.size (Typ.unzip type_tree)
 end
 
+
+
+module CursorInfo = struct
+  type t = {
+    current_term : SyntaxTree.t;
+    (*the currently focussed term (use to decide whether we can go down) *)
+    (*is_root: bool; (*boolean value of whether or not cursor is at root. simpler version of vv*)  *)
+    parent_term : SyntaxTree.t option;
+    (* parent of current term (use to decide whether we can go up)  *)
+    ctx : (Var.t * int) list;
+    (* variable types*)
+    typ_ctx : (Var.t * Typ.t) list; 
+    (*mapping of vars in scope to types (use to determine vars in scope)    *)
+    expected_ty : Typ.t option;
+    (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
+    actual_ty : Typ.t option;
+        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
+  }
+  [@@deriving sexp]
+
+end
+
+
 module Action = struct
   type shape =
     | Var of Var.t
@@ -460,8 +485,8 @@ module Action = struct
     | If_L
     | If_C
     | If_R
-    | Fun of Var.t * Typ.t
-    | Fix of Var.t * Typ.t
+    | Fun of Var.t 
+    | Fix of Var.t 
     | Pair_L
     | Pair_R
     
@@ -471,9 +496,12 @@ module Action = struct
     | TypArrow_R
     | TypList  (*beacause there's only one child no need for option*)
     | TypHole 
+    | TypProd
+    [@@deriving sexp]
 
 
   type dir = Parent | Child of int
+  [@@deriving sexp]
 
   (* write a numbered action to inser all of <- *)
   (* Have some sort of default value analog for type t *)
@@ -485,6 +513,7 @@ module Action = struct
       (* | Finish                  Action Number: 1 *)*)
     | Move of dir (* Action Number: 2-5 *)
     | Construct of shape
+    [@@deriving sexp]
   (* Action Number: 6- (36 ish) *)
 
   (*  Contains short-form avaliable actions*)
@@ -632,7 +661,7 @@ module Action = struct
     let action_list = List.map action_to_tag action_list in
     let action_list = List.sort compare action_list in
     let bool_list = Array.make 40 false in (* TODO: Change max num of actions *)
-    let rec to_bool (action_list : int list) (bool_list : bool Array.t) = 
+    let to_bool (action_list : int list) (bool_list : bool Array.t) = 
       match action_list with
       | [] -> bool_list
       | hd :: tl -> bool_list.(hd) <- true; bool_list
@@ -641,6 +670,7 @@ module Action = struct
 end
 
 
+<<<<<<< HEAD
 module CursorInfo = struct
   type t = {
     current_term : Expr.t;
@@ -656,106 +686,6 @@ module CursorInfo = struct
     (* result of calling Syn on current_term (use to determine wrapping viability)  *)
   }
   [@@deriving sexp]
+=======
+>>>>>>> 883067e24ea5761db5c13360c3fe748efd6b125d
 
-  let permitted_actions (cursorInfo : t) : Action.t list =
-    let action_list = [] in
-
-    (* Check move parent *)
-    let action_list = 
-      match cursorInfo.parent_term with
-      | None -> action_list
-      | _ -> (Action.Move Parent) :: action_list 
-    in
-
-    (* Check move child *)
-    let action_list = 
-      match cursorInfo.current_term with
-      | EInt _ | EBool _ | EVar _ | EHole | ENil -> action_list
-      | EUnOp _ -> (Action.Move (Child 1)) :: action_list
-      | EBinOp _ | EPair _ -> (Action.Move (Child 1)) :: (Action.Move (Child 2)) :: action_list
-      | ELet _ | EIf _ | EFun _ | EFix _ -> (Action.Move (Child 1)) :: (Action.Move (Child 2)) :: (Action.Move (Child 3)) :: action_list
-    in
-
-    (* Construct variables *)
-
-
-    (* Construct without wrapping *)
-    (* What happens if we can't wrap? *)
-    let action_list = 
-      if cursorInfo.current_term = EHole then 
-        begin match cursorInfo.expected_ty with
-        | None -> action_list (* Find a way to include all construct actions*)
-        | Some TInt -> 
-          [
-            Action.Construct (Int (-2));
-            Action.Construct (Int (-1));
-            Action.Construct (Int 0);
-            Action.Construct (Int 1);
-            Action.Construct (Int 2);
-            Action.Construct Hole;
-            Action.Construct (UnOp OpNeg);
-            Action.Construct (BinOp_L OpPlus);
-            Action.Construct (BinOp_L OpMinus);
-            Action.Construct (BinOp_L OpTimes);
-            Action.Construct (BinOp_L OpDiv);
-            Action.Construct (BinOp_L OpAp);
-            Action.Construct (BinOp_R OpPlus);
-            Action.Construct (BinOp_R OpMinus);
-            Action.Construct (BinOp_R OpTimes);
-            Action.Construct (BinOp_R OpDiv);
-            Action.Construct (BinOp_R OpAp);
-            Action.Construct (Let_L "x");
-            Action.Construct (Let_L "y");
-            Action.Construct (Let_L "z");
-            Action.Construct (Let_R "x");
-            Action.Construct (Let_R "y");
-            Action.Construct (Let_R "z");
-            Action.Construct If_L;
-            Action.Construct If_C;
-            Action.Construct If_R
-          ] @ action_list
-        | Some TBool -> 
-          [
-            Action.Construct (Bool true);
-            Action.Construct (Bool false);
-            Action.Construct Hole;
-            Action.Construct (BinOp_L OpLt);
-            Action.Construct (BinOp_L OpLe);
-            Action.Construct (BinOp_L OpGt);
-            Action.Construct (BinOp_L OpGe);
-            Action.Construct (BinOp_L OpEq);
-            Action.Construct (BinOp_L OpNe);
-            Action.Construct (BinOp_L OpAp);
-            Action.Construct (BinOp_R OpLt);
-            Action.Construct (BinOp_R OpLe);
-            Action.Construct (BinOp_R OpGt);
-            Action.Construct (BinOp_R OpGe);
-            Action.Construct (BinOp_R OpEq);
-            Action.Construct (BinOp_R OpNe);
-            Action.Construct (BinOp_R OpAp);
-            Action.Construct (Let_L "x");
-            Action.Construct (Let_L "y");
-            Action.Construct (Let_L "z");
-            Action.Construct (Let_R "x");
-            Action.Construct (Let_R "y");
-            Action.Construct (Let_R "z");
-            Action.Construct If_L;
-            Action.Construct If_C;
-            Action.Construct If_R
-          ] @ action_list
-        | Some (TArrow _) -> 
-          [
-            
-          ] @ action_list
-        | Some (TProd _) -> 
-          [
-            Action.Construct Pair_L;
-            Action.Construct Pair_R
-          ] @ action_list
-        | _ -> action_list
-      end
-      else 
-        action_list
-    in
-    action_list
-end
