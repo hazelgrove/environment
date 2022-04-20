@@ -30,6 +30,7 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | TypArrow_L -> Typ.TArrow (subtr, Typ.THole)
         | TypArrow_R -> Typ.TArrow (Typ.THole, subtr)
         | TypList   -> Typ.TList subtr    
+        | TypProd   -> Typ.TProd (THole, THole)
         | _ -> subtr (* all other shapes are for exprssions which are not valid*)
       )
    in
@@ -96,8 +97,8 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | If_L -> EIf (subtree, EHole, EHole)
     | If_C -> EIf (EHole, subtree, EHole)
     | If_R -> EIf (EHole, EHole, subtree)
-    | Fun (varname, typ) -> EFun (varname, typ, subtree)
-    | Fix (varname, typ) -> EFix (varname, typ, subtree)
+    | Fun (varname) -> EFun (varname, THole, subtree)
+    | Fix (varname) -> EFix (varname, THole, subtree)
     | Pair_L -> EPair (subtree, EHole)
     | Pair_R -> EPair (EHole, subtree)
     | _ -> subtree (* only other option is type 'shapes' which arent valid in this scope*)
@@ -551,6 +552,7 @@ in
       Construct TypArrow_R ::
       Construct TypList ::  
       Construct TypHole ::
+      Construct TypProd ::
       currlist
     in 
     let handle_constr_arithmetic_binops 
@@ -683,9 +685,9 @@ in
     : Action.t list = 
       match info.expected_ty, info.actual_ty with
       | Some TArrow (a,b), Some c -> 
-        if Typ.equal b c then Construct (Fun ("",THole)) :: currlist 
+        if Typ.equal b c then Construct (Fun ("")) :: currlist 
         else currlist 
-      | None, _ ->  Construct (Fun ("",THole)) :: currlist 
+      | None, _ ->  Construct (Fun ("")) :: currlist 
       | _ -> currlist 
     in 
     let handle_fix
@@ -713,19 +715,21 @@ in
     in 
     let currlist = handle_root info [] in
     let currlist = handle_children currlist in 
-    let currlist = handle_constr_typ  currlist in 
-    let currlist = handle_constr_arithmetic_binops currlist in 
-    let currlist = handle_comp_binops currlist in 
-    let currlist = handle_eq_binops currlist in 
-    let currlist = handle_con_binop currlist in 
-    let currlist = handle_ap_binop currlist in 
-    let currlist = handle_basic_types currlist in 
-    let currlist = handle_var currlist in 
-    let currlist = handle_let currlist  in 
-    let currlist = handle_if currlist in 
-    let currlist = handle_fun currlist in 
-    let currlist = handle_fix currlist in 
-    handle_pair currlist 
+    match info.current_term with 
+    |TNode _ -> handle_constr_typ  currlist 
+    |ENode _ ->
+        let currlist = handle_constr_arithmetic_binops currlist in 
+        let currlist = handle_comp_binops currlist in 
+        let currlist = handle_eq_binops currlist in 
+        let currlist = handle_con_binop currlist in 
+        let currlist = handle_ap_binop currlist in 
+        let currlist = handle_basic_types currlist in 
+        let currlist = handle_var currlist in 
+        let currlist = handle_let currlist  in 
+        let currlist = handle_if currlist in 
+        let currlist = handle_fun currlist in 
+        let currlist = handle_fix currlist in 
+        handle_pair currlist 
   
   
 
