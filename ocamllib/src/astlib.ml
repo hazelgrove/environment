@@ -392,7 +392,8 @@ let rec synthesis (context: Assumptions.t) (e: Expr.t) : Typ.t option =
   | EFix (varn, vart, body) -> 
     if analysis (Assumptions.extend context (varn,vart)) body vart 
       then Some vart else None 
-  | EHole |ENil -> None 
+  | EHole -> None
+  | ENil -> Some (TList THole)
 end
 and analysis  (context:Assumptions.t) (e: Expr.t) (targ: Typ.t): bool =
   match e with
@@ -458,6 +459,7 @@ let get_cursor_info (e: SyntaxTree.z_t) : CursorInfo.t =
       current_term= ENode cursed; 
       parent_term = parent; 
       ctx = def_cont;
+      typ_ctx = typ_cont; 
       expected_ty=pred_type;
       actual_ty= synthesis typ_cont cursed; }
     | ZENode (EUnOp_L (OpNeg,argl) ) -> 
@@ -516,6 +518,7 @@ let get_cursor_info (e: SyntaxTree.z_t) : CursorInfo.t =
       current_term= TNode typ; 
       parent_term = parent; 
       ctx = def_cont;
+      typ_ctx = typ_cont;
       expected_ty=None;
       actual_ty= None; })
     |ZTNode Arrow_L (in_typ, out_typ) -> recurse (ZTNode in_typ) (Some current) def_cont typ_cont None ind 
@@ -527,8 +530,202 @@ in
   recurse e None [] [] None 0
  
   let cursor_info_to_list (info:CursorInfo.t) : Action.t list = 
-    (* placeholder) *)
-  []
+    let handle_root (ci:CursorInfo.t) (currlist:Action.t list): Action.t list = 
+      match ci.parent_term with 
+      | Some _ -> (Move (Parent)) ::currlist
+      | None  -> currlist 
+    in 
+    let handle_children (currlist:Action.t list): Action.t list = 
+      match info.current_term with
+      | ENode EIf _ -> Move (Child 0):: Move (Child 1) :: Move (Child 2) :: currlist 
+      | ENode ( EBinOp _ |EFun _ |ELet _ |EFix _ |EPair _  ) 
+      | TNode ( TArrow _ |TProd _ ) -> Move (Child 0):: Move (Child 1) :: currlist 
+      | ENode (EUnOp _) | TNode TList _  -> Move (Child 0) :: currlist 
+      | ENode (EVar _ |EInt _ | EBool _|EHole  |ENil )
+      | TNode (TInt| TBool |THole) -> currlist 
+    in 
+    let handle_constr_typ (currlist:Action.t list) : Action.t list= 
+      Construct TypInt ::
+      Construct TypBool  ::
+      Construct TypArrow_L  ::
+      Construct TypArrow_R ::
+      Construct TypList ::  
+      Construct TypHole ::
+      currlist
+    in 
+    let handle_constr_arithmetic_binops 
+                    (currlist:Action.t list) 
+                    : Action.t list = 
+      match info.expected_ty, info.actual_ty with
+      | None, None       (* always allow none none's *)
+      | Some TInt, Some TInt ->  
+        Construct (BinOp_L OpPlus ) ::
+        Construct (BinOp_L OpMinus) ::
+        Construct (BinOp_L  OpTimes) ::
+        Construct (BinOp_L  OpDiv  ) ::
+        Construct (BinOp_R OpPlus ) ::
+        Construct (BinOp_R OpMinus) ::
+        Construct (BinOp_R  OpTimes) ::
+        Construct (BinOp_R  OpDiv  ) ::
+        currlist 
+      | _ -> currlist
+    in
+    let handle_comp_binops 
+              (currlist:Action.t list) 
+              : Action.t list = 
+    match info.expected_ty, info.actual_ty with
+    | None, None       (* always allow none none's *)
+    | Some TBool, Some TInt ->  
+      Construct(BinOp_L OpLt) ::
+      Construct(BinOp_R  OpLt) ::
+      Construct(BinOp_L OpLe) ::
+      Construct(BinOp_R  OpLe) ::
+      Construct(BinOp_L OpGt) ::
+      Construct(BinOp_R  OpGt) ::
+      Construct(BinOp_L OpGe) ::
+      Construct(BinOp_R  OpGe) :: currlist
+    |_ -> currlist
+    in
+    let handle_eq_binops 
+          (currlist:Action.t list) 
+          : Action.t list = 
+    match info.expected_ty with 
+    | None 
+    | Some TBool ->  
+      Construct(BinOp_L OpEq) ::
+      Construct(BinOp_L OpNe) ::  
+      Construct(BinOp_R OpEq) ::
+      Construct(BinOp_R OpNe) :: currlist 
+    | _ -> currlist 
+    in 
+    let handle_con_binop
+          (currlist:Action.t list) 
+          : Action.t list = 
+      match info.expected_ty, info.actual_ty with
+      | Some (TList a), Some (TList b) -> 
+        if Typ.equal b THole  then Construct (BinOp_R OpCon) :: currlist 
+        else if Typ.equal a b then
+            Construct (BinOp_R OpCon) ::
+            Construct (BinOp_L OpCon) :: currlist 
+        else currlist
+      | Some (TList a), Some  b -> 
+        if Typ.equal a b  then Construct (BinOp_L OpCon) :: currlist
+        else currlist
+      | None , Some (TList _) ->           
+            Construct (BinOp_R OpCon) ::
+            Construct (BinOp_L OpCon):: currlist 
+      |None, (Some _) -> Construct (BinOp_L OpCon):: currlist 
+      |_-> currlist
+    in 
+    let handle_ap_binop
+        (currlist:Action.t list) 
+        : Action.t list = 
+      match info.expected_ty, info.actual_ty with
+        | Some c ,Some (TArrow (_,b)) -> 
+          if Typ.equal c b  then Construct (BinOp_L OpAp) :: currlist 
+          else currlist 
+        | Some c, Some b -> Construct (BinOp_R OpAp) :: currlist
+        | None, Some (TArrow _ ) -> 
+          Construct (BinOp_R OpAp) :: Construct (BinOp_L OpAp):: currlist 
+        | None, Some _ ->  Construct (BinOp_R OpAp) :: currlist 
+        | _ -> currlist
+    in 
+    let handle_basic_types 
+        (currlist:Action.t list) 
+        : Action.t list = 
+      match info.expected_ty with
+      | Some TInt   -> Construct (Int 0) :: currlist
+      | Some TBool  -> Construct (Bool false) :: currlist
+      | Some THole  -> Construct (Hole) :: currlist
+      | Some TList _  -> Construct (Nil) :: currlist
+      | None -> 
+        Construct (Int 0) ::
+        Construct (Bool false) ::
+        Construct (Hole) :: 
+        Construct (Nil) :: currlist
+      | _ -> currlist 
+    in 
+    let handle_var
+        (currlist:Action.t list) 
+        : Action.t list = 
+      let valid_vars = 
+        match info.expected_ty with
+        | Some targ_type -> List.filter (fun (var,typ)-> Typ.equal typ targ_type ) info.typ_ctx 
+        | None -> info.typ_ctx
+      in (List.map (fun (varn,typ)-> (Action.Construct(Var varn))) valid_vars )
+      @ currlist 
+      in 
+    let handle_let 
+    (currlist:Action.t list) 
+    : Action.t list = 
+    match info.expected_ty, info.actual_ty with
+      (* afik we can make let's anywhere*)
+      | Some a, Some b-> 
+        if Typ.equal a b then 
+          Construct (Let_L "") :: Construct (Let_R "") :: currlist
+        else   Construct (Let_L "") :: currlist 
+      | _ -> Construct (Let_L "") :: Construct (Let_R "") :: currlist 
+    in 
+    let handle_if 
+    (currlist:Action.t list) 
+    : Action.t list = 
+      match info.expected_ty, info.actual_ty with
+      | _, Some TBool -> 
+        Construct (If_L ) :: 
+        Construct (If_C ) :: 
+        Construct (If_R ) ::  currlist 
+      | _ ->        
+        Construct (If_C ) :: 
+        Construct (If_R ) ::  currlist
+    in 
+    let handle_fun
+    (currlist:Action.t list) 
+    : Action.t list = 
+      match info.expected_ty, info.actual_ty with
+      | Some TArrow (a,b), Some c -> 
+        if Typ.equal b c then Construct (Fun ("",THole)) :: currlist 
+        else currlist 
+      | None, _ ->  Construct (Fun ("",THole)) :: currlist 
+      | _ -> currlist 
+    in 
+    let handle_fix
+    (currlist:Action.t list) 
+    : Action.t list = 
+      match info.expected_ty, info.actual_ty with
+      | Some TArrow (a,b), Some c -> 
+        if Typ.equal b c then Construct (Fix ("",THole)) :: currlist 
+        else currlist 
+      | None, _ ->  Construct (Fix ("",THole)) :: currlist 
+      | _ -> currlist 
+    in 
+    let handle_pair
+    (currlist:Action.t list) 
+    : Action.t list = 
+      match info.expected_ty, info.actual_ty with
+      | Some TProd (a,b), Some c -> 
+        let left_half = if Typ.equal a c 
+          then Action.Construct (Pair_L) :: currlist  
+          else currlist
+        in 
+        if Typ.equal b c  then Construct (Pair_R) :: left_half else left_half 
+      | None, _ ->  Construct (Pair_L) :: Construct Pair_R :: currlist 
+      | _ -> currlist 
+    in 
+    let currlist = handle_root info [] in
+    let currlist = handle_children currlist in 
+    let currlist = handle_constr_typ  currlist in 
+    let currlist = handle_constr_arithmetic_binops currlist in 
+    let currlist = handle_comp_binops currlist in 
+    let currlist = handle_eq_binops currlist in 
+    let currlist = handle_con_binop currlist in 
+    let currlist = handle_ap_binop currlist in 
+    let currlist = handle_basic_types currlist in 
+    let currlist = handle_var currlist in 
+    let currlist = handle_let currlist  in 
+    let currlist = handle_if currlist in 
+    let currlist = handle_fun currlist in 
+    let currlist = handle_fix currlist in 
+    handle_pair currlist 
   
   
 

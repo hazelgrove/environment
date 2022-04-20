@@ -459,6 +459,8 @@ module CursorInfo = struct
     parent_term : SyntaxTree.t option;
     (* parent of current term (use to decide whether we can go up)  *)
     ctx : (Var.t * int) list;
+    (* variable types*)
+    typ_ctx : (Var.t * Typ.t) list; 
     (*mapping of vars in scope to types (use to determine vars in scope)    *)
     expected_ty : Typ.t option;
     (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
@@ -496,9 +498,11 @@ module Action = struct
     | TypArrow_R
     | TypList  (*beacause there's only one child no need for option*)
     | TypHole 
+    [@@deriving sexp]
 
 
   type dir = Parent | Child of int
+  [@@deriving sexp]
 
   (* write a numbered action to inser all of <- *)
   (* Have some sort of default value analog for type t *)
@@ -510,6 +514,7 @@ module Action = struct
       (* | Finish                  Action Number: 1 *)*)
     | Move of dir (* Action Number: 2-5 *)
     | Construct of shape
+    [@@deriving sexp]
   (* Action Number: 6- (36 ish) *)
 
   type tag = int
