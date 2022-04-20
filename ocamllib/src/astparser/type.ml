@@ -2,37 +2,36 @@ exception SyntaxError of string
 exception RuntimeError of string
 exception TranslationError of string
 exception NotImplemented
-open Var 
+
+open Var
 
 (* Basic types *)
 module Typ = struct
-  type t = 
-  | TInt 
-  | TBool 
-  | TArrow of t * t 
-  | TProd of t * t 
-  | THole
-  | TList of t  (* temporarily include lists *)
+  type t =
+    | TInt
+    | TBool
+    | TArrow of t * t
+    | TProd of t * t
+    | THole
+    | TList of t (* temporarily include lists *)
   [@@deriving sexp]
 
-  type z_t = 
-  | Cursor of  t
-  | Arrow_L of z_t * t 
-  | Arrow_R of t * z_t 
-  | Prod_L of z_t * t
-  | Prod_R of t* z_t 
-  | List_L of z_t 
+  type z_t =
+    | Cursor of t
+    | Arrow_L of z_t * t
+    | Arrow_R of t * z_t
+    | Prod_L of z_t * t
+    | Prod_R of t * z_t
+    | List_L of z_t
   [@@deriving sexp]
 
   (* Check if two types are equal *)
   let rec equal (ty : t) (ty' : t) : bool =
     match (ty, ty') with
-    | TInt, TInt 
-    | TBool, TBool 
-    | THole, THole -> true
+    | TInt, TInt | TBool, TBool | THole, THole -> true
     | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
         equal tin1 tin2 && equal tout1 tout2
-    | TList t_1 , TList t_2 ->  equal t_1 t_2 
+    | TList t_1, TList t_2 -> equal t_1 t_2
     | _ -> false
 
   (*
@@ -55,7 +54,8 @@ module Typ = struct
     end)
 
   let node_to_tag (node : t) : int =
-    match node with    (* HOW ARE THESE NUMBERS CHOSEN*)
+    match node with
+    (* HOW ARE THESE NUMBERS CHOSEN*)
     | TInt -> 20
     | TBool -> 21
     | TArrow (_, _) -> 22
@@ -69,7 +69,7 @@ module Typ = struct
     | 21 -> TBool
     | 22 -> TArrow (THole, THole)
     | 23 -> TProd (THole, THole)
-    | 24 -> TList  (THole)
+    | 24 -> TList THole
     | 25 -> THole
     | _ -> raise (SyntaxError "Unrecognized type")
 
@@ -77,15 +77,15 @@ module Typ = struct
   type node = int
   type graph = node list * edge list
 
-  let rec unzip (tree:z_t):t = 
+  let rec unzip (tree : z_t) : t =
     match tree with
     | Cursor subtree -> subtree
-    | Arrow_L (tl,tr) -> TArrow (unzip tl, tr)
-    | Prod_L (tl,tr) -> TProd (unzip tl, tr)
-    | Arrow_R (tl,tr) -> TArrow (tl, unzip tr)
-    | Prod_R  (tl,tr) -> TProd (tl, unzip tr)
-    | List_L tl  -> TList (unzip tl)
-  
+    | Arrow_L (tl, tr) -> TArrow (unzip tl, tr)
+    | Prod_L (tl, tr) -> TProd (unzip tl, tr)
+    | Arrow_R (tl, tr) -> TArrow (tl, unzip tr)
+    | Prod_R (tl, tr) -> TProd (tl, unzip tr)
+    | List_L tl -> TList (unzip tl)
+
   let rec from_list (nodes : node list) (edges : edge list) (root : int) : t =
     let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
       List.filter (fun (start, _, _) -> start = start_node) edges
@@ -112,8 +112,8 @@ module Typ = struct
         TProd
           ( from_list nodes edges (get_nth_child adj_nodes 1),
             from_list nodes edges (get_nth_child adj_nodes 2) )
-    | TList _ -> 
-        let adj_nodes = get_adj_nodes edges root in 
+    | TList _ ->
+        let adj_nodes = get_adj_nodes edges root in
         TList (from_list nodes edges (get_nth_child adj_nodes 1))
     | THole -> THole
 
@@ -148,7 +148,7 @@ module Typ = struct
       let nodes, root = add_node nodes tag in
       match tree with
       | TInt | TBool | THole -> ((nodes, edges), root)
-      | TList t1 ->  ((add_subtree t1 nodes edges root 1), root)
+      | TList t1 -> (add_subtree t1 nodes edges root 1, root)
       | TArrow (t1, t2) | TProd (t1, t2) ->
           let nodes, edges = add_subtree t1 nodes edges root 1 in
           (add_subtree t2 nodes edges root 2, root)
@@ -175,8 +175,6 @@ module Typ = struct
     | TList t1 -> to_string t1 ^ " list"
     | THole -> "? "
 end
-
-
 
 module Assumptions = struct
   type assumption = Var.t * Typ.t

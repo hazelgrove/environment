@@ -65,12 +65,12 @@ let rec print_ast (ast : Expr.t) (num_tabs : int) : unit =
       print_endline "";
       print_endline "else";
       print_ast eelse (num_tabs + 1)
-  | EFun (arg,_, e) ->
+  | EFun (arg, _, e) ->
       print_string "fun ";
       print_string arg;
       print_endline " ->";
       print_ast e (num_tabs + 1)
-  | EFix (x,_ , e) ->
+  | EFix (x, _, e) ->
       print_string "fix ";
       print_string x;
       print_endline " ->";

@@ -3,7 +3,7 @@
 open Ast
 open Astutil
 open Type
-open Var 
+open Var
 
 exception SyntaxError of string
 exception IOError of string
@@ -20,69 +20,71 @@ type testType = int * int
        the modified AST
 *)
 let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
-   let rec act_on_type (type_tree : Typ.z_t): Typ.z_t  = 
-   let build_type (subtr:Typ.t) (shape:Action.shape) : Typ.z_t = 
-    Cursor (
-        match shape with 
+  let rec act_on_type (type_tree : Typ.z_t) : Typ.z_t =
+    let build_type (subtr : Typ.t) (shape : Action.shape) : Typ.z_t =
+      Cursor
+        (match shape with
         | TypInt -> Typ.TInt
         | TypBool -> Typ.TBool
         | TypHole -> Typ.THole
         | TypArrow_L -> Typ.TArrow (subtr, Typ.THole)
         | TypArrow_R -> Typ.TArrow (Typ.THole, subtr)
-        | TypList   -> Typ.TList subtr    
-        | TypProd   -> Typ.TProd (THole, THole)
-        | _ -> subtr (* all other shapes are for exprssions which are not valid*)
-      )
-   in
-   let rec construct (shape:Action.shape) (tree:Typ.z_t) :Typ.z_t  = 
-    let construct_shape = construct shape in 
-    match tree with 
-    | Arrow_L (tl,tr) -> Arrow_L (construct_shape tl, tr)
-    | Prod_L (tl,tr) -> Prod_L ( construct_shape tl, tr)
-    | Arrow_R (tl,tr) -> Arrow_R (tl, construct_shape tr)
-    | Prod_R  (tl,tr) -> Prod_R (tl, construct_shape tr)
-    | List_L tl  -> List_L (construct_shape tl)
-    | Cursor subtr -> build_type subtr shape
-  in 
-   let rec move_child (n:int) (tree:Typ.z_t) : Typ.z_t = 
-    let move_n_child = move_child n  in 
-    match n, type_tree with 
-    | _, Arrow_L (tl,tr) -> Arrow_L (move_n_child tl, tr)
-    | _, Prod_L (tl,tr) -> Prod_L ( move_n_child tl, tr)
-    | _, Arrow_R (tl,tr) -> Arrow_R (tl, move_n_child tr)
-    | _, Prod_R  (tl,tr) -> Prod_R (tl, move_n_child tr)
-    | _, List_L tl  -> List_L (move_n_child tl)
-    | 0, Typ.Cursor (TArrow (tl, tr)) -> Arrow_L(Typ.Cursor(tl),tr)
-    | 1, Typ.Cursor (TArrow (tl, tr)) ->  Arrow_R(tl,Typ.Cursor(tr))
-    | 0, Typ.Cursor (TProd (tl, tr)) -> Prod_L(Typ.Cursor(tl),tr)
-    | 1, Typ.Cursor (TProd (tl, tr)) ->  Prod_R(tl,Typ.Cursor(tr))
-    | 0, Typ.Cursor (TList tl) -> List_L(Typ.Cursor(tl))
-    | _ -> type_tree  (*other values are invalid *)
-   in 
-   let move_parent (tree:Typ.z_t) :Typ.z_t = 
-    match tree with 
-    (*if child of current tree is the cursor move upwards*)
-    | Arrow_L (Cursor(subt), tr ) ->  Cursor(TArrow(subt,tr))
-    | Arrow_R (tl, Cursor(subt)) ->   Cursor(TArrow(tl,subt))
-    | Prod_L (Cursor(subt),tr)  ->    Cursor(TProd(subt,tr))
-    | Prod_R (tl, Cursor(subt)) ->    Cursor(TProd(tl,subt))
-    (* else recurse *)
-    | Arrow_L (tl,tr) -> Arrow_L (act_on_type tl, tr)
-    | Prod_L (tl,tr) -> Prod_L ( act_on_type tl, tr)
-    | Arrow_R (tl,tr) -> Arrow_R (tl, act_on_type tr)
-    | Prod_R  (tl,tr) -> Prod_R (tl, act_on_type tr)
-    | List_L tl  -> List_L (act_on_type tl)
-    (* otherwise we've reached the cursor: this can only happen if act_on_type is 
-      called directly on a type cursor, which shouldn't be possible when the action
-      is move parent. *)
-    | Cursor _ -> tree (* for when cursor is reached (shouldnt happen)*)
-   in 
-   match action with
+        | TypList -> Typ.TList subtr
+        | TypProd -> Typ.TProd (THole, THole)
+        | _ ->
+            subtr (* all other shapes are for exprssions which are not valid*))
+    in
+    let rec construct (shape : Action.shape) (tree : Typ.z_t) : Typ.z_t =
+      let construct_shape = construct shape in
+      match tree with
+      | Arrow_L (tl, tr) -> Arrow_L (construct_shape tl, tr)
+      | Prod_L (tl, tr) -> Prod_L (construct_shape tl, tr)
+      | Arrow_R (tl, tr) -> Arrow_R (tl, construct_shape tr)
+      | Prod_R (tl, tr) -> Prod_R (tl, construct_shape tr)
+      | List_L tl -> List_L (construct_shape tl)
+      | Cursor subtr -> build_type subtr shape
+    in
+    let rec move_child (n : int) (tree : Typ.z_t) : Typ.z_t =
+      let move_n_child = move_child n in
+      match (n, type_tree) with
+      | _, Arrow_L (tl, tr) -> Arrow_L (move_n_child tl, tr)
+      | _, Prod_L (tl, tr) -> Prod_L (move_n_child tl, tr)
+      | _, Arrow_R (tl, tr) -> Arrow_R (tl, move_n_child tr)
+      | _, Prod_R (tl, tr) -> Prod_R (tl, move_n_child tr)
+      | _, List_L tl -> List_L (move_n_child tl)
+      | 0, Typ.Cursor (TArrow (tl, tr)) -> Arrow_L (Typ.Cursor tl, tr)
+      | 1, Typ.Cursor (TArrow (tl, tr)) -> Arrow_R (tl, Typ.Cursor tr)
+      | 0, Typ.Cursor (TProd (tl, tr)) -> Prod_L (Typ.Cursor tl, tr)
+      | 1, Typ.Cursor (TProd (tl, tr)) -> Prod_R (tl, Typ.Cursor tr)
+      | 0, Typ.Cursor (TList tl) -> List_L (Typ.Cursor tl)
+      | _ -> type_tree
+      (*other values are invalid *)
+    in
+    let move_parent (tree : Typ.z_t) : Typ.z_t =
+      match tree with
+      (*if child of current tree is the cursor move upwards*)
+      | Arrow_L (Cursor subt, tr) -> Cursor (TArrow (subt, tr))
+      | Arrow_R (tl, Cursor subt) -> Cursor (TArrow (tl, subt))
+      | Prod_L (Cursor subt, tr) -> Cursor (TProd (subt, tr))
+      | Prod_R (tl, Cursor subt) -> Cursor (TProd (tl, subt))
+      (* else recurse *)
+      | Arrow_L (tl, tr) -> Arrow_L (act_on_type tl, tr)
+      | Prod_L (tl, tr) -> Prod_L (act_on_type tl, tr)
+      | Arrow_R (tl, tr) -> Arrow_R (tl, act_on_type tr)
+      | Prod_R (tl, tr) -> Prod_R (tl, act_on_type tr)
+      | List_L tl -> List_L (act_on_type tl)
+      (* otherwise we've reached the cursor: this can only happen if act_on_type is
+         called directly on a type cursor, which shouldn't be possible when the action
+         is move parent. *)
+      | Cursor _ -> tree
+      (* for when cursor is reached (shouldnt happen)*)
+    in
+    match action with
     | Construct shape -> construct shape type_tree
     | Move (Child n) -> move_child n type_tree
     | Move Parent -> move_parent type_tree
-   in  
-   let build_expr (shape:Action.shape) (subtree:Expr.t):Expr.t = 
+  in
+  let build_expr (shape : Action.shape) (subtree : Expr.t) : Expr.t =
     match shape with
     | Var varname -> EVar varname
     | Hole -> EHole
@@ -97,22 +99,25 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | If_L -> EIf (subtree, EHole, EHole)
     | If_C -> EIf (EHole, subtree, EHole)
     | If_R -> EIf (EHole, EHole, subtree)
-    | Fun (varname) -> EFun (varname, THole, subtree)
-    | Fix (varname) -> EFix (varname, THole, subtree)
+    | Fun varname -> EFun (varname, THole, subtree)
+    | Fix varname -> EFix (varname, THole, subtree)
     | Pair_L -> EPair (subtree, EHole)
     | Pair_R -> EPair (EHole, subtree)
-    | _ -> subtree (* only other option is type 'shapes' which arent valid in this scope*)
-   in 
-   let rec construct (shape: Action.shape) (tree:Expr.z_t) : (Expr.z_t) = 
-    let construct_shape = construct shape in 
+    | _ -> subtree
+    (* only other option is type 'shapes' which arent valid in this scope*)
+  in
+  let rec construct (shape : Action.shape) (tree : Expr.z_t) : Expr.z_t =
+    let construct_shape = construct shape in
     match tree with
     | EUnOp_L (op, r_child) -> EUnOp_L (op, construct_shape r_child)
     | EBinOp_L (l_child, op, r_child) ->
         EBinOp_L (construct_shape l_child, op, r_child)
     | EBinOp_R (l_child, op, r_child) ->
         EBinOp_R (l_child, op, construct_shape r_child)
-    | ELet_L (var, l_child, r_child) -> ELet_L (var, construct_shape l_child, r_child)
-    | ELet_R (var, l_child, r_child) -> ELet_R (var, l_child, construct_shape r_child)
+    | ELet_L (var, l_child, r_child) ->
+        ELet_L (var, construct_shape l_child, r_child)
+    | ELet_R (var, l_child, r_child) ->
+        ELet_R (var, l_child, construct_shape r_child)
     | EIf_L (l, c, r) -> EIf_L (construct_shape l, c, r)
     | EIf_C (l, c, r) -> EIf_C (l, construct_shape c, r)
     | EIf_R (l, c, r) -> EIf_R (l, c, construct_shape r)
@@ -122,38 +127,39 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
     | EPair_L (l_child, r_child) -> EPair_L (construct_shape l_child, r_child)
     | EPair_R (l_child, r_child) -> EPair_R (l_child, construct_shape r_child)
-    | Cursor subtree -> Cursor( build_expr shape subtree)
-   in 
-   let shuffle_cursor (n_child:int) (subtree:Expr.t) : Expr.z_t  = 
-      match n_child, subtree  with
-      | 0, EUnOp (op, arg) -> EUnOp_L (op, Cursor arg)
-      | 0, EBinOp (arg_l, op, arg_r) -> EBinOp_L (Cursor arg_l, op, arg_r)
-      | 0, ELet (varn, arg_l, arg_r) -> ELet_L (varn, Cursor arg_l, arg_r)
-      | 0, EIf (arg_l, arg_c, arg_r) -> EIf_L (Cursor arg_l, arg_c, arg_r)
-      | 0, EFun (varname, typ, arg) -> EFun_L (varname, Typ.Cursor (typ),arg)
-      | 0, EFix (varname, typ, arg) -> EFix_L (varname, Typ.Cursor (typ),arg)
-      | 0, EPair (arg_l, arg_r) -> EPair_L (Cursor arg_l, arg_r)
-      | 1, EBinOp (arg_l, op, arg_r) -> EBinOp_R (arg_l, op, Cursor arg_r)
-      | 1, ELet (varn, arg_l, arg_r) -> ELet_R (varn, arg_l, Cursor arg_r)
-      | 1, EIf (arg_l, arg_c, arg_r) -> EIf_C (arg_l, Cursor arg_c, arg_r)
-      | 1, EPair (arg_l, arg_r) -> EPair_R (arg_l, Cursor arg_r)
-      | 1, EFun (varname, typ, arg_l) ->
-              EFun_R (varname, typ, Cursor arg_l)
-      | 1, EFix (varname, typ, arg_l) ->
-              EFix_R (varname, typ, Cursor arg_l)
-      | 2, EIf (arg_l, arg_c, arg_r) -> EIf_R (arg_l, arg_c, Cursor arg_r)
-      | _ -> tree (*all invalid actions are noops*)
-   in 
-   let rec move_child (n_child:int) (tree:Expr.z_t) : Expr.z_t = 
-    let move_n_child = move_child n_child in 
+    | Cursor subtree -> Cursor (build_expr shape subtree)
+  in
+  let shuffle_cursor (n_child : int) (subtree : Expr.t) : Expr.z_t =
+    match (n_child, subtree) with
+    | 0, EUnOp (op, arg) -> EUnOp_L (op, Cursor arg)
+    | 0, EBinOp (arg_l, op, arg_r) -> EBinOp_L (Cursor arg_l, op, arg_r)
+    | 0, ELet (varn, arg_l, arg_r) -> ELet_L (varn, Cursor arg_l, arg_r)
+    | 0, EIf (arg_l, arg_c, arg_r) -> EIf_L (Cursor arg_l, arg_c, arg_r)
+    | 0, EFun (varname, typ, arg) -> EFun_L (varname, Typ.Cursor typ, arg)
+    | 0, EFix (varname, typ, arg) -> EFix_L (varname, Typ.Cursor typ, arg)
+    | 0, EPair (arg_l, arg_r) -> EPair_L (Cursor arg_l, arg_r)
+    | 1, EBinOp (arg_l, op, arg_r) -> EBinOp_R (arg_l, op, Cursor arg_r)
+    | 1, ELet (varn, arg_l, arg_r) -> ELet_R (varn, arg_l, Cursor arg_r)
+    | 1, EIf (arg_l, arg_c, arg_r) -> EIf_C (arg_l, Cursor arg_c, arg_r)
+    | 1, EPair (arg_l, arg_r) -> EPair_R (arg_l, Cursor arg_r)
+    | 1, EFun (varname, typ, arg_l) -> EFun_R (varname, typ, Cursor arg_l)
+    | 1, EFix (varname, typ, arg_l) -> EFix_R (varname, typ, Cursor arg_l)
+    | 2, EIf (arg_l, arg_c, arg_r) -> EIf_R (arg_l, arg_c, Cursor arg_r)
+    | _ -> tree
+    (*all invalid actions are noops*)
+  in
+  let rec move_child (n_child : int) (tree : Expr.z_t) : Expr.z_t =
+    let move_n_child = move_child n_child in
     match tree with
     | EUnOp_L (op, r_child) -> EUnOp_L (op, move_n_child r_child)
     | EBinOp_L (l_child, op, r_child) ->
         EBinOp_L (move_n_child l_child, op, r_child)
     | EBinOp_R (l_child, op, r_child) ->
         EBinOp_R (l_child, op, move_n_child r_child)
-    | ELet_L (var, l_child, r_child) -> ELet_L (var, move_n_child l_child, r_child)
-    | ELet_R (var, l_child, r_child) -> ELet_R (var, l_child, move_n_child r_child)
+    | ELet_L (var, l_child, r_child) ->
+        ELet_L (var, move_n_child l_child, r_child)
+    | ELet_R (var, l_child, r_child) ->
+        ELet_R (var, l_child, move_n_child r_child)
     | EIf_L (l, c, r) -> EIf_L (move_n_child l, c, r)
     | EIf_C (l, c, r) -> EIf_C (l, move_n_child c, r)
     | EIf_R (l, c, r) -> EIf_R (l, c, move_n_child r)
@@ -163,18 +169,16 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
     | EPair_L (l_child, r_child) -> EPair_L (move_n_child l_child, r_child)
     | EPair_R (l_child, r_child) -> EPair_R (l_child, move_n_child r_child)
-    | Cursor subtree -> shuffle_cursor n_child subtree 
-   in 
-   let rec move_parent (tree:Expr.z_t) :Expr.z_t = 
+    | Cursor subtree -> shuffle_cursor n_child subtree
+  in
+  let rec move_parent (tree : Expr.z_t) : Expr.z_t =
     match tree with
     | EUnOp_L (op, Cursor arg) -> Cursor (EUnOp (op, arg))
     | EUnOp_L (op, arg) -> EUnOp_L (op, move_parent arg)
-    | EBinOp_L (Cursor arg, op, r_child) ->
-        Cursor (EBinOp (arg, op, r_child))
+    | EBinOp_L (Cursor arg, op, r_child) -> Cursor (EBinOp (arg, op, r_child))
     | EBinOp_L (l_child, op, r_child) ->
         EBinOp_L (move_parent l_child, op, r_child)
-    | EBinOp_R (l_child, op, Cursor arg) ->
-        Cursor (EBinOp (l_child, op, arg))
+    | EBinOp_R (l_child, op, Cursor arg) -> Cursor (EBinOp (l_child, op, arg))
     | EBinOp_R (l_child, op, r_child) ->
         EBinOp_R (l_child, op, move_parent r_child)
     | EPair_L (Cursor l_child, r_child) -> Cursor (EPair (l_child, r_child))
@@ -182,32 +186,34 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | EPair_R (l_child, Cursor r_child) -> Cursor (EPair (l_child, r_child))
     | EPair_R (l_child, r_child) -> EPair_R (l_child, move_parent r_child)
     | ELet_L (var, Cursor arg, r_child) -> Cursor (ELet (var, arg, r_child))
-    | ELet_L (var, l_child, r_child) -> ELet_L (var, move_parent l_child, r_child)
+    | ELet_L (var, l_child, r_child) ->
+        ELet_L (var, move_parent l_child, r_child)
     | ELet_R (var, l_child, Cursor arg) -> Cursor (ELet (var, l_child, arg))
-    | ELet_R (var, l_child, r_child) -> ELet_R (var, l_child, move_parent r_child)
+    | ELet_R (var, l_child, r_child) ->
+        ELet_R (var, l_child, move_parent r_child)
     | EIf_L (Cursor arg, c, r) -> Cursor (EIf (arg, c, r))
     | EIf_L (l, c, r) -> EIf_L (move_parent l, c, r)
     | EIf_C (l, Cursor arg, r) -> Cursor (EIf (l, arg, r))
     | EIf_C (l, c, r) -> EIf_C (l, move_parent c, r)
     | EIf_R (l, c, Cursor arg) -> Cursor (EIf (l, c, arg))
     | EIf_R (l, c, r) -> EIf_R (l, c, move_parent r)
-    | EFun_L(var, Typ.Cursor typ, arg) -> Cursor (EFun(var, typ,arg ))
-    | EFun_L (var, typ, arg) -> EFun_L(var, act_on_type typ, arg) 
-    | EFix_L(var, Typ.Cursor typ, arg) -> Cursor (EFix(var, typ,arg ))
-    | EFix_L (var, typ, arg) -> EFix_L(var, act_on_type typ, arg) 
+    | EFun_L (var, Typ.Cursor typ, arg) -> Cursor (EFun (var, typ, arg))
+    | EFun_L (var, typ, arg) -> EFun_L (var, act_on_type typ, arg)
+    | EFix_L (var, Typ.Cursor typ, arg) -> Cursor (EFix (var, typ, arg))
+    | EFix_L (var, typ, arg) -> EFix_L (var, act_on_type typ, arg)
     | EFun_R (var, typ, Cursor arg) -> Cursor (EFun (var, typ, arg))
     | EFun_R (var, typ, child) -> EFun_R (var, typ, move_parent child)
     | EFix_R (var, typ, Cursor arg) -> Cursor (EFix (var, typ, arg))
     | EFix_R (var, typ, child) -> EFix_R (var, typ, move_parent child)
     | _ -> tree
-   in 
-   let act_on (tree : Expr.z_t) : Expr.z_t =
-     match action with
-     | Construct shape -> construct shape tree 
-     | Move (Child n) -> move_child n tree
-     | Move Parent -> move_parent tree
-   in
-   act_on tree 
+  in
+  let act_on (tree : Expr.z_t) : Expr.z_t =
+    match action with
+    | Construct shape -> construct shape tree
+    | Move (Child n) -> move_child n tree
+    | Move Parent -> move_parent tree
+  in
+  act_on tree
 
 (*
    Given a unit test set and AST, check if AST passes tests
@@ -345,75 +351,97 @@ let%test_module "Test run_unit_tests" =
 *)
 
 (* syn and ana*)
-let rec synthesis (context: Assumptions.t) (e: Expr.t) : Typ.t option = 
-  begin match e with
-  | EVar x -> Assumptions.lookup context x 
-  | EInt _  -> Some TInt
-  | EBool _ -> Some TBool 
-  | EUnOp (OpNeg, arg) -> if analysis context arg Typ.TInt then Some TInt else None
-  | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) -> 
-      if analysis context argl TInt  && analysis context argr TInt then Some TInt else None 
-  | EBinOp (argl, (OpGt | OpGe | OpLt | OpLe) , argr) -> 
-    if analysis context argl TInt  && analysis context argr TInt then Some TBool else None 
-  | EBinOp (argl, (OpEq | OpNe) , argr) -> (* equal is a special case*)
-    if (analysis context argl TInt && analysis context argr TInt) 
-      || (analysis context argl TBool && analysis context argr TBool) then Some TBool else None
-  | EBinOp (arrow, OpAp, arg) -> 
-    (match synthesis context arrow with 
-      | Some TArrow (in_t, out_t) -> if analysis context arg in_t then Some out_t else None 
-      | _ -> None )
-  | EBinOp ( hd, OpCon, tl) -> 
-    (match synthesis context tl with 
-      | Some TList (list_t) -> if analysis context hd list_t then Some (TList list_t)  else None 
-      | _ -> None )
+let rec synthesis (context : Assumptions.t) (e : Expr.t) : Typ.t option =
+  match e with
+  | EVar x -> Assumptions.lookup context x
+  | EInt _ -> Some TInt
+  | EBool _ -> Some TBool
+  | EUnOp (OpNeg, arg) ->
+      if analysis context arg Typ.TInt then Some TInt else None
+  | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) ->
+      if analysis context argl TInt && analysis context argr TInt
+      then Some TInt
+      else None
+  | EBinOp (argl, (OpGt | OpGe | OpLt | OpLe), argr) ->
+      if analysis context argl TInt && analysis context argr TInt
+      then Some TBool
+      else None
+  | EBinOp (argl, (OpEq | OpNe), argr) ->
+      (* equal is a special case*)
+      if (analysis context argl TInt && analysis context argr TInt)
+         || (analysis context argl TBool && analysis context argr TBool)
+      then Some TBool
+      else None
+  | EBinOp (arrow, OpAp, arg) -> (
+      match synthesis context arrow with
+      | Some (TArrow (in_t, out_t)) ->
+          if analysis context arg in_t then Some out_t else None
+      | _ -> None)
+  | EBinOp (hd, OpCon, tl) -> (
+      match synthesis context tl with
+      | Some (TList list_t) ->
+          if analysis context hd list_t then Some (TList list_t) else None
+      | _ -> None)
   | EPair (l_pair, r_pair) -> (
-    match synthesis context l_pair, synthesis context r_pair with 
-    | Some l_t, Some r_t  -> Some (TProd (l_t,r_t))
-    | _ -> None )
-  | EIf (argl, argc,argr) -> (if analysis context argl TBool then (
-    match synthesis context argc with 
-    | Some out_t -> if analysis context argc out_t && analysis context argr out_t 
-        then Some out_t else None 
-    | _ -> None 
-    )
-    else None) 
-  | ELet (varn, dec, body) -> ( match synthesis context dec with
-    | Some var_t -> synthesis (Assumptions.extend context (varn,var_t)) body 
-    | _ -> None)
-  (* | ELet (varn, Some vart, dec, body) -> if analysis context dec vart 
-    then synthesis (Assumptions.extend context (varn,var_t)) body 
-    else None *)
-  | EFun (varn, vart, body) ->(
-    match synthesis (Assumptions.extend context (varn,vart)) body with 
-    | Some outtype -> Some (TArrow (vart,outtype))
-    | _ -> None )
-  (* | EFun (varn, vart, Some outtype, body) -> 
-    if analysis (Assumptions.extend context (varn,vart)) body outtype
-      then Some Arrow (vart,outtype) else None  *)
-  | EFix (varn, vart, body) -> 
-    if analysis (Assumptions.extend context (varn,vart)) body vart 
-      then Some vart else None 
+      match (synthesis context l_pair, synthesis context r_pair) with
+      | Some l_t, Some r_t -> Some (TProd (l_t, r_t))
+      | _ -> None)
+  | EIf (argl, argc, argr) ->
+      if analysis context argl TBool
+      then
+        match synthesis context argc with
+        | Some out_t ->
+            if analysis context argc out_t && analysis context argr out_t
+            then Some out_t
+            else None
+        | _ -> None
+      else None
+  | ELet (varn, dec, body) -> (
+      match synthesis context dec with
+      | Some var_t -> synthesis (Assumptions.extend context (varn, var_t)) body
+      | _ -> None)
+  (* | ELet (varn, Some vart, dec, body) -> if analysis context dec vart
+     then synthesis (Assumptions.extend context (varn,var_t)) body
+     else None *)
+  | EFun (varn, vart, body) -> (
+      match synthesis (Assumptions.extend context (varn, vart)) body with
+      | Some outtype -> Some (TArrow (vart, outtype))
+      | _ -> None)
+  (* | EFun (varn, vart, Some outtype, body) ->
+     if analysis (Assumptions.extend context (varn,vart)) body outtype
+       then Some Arrow (vart,outtype) else None *)
+  | EFix (varn, vart, body) ->
+      if analysis (Assumptions.extend context (varn, vart)) body vart
+      then Some vart
+      else None
   | EHole -> None
   | ENil -> Some (TList THole)
-end
-and analysis  (context:Assumptions.t) (e: Expr.t) (targ: Typ.t): bool =
-  match e with
-  | EFun (varn, vart, expr) -> (match synthesis (Assumptions.extend context (varn,vart)) expr with 
-      | Some etyp -> Typ.equal etyp targ | None -> false ) 
-  | EFix (varn,vart , arg) -> (Typ.equal vart targ) && (analysis context arg targ) 
-  | EPair (lpair, rpair)  -> 
-    (match targ with 
-     | TProd (l_t, r_t) ->  analysis context lpair l_t && analysis context rpair r_t 
-     | _->  false ) 
-  | EIf (argl, argc, argr) -> analysis context argl TBool && analysis context argc targ && analysis context argr targ 
-  | ELet(varn, dec, body) ->  let var_t = synthesis context dec in 
-   ( match var_t with 
-   | Some vart -> analysis (Assumptions.extend context (varn,vart)) body targ
-   | None -> false ) 
-  | _ ->( match synthesis context e with 
-    | None -> false 
-    | Some expt -> Typ.equal expt targ )
 
+and analysis (context : Assumptions.t) (e : Expr.t) (targ : Typ.t) : bool =
+  match e with
+  | EFun (varn, vart, expr) -> (
+      match synthesis (Assumptions.extend context (varn, vart)) expr with
+      | Some etyp -> Typ.equal etyp targ
+      | None -> false)
+  | EFix (varn, vart, arg) -> Typ.equal vart targ && analysis context arg targ
+  | EPair (lpair, rpair) -> (
+      match targ with
+      | TProd (l_t, r_t) ->
+          analysis context lpair l_t && analysis context rpair r_t
+      | _ -> false)
+  | EIf (argl, argc, argr) ->
+      analysis context argl TBool
+      && analysis context argc targ && analysis context argr targ
+  | ELet (varn, dec, body) -> (
+      let var_t = synthesis context dec in
+      match var_t with
+      | Some vart ->
+          analysis (Assumptions.extend context (varn, vart)) body targ
+      | None -> false)
+  | _ -> (
+      match synthesis context e with
+      | None -> false
+      | Some expt -> Typ.equal expt targ)
 
 let load_tests (directory : string) (assignment : int) : testType list =
   let filename = directory ^ "/" ^ string_of_int assignment ^ "/test.ml" in
@@ -440,329 +468,349 @@ let load_starter_code (directory : string) (assignment : int) (index : int) :
   in
   parse_file filename
 
-
-let get_cursor_info (e: SyntaxTree.z_t) : CursorInfo.t = 
-  let rec recurse (node: SyntaxTree.z_t)
-              (parent : SyntaxTree.t option) 
-              (def_cont:(Var.t * int) list) 
-              (typ_cont:Assumptions.t) 
-              (pred_type:Typ.t option) 
-              (ind:int) 
-      : CursorInfo.t (*((SyntaxTree.t option)*((Var.t * int) list)*(Typ.t option)*(Typ.t option)*SyntaxTree.t)*) = 
-    let current :SyntaxTree.t = match node with 
-      | ZENode zparent -> ENode(Expr.unzip_ast zparent)
-      | ZTNode zparent -> TNode(Typ.unzip zparent)
-    in 
-    match node with 
-    | ZENode (Cursor cursed) -> { 
-      current_term= ENode cursed; 
-      parent_term = parent; 
-      ctx = def_cont;
-      typ_ctx = typ_cont; 
-      expected_ty=pred_type;
-      actual_ty= synthesis typ_cont cursed; }
-    | ZENode (EUnOp_L (OpNeg,argl) ) -> 
-      let exp_typ = match pred_type with | Some TBool | Some TInt -> pred_type |_->None 
-      in recurse (ZENode argl) (Some current) def_cont typ_cont exp_typ ind  
-    
-      | ZENode  EBinOp_L (argl, (OpPlus|OpMinus | OpTimes | OpDiv |OpGt | OpGe | OpLt | OpLe), argr) 
-      -> recurse (ZENode argl) (Some current) def_cont typ_cont (Some TInt) ind  
-    | ZENode EBinOp_R (argl, (OpPlus|OpMinus | OpTimes | OpDiv |OpGt | OpGe | OpLt | OpLe), argr) 
-      -> recurse (ZENode argr) (Some current) def_cont typ_cont (Some TInt) (ind + SyntaxTree.size (ENode argl) +1)
-    | ZENode  EBinOp_L (argl,(OpEq | OpNe) , argr) -> 
-      let exp_typ = match pred_type with | Some TBool | Some TInt -> pred_type |_->None 
-      in recurse (ZENode argl) (Some current) def_cont typ_cont exp_typ ind  
-    | ZENode  EBinOp_R (argl,(OpEq | OpNe) , argr) -> 
-      let exp_typ = match pred_type with | Some TBool | Some TInt -> pred_type |_-> None 
-      in recurse (ZENode argr) (Some current) def_cont typ_cont exp_typ ind
-    | ZENode EBinOp_L (argl, OpCon, arr)-> 
-      let exp_typ = match (pred_type,synthesis typ_cont arr) with 
-          | (Some TList(ltype),_) -> Some ltype 
-          | (_,Some TList(ltype))-> Some ltype 
-          |_-> None 
-      in recurse (ZENode argl) (Some current) def_cont typ_cont exp_typ ind 
-    | ZENode EBinOp_R (argl, OpCon, arr)-> 
-      let exp_typ = match (pred_type,synthesis typ_cont argl) with 
-          | (Some TList(ltype),_) -> Some ltype 
-          | (_,Some TList(ltype))-> Some ltype 
-          |_-> None 
-      in recurse (ZENode arr) (Some current) def_cont typ_cont exp_typ (ind + SyntaxTree.size (ENode argl)+1) 
-    | ZENode EBinOp_L (argl, OpAp, argr) -> (match pred_type, synthesis typ_cont argr with 
-          | (Some out_type, Some inp_type) -> recurse (ZENode argl) (Some current) def_cont typ_cont (Some (TArrow (inp_type,out_type))) ind
-          | _ -> recurse (ZENode argl) (Some current) def_cont typ_cont None ind )
-    | ZENode EBinOp_R (argl, OpAp, argr) -> (match synthesis typ_cont argl with 
-          | Some (TArrow (in_t, _)) -> recurse (ZENode argr) (Some current) def_cont typ_cont (Some in_t) (ind + SyntaxTree.size (ENode argl) +1)
-          | _ -> recurse (ZENode argr) (Some current) def_cont typ_cont None (ind + SyntaxTree.size (ENode argl) +1) )
-    | ZENode  ELet_L (_,argl,argr )  -> recurse (ZENode argl) (Some current) def_cont typ_cont None ind
-    | ZENode  ELet_R (varn,argl,argr )  -> ( match synthesis typ_cont argl with 
-      | Some lettype  -> recurse (ZENode argr) (Some current) ((varn,ind):: def_cont) ((varn,lettype)::typ_cont) None (ind + SyntaxTree.size (ENode argl) +1)
-      | None   -> recurse (ZENode argr) (Some current) ((varn,ind):: def_cont) ((varn,THole)::typ_cont) None (ind + SyntaxTree.size (ENode argl) +1)
-      )
-    | ZENode  EIf_L (argl, argc,argr) -> recurse (ZENode argl) (Some current) def_cont typ_cont (Some TBool) ind
-    | ZENode  EIf_C (argl, argc,argr) -> recurse (ZENode argc) (Some current) def_cont typ_cont (synthesis typ_cont argr) (ind + SyntaxTree.size (ENode argl) +1) 
-    | ZENode  EIf_R (argl, argc,argr) -> recurse (ZENode argr) (Some current) def_cont typ_cont (synthesis typ_cont argc) (ind + SyntaxTree.size (ENode argl) + SyntaxTree.size(ENode argc) +1) 
-    | ZENode  EFun_L (_, typ, argr) -> recurse (ZTNode typ) (Some current) def_cont typ_cont None ind
-    | ZENode  EFun_R (varn, typ, argr) -> recurse (ZENode argr) (Some current) ((varn,ind):: def_cont) ((varn, typ)::typ_cont) None (ind + SyntaxTree.size (TNode typ) +1) 
-    | ZENode  EFix_L (_, typ, argr) -> recurse (ZTNode typ) (Some current) def_cont typ_cont None ind
-    | ZENode  EFix_R (varn, typ, argr) -> recurse (ZENode argr) (Some current)  ((varn,ind):: def_cont) ((varn, typ)::typ_cont) None (ind + SyntaxTree.size (TNode typ) +1) 
-    | ZENode  EPair_L (argl, argr)  -> (
-      match pred_type with 
-        | Some TProd (ltyp, _) -> recurse (ZENode argl) (Some current) def_cont typ_cont (Some ltyp) ind
-        | _ ->recurse (ZENode argl) (Some current) def_cont typ_cont None ind  )
-    | ZENode  EPair_R (argl, argr)  ->( 
-      match pred_type with 
-      | Some TProd(_, rtype) -> recurse (ZENode argr) (Some current) def_cont typ_cont (Some rtype) (ind + SyntaxTree.size (ENode argl) + 1) 
-      | _ ->recurse (ZENode argr) (Some current) def_cont typ_cont None ind )
-    |ZTNode(Cursor typ) ->({ 
-      current_term= TNode typ; 
-      parent_term = parent; 
-      ctx = def_cont;
-      typ_ctx = typ_cont;
-      expected_ty=None;
-      actual_ty= None; })
-    |ZTNode Arrow_L (in_typ, out_typ) -> recurse (ZTNode in_typ) (Some current) def_cont typ_cont None ind 
-    |ZTNode Arrow_R (in_typ, out_typ) -> recurse (ZTNode out_typ) (Some current) def_cont typ_cont None (ind + SyntaxTree.size (TNode in_typ) + 1)  
-    |ZTNode Prod_L (l_typ,r_typ) -> recurse (ZTNode l_typ) (Some current) def_cont typ_cont None ind 
-    |ZTNode Prod_R (l_typ,r_typ) -> recurse (ZTNode r_typ) (Some current) def_cont typ_cont None (ind + SyntaxTree.size (TNode l_typ) + 1)  
-    |ZTNode List_L l_typ -> recurse (ZTNode l_typ) (Some current) def_cont typ_cont None ind 
-in 
+let get_cursor_info (e : SyntaxTree.z_t) : CursorInfo.t =
+  let rec recurse (node : SyntaxTree.z_t) (parent : SyntaxTree.t option)
+      (def_cont : (Var.t * int) list) (typ_cont : Assumptions.t)
+      (pred_type : Typ.t option) (ind : int) :
+      CursorInfo.t
+      (*((SyntaxTree.t option)*((Var.t * int) list)*(Typ.t option)*(Typ.t option)*SyntaxTree.t)*)
+      =
+    let current : SyntaxTree.t =
+      match node with
+      | ZENode zparent -> ENode (Expr.unzip_ast zparent)
+      | ZTNode zparent -> TNode (Typ.unzip zparent)
+    in
+    match node with
+    | ZENode (Cursor cursed) ->
+        {
+          current_term = ENode cursed;
+          parent_term = parent;
+          ctx = def_cont;
+          typ_ctx = typ_cont;
+          expected_ty = pred_type;
+          actual_ty = synthesis typ_cont cursed;
+        }
+    | ZENode (EUnOp_L (OpNeg, argl)) ->
+        let exp_typ =
+          match pred_type with Some TBool | Some TInt -> pred_type | _ -> None
+        in
+        recurse (ZENode argl) (Some current) def_cont typ_cont exp_typ ind
+    | ZENode
+        (EBinOp_L
+          ( argl,
+            (OpPlus | OpMinus | OpTimes | OpDiv | OpGt | OpGe | OpLt | OpLe),
+            argr )) ->
+        recurse (ZENode argl) (Some current) def_cont typ_cont (Some TInt) ind
+    | ZENode
+        (EBinOp_R
+          ( argl,
+            (OpPlus | OpMinus | OpTimes | OpDiv | OpGt | OpGe | OpLt | OpLe),
+            argr )) ->
+        recurse (ZENode argr) (Some current) def_cont typ_cont (Some TInt)
+          (ind + SyntaxTree.size (ENode argl) + 1)
+    | ZENode (EBinOp_L (argl, (OpEq | OpNe), argr)) ->
+        let exp_typ =
+          match pred_type with Some TBool | Some TInt -> pred_type | _ -> None
+        in
+        recurse (ZENode argl) (Some current) def_cont typ_cont exp_typ ind
+    | ZENode (EBinOp_R (argl, (OpEq | OpNe), argr)) ->
+        let exp_typ =
+          match pred_type with Some TBool | Some TInt -> pred_type | _ -> None
+        in
+        recurse (ZENode argr) (Some current) def_cont typ_cont exp_typ ind
+    | ZENode (EBinOp_L (argl, OpCon, arr)) ->
+        let exp_typ =
+          match (pred_type, synthesis typ_cont arr) with
+          | Some (TList ltype), _ -> Some ltype
+          | _, Some (TList ltype) -> Some ltype
+          | _ -> None
+        in
+        recurse (ZENode argl) (Some current) def_cont typ_cont exp_typ ind
+    | ZENode (EBinOp_R (argl, OpCon, arr)) ->
+        let exp_typ =
+          match (pred_type, synthesis typ_cont argl) with
+          | Some (TList ltype), _ -> Some ltype
+          | _, Some (TList ltype) -> Some ltype
+          | _ -> None
+        in
+        recurse (ZENode arr) (Some current) def_cont typ_cont exp_typ
+          (ind + SyntaxTree.size (ENode argl) + 1)
+    | ZENode (EBinOp_L (argl, OpAp, argr)) -> (
+        match (pred_type, synthesis typ_cont argr) with
+        | Some out_type, Some inp_type ->
+            recurse (ZENode argl) (Some current) def_cont typ_cont
+              (Some (TArrow (inp_type, out_type)))
+              ind
+        | _ -> recurse (ZENode argl) (Some current) def_cont typ_cont None ind)
+    | ZENode (EBinOp_R (argl, OpAp, argr)) -> (
+        match synthesis typ_cont argl with
+        | Some (TArrow (in_t, _)) ->
+            recurse (ZENode argr) (Some current) def_cont typ_cont (Some in_t)
+              (ind + SyntaxTree.size (ENode argl) + 1)
+        | _ ->
+            recurse (ZENode argr) (Some current) def_cont typ_cont None
+              (ind + SyntaxTree.size (ENode argl) + 1))
+    | ZENode (ELet_L (_, argl, argr)) ->
+        recurse (ZENode argl) (Some current) def_cont typ_cont None ind
+    | ZENode (ELet_R (varn, argl, argr)) -> (
+        match synthesis typ_cont argl with
+        | Some lettype ->
+            recurse (ZENode argr) (Some current) ((varn, ind) :: def_cont)
+              ((varn, lettype) :: typ_cont)
+              None
+              (ind + SyntaxTree.size (ENode argl) + 1)
+        | None ->
+            recurse (ZENode argr) (Some current) ((varn, ind) :: def_cont)
+              ((varn, THole) :: typ_cont)
+              None
+              (ind + SyntaxTree.size (ENode argl) + 1))
+    | ZENode (EIf_L (argl, argc, argr)) ->
+        recurse (ZENode argl) (Some current) def_cont typ_cont (Some TBool) ind
+    | ZENode (EIf_C (argl, argc, argr)) ->
+        recurse (ZENode argc) (Some current) def_cont typ_cont
+          (synthesis typ_cont argr)
+          (ind + SyntaxTree.size (ENode argl) + 1)
+    | ZENode (EIf_R (argl, argc, argr)) ->
+        recurse (ZENode argr) (Some current) def_cont typ_cont
+          (synthesis typ_cont argc)
+          (ind + SyntaxTree.size (ENode argl) + SyntaxTree.size (ENode argc) + 1)
+    | ZENode (EFun_L (_, typ, argr)) ->
+        recurse (ZTNode typ) (Some current) def_cont typ_cont None ind
+    | ZENode (EFun_R (varn, typ, argr)) ->
+        recurse (ZENode argr) (Some current) ((varn, ind) :: def_cont)
+          ((varn, typ) :: typ_cont) None
+          (ind + SyntaxTree.size (TNode typ) + 1)
+    | ZENode (EFix_L (_, typ, argr)) ->
+        recurse (ZTNode typ) (Some current) def_cont typ_cont None ind
+    | ZENode (EFix_R (varn, typ, argr)) ->
+        recurse (ZENode argr) (Some current) ((varn, ind) :: def_cont)
+          ((varn, typ) :: typ_cont) None
+          (ind + SyntaxTree.size (TNode typ) + 1)
+    | ZENode (EPair_L (argl, argr)) -> (
+        match pred_type with
+        | Some (TProd (ltyp, _)) ->
+            recurse (ZENode argl) (Some current) def_cont typ_cont (Some ltyp)
+              ind
+        | _ -> recurse (ZENode argl) (Some current) def_cont typ_cont None ind)
+    | ZENode (EPair_R (argl, argr)) -> (
+        match pred_type with
+        | Some (TProd (_, rtype)) ->
+            recurse (ZENode argr) (Some current) def_cont typ_cont (Some rtype)
+              (ind + SyntaxTree.size (ENode argl) + 1)
+        | _ -> recurse (ZENode argr) (Some current) def_cont typ_cont None ind)
+    | ZTNode (Cursor typ) ->
+        {
+          current_term = TNode typ;
+          parent_term = parent;
+          ctx = def_cont;
+          typ_ctx = typ_cont;
+          expected_ty = None;
+          actual_ty = None;
+        }
+    | ZTNode (Arrow_L (in_typ, out_typ)) ->
+        recurse (ZTNode in_typ) (Some current) def_cont typ_cont None ind
+    | ZTNode (Arrow_R (in_typ, out_typ)) ->
+        recurse (ZTNode out_typ) (Some current) def_cont typ_cont None
+          (ind + SyntaxTree.size (TNode in_typ) + 1)
+    | ZTNode (Prod_L (l_typ, r_typ)) ->
+        recurse (ZTNode l_typ) (Some current) def_cont typ_cont None ind
+    | ZTNode (Prod_R (l_typ, r_typ)) ->
+        recurse (ZTNode r_typ) (Some current) def_cont typ_cont None
+          (ind + SyntaxTree.size (TNode l_typ) + 1)
+    | ZTNode (List_L l_typ) ->
+        recurse (ZTNode l_typ) (Some current) def_cont typ_cont None ind
+  in
   recurse e None [] [] None 0
- 
-  let cursor_info_to_list (info:CursorInfo.t) : Action.t list = 
-    let handle_root (ci:CursorInfo.t) (currlist:Action.t list): Action.t list = 
-      match ci.parent_term with 
-      | Some _ -> (Move (Parent)) ::currlist
-      | None  -> currlist 
-    in 
-    let handle_children (currlist:Action.t list): Action.t list = 
-      match info.current_term with
-      | ENode EIf _ -> Move (Child 0):: Move (Child 1) :: Move (Child 2) :: currlist 
-      | ENode ( EBinOp _ |EFun _ |ELet _ |EFix _ |EPair _  ) 
-      | TNode ( TArrow _ |TProd _ ) -> Move (Child 0):: Move (Child 1) :: currlist 
-      | ENode (EUnOp _) | TNode TList _  -> Move (Child 0) :: currlist 
-      | ENode (EVar _ |EInt _ | EBool _|EHole  |ENil )
-      | TNode (TInt| TBool |THole) -> currlist 
-    in 
-    let handle_constr_typ (currlist:Action.t list) : Action.t list= 
-      Construct TypInt ::
-      Construct TypBool  ::
-      Construct TypArrow_L  ::
-      Construct TypArrow_R ::
-      Construct TypList ::  
-      Construct TypHole ::
-      Construct TypProd ::
-      currlist
-    in 
-    let handle_constr_arithmetic_binops 
-                    (currlist:Action.t list) 
-                    : Action.t list = 
-      match info.expected_ty, info.actual_ty with
-      | None, None       (* always allow none none's *)
-      | Some TInt, Some TInt ->  
-        Construct (BinOp_L OpPlus ) ::
-        Construct (BinOp_L OpMinus) ::
-        Construct (BinOp_L  OpTimes) ::
-        Construct (BinOp_L  OpDiv  ) ::
-        Construct (BinOp_R OpPlus ) ::
-        Construct (BinOp_R OpMinus) ::
-        Construct (BinOp_R  OpTimes) ::
-        Construct (BinOp_R  OpDiv  ) ::
-        currlist 
-      | _ -> currlist
-    in
-    let handle_comp_binops 
-              (currlist:Action.t list) 
-              : Action.t list = 
-    match info.expected_ty, info.actual_ty with
-    | None, None       (* always allow none none's *)
-    | Some TBool, Some TInt ->  
-      Construct(BinOp_L OpLt) ::
-      Construct(BinOp_R  OpLt) ::
-      Construct(BinOp_L OpLe) ::
-      Construct(BinOp_R  OpLe) ::
-      Construct(BinOp_L OpGt) ::
-      Construct(BinOp_R  OpGt) ::
-      Construct(BinOp_L OpGe) ::
-      Construct(BinOp_R  OpGe) :: currlist
-    |_ -> currlist
-    in
-    let handle_eq_binops 
-          (currlist:Action.t list) 
-          : Action.t list = 
-    match info.expected_ty with 
-    | None 
-    | Some TBool ->  
-      Construct(BinOp_L OpEq) ::
-      Construct(BinOp_L OpNe) ::  
-      Construct(BinOp_R OpEq) ::
-      Construct(BinOp_R OpNe) :: currlist 
-    | _ -> currlist 
-    in 
-    let handle_con_binop
-          (currlist:Action.t list) 
-          : Action.t list = 
-      match info.expected_ty, info.actual_ty with
-      | Some (TList a), Some (TList b) -> 
-        if Typ.equal b THole  then Construct (BinOp_R OpCon) :: currlist 
-        else if Typ.equal a b then
-            Construct (BinOp_R OpCon) ::
-            Construct (BinOp_L OpCon) :: currlist 
-        else currlist
-      | Some (TList a), Some  b -> 
-        if Typ.equal a b  then Construct (BinOp_L OpCon) :: currlist
-        else currlist
-      | None , Some (TList _) ->           
-            Construct (BinOp_R OpCon) ::
-            Construct (BinOp_L OpCon):: currlist 
-      |None, (Some _) -> Construct (BinOp_L OpCon):: currlist 
-      |_-> currlist
-    in 
-    let handle_ap_binop
-        (currlist:Action.t list) 
-        : Action.t list = 
-      match info.expected_ty, info.actual_ty with
-        | Some c ,Some (TArrow (_,b)) -> 
-          if Typ.equal c b  then Construct (BinOp_L OpAp) :: currlist 
-          else currlist 
-        | Some c, Some b -> Construct (BinOp_R OpAp) :: currlist
-        | None, Some (TArrow _ ) -> 
-          Construct (BinOp_R OpAp) :: Construct (BinOp_L OpAp):: currlist 
-        | None, Some _ ->  Construct (BinOp_R OpAp) :: currlist 
-        | _ -> currlist
-    in 
-    let handle_basic_types 
-        (currlist:Action.t list) 
-        : Action.t list = 
-      match info.expected_ty with
-      | Some TInt   -> Construct (Int 0) :: currlist
-      | Some TBool  -> Construct (Bool false) :: currlist
-      | Some THole  -> Construct (Hole) :: currlist
-      | Some TList _  -> Construct (Nil) :: currlist
-      | None -> 
-        Construct (Int 0) ::
-        Construct (Bool false) ::
-        Construct (Hole) :: 
-        Construct (Nil) :: currlist
-      | _ -> currlist 
-    in 
-    let handle_var
-        (currlist:Action.t list) 
-        : Action.t list = 
-      let valid_vars = 
-        match info.expected_ty with
-        | Some targ_type -> List.filter (fun (var,typ)-> Typ.equal typ targ_type ) info.typ_ctx 
-        | None -> info.typ_ctx
-      in (List.map (fun (varn,typ)-> (Action.Construct(Var varn))) valid_vars )
-      @ currlist 
-      in 
-    let handle_let 
-    (currlist:Action.t list) 
-    : Action.t list = 
-    match info.expected_ty, info.actual_ty with
-      (* afik we can make let's anywhere*)
-      | Some a, Some b-> 
-        if Typ.equal a b then 
-          Construct (Let_L "") :: Construct (Let_R "") :: currlist
-        else   Construct (Let_L "") :: currlist 
-      | _ -> Construct (Let_L "") :: Construct (Let_R "") :: currlist 
-    in 
-    let handle_if 
-    (currlist:Action.t list) 
-    : Action.t list = 
-      match info.expected_ty, info.actual_ty with
-      | _, Some TBool -> 
-        Construct (If_L ) :: 
-        Construct (If_C ) :: 
-        Construct (If_R ) ::  currlist 
-      | _ ->        
-        Construct (If_C ) :: 
-        Construct (If_R ) ::  currlist
-    in 
-    let handle_fun
-    (currlist:Action.t list) 
-    : Action.t list = 
-      match info.expected_ty, info.actual_ty with
-      | Some TArrow (a,b), Some c -> 
-        if Typ.equal b c then Construct (Fun ("")) :: currlist 
-        else currlist 
-      | None, _ ->  Construct (Fun ("")) :: currlist 
-      | _ -> currlist 
-    in 
-    let handle_fix
-    (currlist:Action.t list) 
-    : Action.t list = 
-      match info.expected_ty, info.actual_ty with
-      | Some TArrow (a,b), Some c -> 
-        if Typ.equal b c then Construct (Fix ("",THole)) :: currlist 
-        else currlist 
-      | None, _ ->  Construct (Fix ("",THole)) :: currlist 
-      | _ -> currlist 
-    in 
-    let handle_pair
-    (currlist:Action.t list) 
-    : Action.t list = 
-      match info.expected_ty, info.actual_ty with
-      | Some TProd (a,b), Some c -> 
-        let left_half = if Typ.equal a c 
-          then Action.Construct (Pair_L) :: currlist  
-          else currlist
-        in 
-        if Typ.equal b c  then Construct (Pair_R) :: left_half else left_half 
-      | None, _ ->  Construct (Pair_L) :: Construct Pair_R :: currlist 
-      | _ -> currlist 
-    in 
-    let currlist = handle_root info [] in
-    let currlist = handle_children currlist in 
-    match info.current_term with 
-    |TNode _ -> handle_constr_typ  currlist 
-    |ENode _ ->
-        let currlist = handle_constr_arithmetic_binops currlist in 
-        let currlist = handle_comp_binops currlist in 
-        let currlist = handle_eq_binops currlist in 
-        let currlist = handle_con_binop currlist in 
-        let currlist = handle_ap_binop currlist in 
-        let currlist = handle_basic_types currlist in 
-        let currlist = handle_var currlist in 
-        let currlist = handle_let currlist  in 
-        let currlist = handle_if currlist in 
-        let currlist = handle_fun currlist in 
-        let currlist = handle_fix currlist in 
-        handle_pair currlist 
-  
-  
 
-let expr_to_list (e : Expr.z_t) : (Expr.graph * CursorInfo.t) =
+let cursor_info_to_list (info : CursorInfo.t) : Action.t list =
+  let handle_root (ci : CursorInfo.t) (currlist : Action.t list) : Action.t list
+      =
+    match ci.parent_term with
+    | Some _ -> Move Parent :: currlist
+    | None -> currlist
+  in
+  let handle_children (currlist : Action.t list) : Action.t list =
+    match info.current_term with
+    | ENode (EIf _) ->
+        Move (Child 0) :: Move (Child 1) :: Move (Child 2) :: currlist
+    | ENode (EBinOp _ | EFun _ | ELet _ | EFix _ | EPair _)
+    | TNode (TArrow _ | TProd _) ->
+        Move (Child 0) :: Move (Child 1) :: currlist
+    | ENode (EUnOp _) | TNode (TList _) -> Move (Child 0) :: currlist
+    | ENode (EVar _ | EInt _ | EBool _ | EHole | ENil)
+    | TNode (TInt | TBool | THole) ->
+        currlist
+  in
+  let handle_constr_typ (currlist : Action.t list) : Action.t list =
+    Construct TypInt :: Construct TypBool :: Construct TypArrow_L
+    :: Construct TypArrow_R :: Construct TypList :: Construct TypHole
+    :: Construct TypProd :: currlist
+  in
+  let handle_constr_arithmetic_binops (currlist : Action.t list) : Action.t list
+      =
+    match (info.expected_ty, info.actual_ty) with
+    | None, None (* always allow none none's *) | Some TInt, Some TInt ->
+        Construct (BinOp_L OpPlus) :: Construct (BinOp_L OpMinus)
+        :: Construct (BinOp_L OpTimes) :: Construct (BinOp_L OpDiv)
+        :: Construct (BinOp_R OpPlus) :: Construct (BinOp_R OpMinus)
+        :: Construct (BinOp_R OpTimes) :: Construct (BinOp_R OpDiv) :: currlist
+    | _ -> currlist
+  in
+  let handle_comp_binops (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    | None, None (* always allow none none's *) | Some TBool, Some TInt ->
+        Construct (BinOp_L OpLt) :: Construct (BinOp_R OpLt)
+        :: Construct (BinOp_L OpLe) :: Construct (BinOp_R OpLe)
+        :: Construct (BinOp_L OpGt) :: Construct (BinOp_R OpGt)
+        :: Construct (BinOp_L OpGe) :: Construct (BinOp_R OpGe) :: currlist
+    | _ -> currlist
+  in
+  let handle_eq_binops (currlist : Action.t list) : Action.t list =
+    match info.expected_ty with
+    | None | Some TBool ->
+        Construct (BinOp_L OpEq) :: Construct (BinOp_L OpNe)
+        :: Construct (BinOp_R OpEq) :: Construct (BinOp_R OpNe) :: currlist
+    | _ -> currlist
+  in
+  let handle_con_binop (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    | Some (TList a), Some (TList b) ->
+        if Typ.equal b THole
+        then Construct (BinOp_R OpCon) :: currlist
+        else if Typ.equal a b
+        then Construct (BinOp_R OpCon) :: Construct (BinOp_L OpCon) :: currlist
+        else currlist
+    | Some (TList a), Some b ->
+        if Typ.equal a b
+        then Construct (BinOp_L OpCon) :: currlist
+        else currlist
+    | None, Some (TList _) ->
+        Construct (BinOp_R OpCon) :: Construct (BinOp_L OpCon) :: currlist
+    | None, Some _ -> Construct (BinOp_L OpCon) :: currlist
+    | _ -> currlist
+  in
+  let handle_ap_binop (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    | Some c, Some (TArrow (_, b)) ->
+        if Typ.equal c b then Construct (BinOp_L OpAp) :: currlist else currlist
+    | Some c, Some b -> Construct (BinOp_R OpAp) :: currlist
+    | None, Some (TArrow _) ->
+        Construct (BinOp_R OpAp) :: Construct (BinOp_L OpAp) :: currlist
+    | None, Some _ -> Construct (BinOp_R OpAp) :: currlist
+    | _ -> currlist
+  in
+  let handle_basic_types (currlist : Action.t list) : Action.t list =
+    match info.expected_ty with
+    | Some TInt -> Construct (Int 0) :: currlist
+    | Some TBool -> Construct (Bool false) :: currlist
+    | Some THole -> Construct Hole :: currlist
+    | Some (TList _) -> Construct Nil :: currlist
+    | None ->
+        Construct (Int 0) :: Construct (Bool false) :: Construct Hole
+        :: Construct Nil :: currlist
+    | _ -> currlist
+  in
+  let handle_var (currlist : Action.t list) : Action.t list =
+    let valid_vars =
+      match info.expected_ty with
+      | Some targ_type ->
+          List.filter (fun (var, typ) -> Typ.equal typ targ_type) info.typ_ctx
+      | None -> info.typ_ctx
+    in
+    List.map (fun (varn, typ) -> Action.Construct (Var varn)) valid_vars
+    @ currlist
+  in
+  let handle_let (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    (* afik we can make let's anywhere*)
+    | Some a, Some b ->
+        if Typ.equal a b
+        then Construct (Let_L "") :: Construct (Let_R "") :: currlist
+        else Construct (Let_L "") :: currlist
+    | _ -> Construct (Let_L "") :: Construct (Let_R "") :: currlist
+  in
+  let handle_if (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    | _, Some TBool ->
+        Construct If_L :: Construct If_C :: Construct If_R :: currlist
+    | _ -> Construct If_C :: Construct If_R :: currlist
+  in
+  let handle_fun (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    | Some (TArrow (a, b)), Some c ->
+        if Typ.equal b c then Construct (Fun "") :: currlist else currlist
+    | None, _ -> Construct (Fun "") :: currlist
+    | _ -> currlist
+  in
+  let handle_fix (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    | Some (TArrow (a, b)), Some c ->
+        if Typ.equal b c
+        then Construct (Fix ("", THole)) :: currlist
+        else currlist
+    | None, _ -> Construct (Fix ("", THole)) :: currlist
+    | _ -> currlist
+  in
+  let handle_pair (currlist : Action.t list) : Action.t list =
+    match (info.expected_ty, info.actual_ty) with
+    | Some (TProd (a, b)), Some c ->
+        let left_half =
+          if Typ.equal a c
+          then Action.Construct Pair_L :: currlist
+          else currlist
+        in
+        if Typ.equal b c then Construct Pair_R :: left_half else left_half
+    | None, _ -> Construct Pair_L :: Construct Pair_R :: currlist
+    | _ -> currlist
+  in
+  let currlist = handle_root info [] in
+  let currlist = handle_children currlist in
+  match info.current_term with
+  | TNode _ -> handle_constr_typ currlist
+  | ENode _ ->
+      let currlist = handle_constr_arithmetic_binops currlist in
+      let currlist = handle_comp_binops currlist in
+      let currlist = handle_eq_binops currlist in
+      let currlist = handle_con_binop currlist in
+      let currlist = handle_ap_binop currlist in
+      let currlist = handle_basic_types currlist in
+      let currlist = handle_var currlist in
+      let currlist = handle_let currlist in
+      let currlist = handle_if currlist in
+      let currlist = handle_fun currlist in
+      let currlist = handle_fix currlist in
+      handle_pair currlist
+
+let expr_to_list (e : Expr.z_t) : Expr.graph * CursorInfo.t =
   let add_node (nodes : Expr.node list) (tag : int) : Expr.node list * int =
     let new_nodes = nodes @ [ tag ] in
     (new_nodes, List.length nodes)
   in
-  let add_edge (edges : Expr.edge list) (new_edge : Expr.edge) : Expr.edge list =
+  let add_edge (edges : Expr.edge list) (new_edge : Expr.edge) : Expr.edge list
+      =
     new_edge :: edges
   in
   let add_var (var : Var.t) (index : int) (vars : Expr.varlist) : Expr.varlist =
-      (var, index) :: vars
-    in
+    (var, index) :: vars
+  in
   let find_var (target : string) (vars : Expr.varlist) : int =
-    let indices =
-      List.filter (fun (var, index) -> Var.equal target var) vars
-    in
+    let indices = List.filter (fun (var, index) -> Var.equal target var) vars in
     match indices with
     | (_, index) :: tl -> index
     | [] -> raise (SyntaxError "Expression not closed")
   in
   let append_type_tree (nodes : Expr.node list) (edges : Expr.edge list)
-      (ty_nodes : Expr.node list) (ty_edges : Expr.edge list) (root : int) : Expr.graph * int
-      =
+      (ty_nodes : Expr.node list) (ty_edges : Expr.edge list) (root : int) :
+      Expr.graph * int =
     let len = List.length nodes in
-    let ty_edges =
-      List.map (fun (x, y, z) -> (x + len, y + len, z)) ty_edges
-    in
+    let ty_edges = List.map (fun (x, y, z) -> (x + len, y + len, z)) ty_edges in
     ((nodes @ ty_nodes, edges @ ty_edges), root + len)
   in
-  let rec to_list_aux (e : Expr.t) (nodes : Expr.node list) (edges : Expr.edge list)
-      (vars : Expr.varlist) : Expr.graph * int * Expr.varlist =
-    let add_subtree (e : Expr.t) (nodes : Expr.node list) (edges : Expr.edge list)
-        (root : int) (num_child : int) : Expr.graph =
+  let rec to_list_aux (e : Expr.t) (nodes : Expr.node list)
+      (edges : Expr.edge list) (vars : Expr.varlist) :
+      Expr.graph * int * Expr.varlist =
+    let add_subtree (e : Expr.t) (nodes : Expr.node list)
+        (edges : Expr.edge list) (root : int) (num_child : int) : Expr.graph =
       let (nodes, edges), new_root, _ = to_list_aux e nodes edges vars in
       let edges = add_edge edges (root, new_root, num_child) in
       (nodes, edges)
@@ -799,10 +847,5 @@ let expr_to_list (e : Expr.z_t) : (Expr.graph * CursorInfo.t) =
         let nodes, edges = add_subtree ethen nodes edges root 2 in
         (add_subtree eelse nodes edges root 3, root, vars)
   in
-  let graph,_,_  = (to_list_aux (Expr.unzip_ast e) [] [] []) in
-  (graph, get_cursor_info (ZENode e)) 
-
-
-
-
-
+  let graph, _, _ = to_list_aux (Expr.unzip_ast e) [] [] [] in
+  (graph, get_cursor_info (ZENode e))
