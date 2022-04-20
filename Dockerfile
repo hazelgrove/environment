@@ -66,4 +66,5 @@ COPY --from=deps $PYTHON_ENV $PYTHON_ENV
 COPY --from=deps $OCAML_ENV $OCAML_ENV
 COPY --from=deps /env/_build/default/ocamllib/libcinterface.so /env/clib/astclib.so .
 COPY . .
-ENTRYPOINT ["/bin/bash"]
+
+ENTRYPOINT entrypoint.sh

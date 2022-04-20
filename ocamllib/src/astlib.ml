@@ -406,8 +406,6 @@ and analysis  (context:Assumptions.t) (e: Expr.t) (targ: Typ.t): bool =
     | Some expt -> Typ.equal expt targ )
 
 
-
-
 let load_tests (directory : string) (assignment : int) : testType list =
   let filename = directory ^ "/" ^ string_of_int assignment ^ "/test.ml" in
   let tests_cons = parse_file filename in

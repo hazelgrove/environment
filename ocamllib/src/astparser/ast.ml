@@ -653,7 +653,7 @@ module CursorInfo = struct
     expected_ty : Typ.t option;
     (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
     actual_ty : Typ.t;
-        (* result of calling Syn on current_term (use to determine wrapping viability)  *)
+    (* result of calling Syn on current_term (use to determine wrapping viability)  *)
   }
   [@@deriving sexp]
 
