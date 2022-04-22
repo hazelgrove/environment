@@ -8,6 +8,6 @@ module Var = struct
 
   (* need to add in some sort of hole idk how this works *)
   (* Check if two variable identifiers are equal *)
-  let equal = ( = )
+  let equal = String.equal
   let to_string (var : t) = var
 end

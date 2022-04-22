@@ -747,7 +747,8 @@ let expr_to_list (e : Expr.z_t) : Expr.graph * CursorInfo.t =
       (edges : Expr.edge list) (vars : Expr.varlist) :
       Expr.graph * int * Expr.varlist =
     let add_subtree (e : Expr.t) (nodes : Expr.node list)
-        (edges : Expr.edge list) (root : int) (num_child : int) : Expr.graph =
+        (edges : Expr.edge list) (vars : Expr.varlist) (root : int)
+        (num_child : int) : Expr.graph =
       let (nodes, edges), new_root, _ = to_list_aux e nodes edges vars in
       let edges = add_edge edges (root, new_root, num_child) in
       (nodes, edges)
@@ -759,10 +760,10 @@ let expr_to_list (e : Expr.z_t) : Expr.graph * CursorInfo.t =
     | EVar x ->
         let edges = add_edge edges (find_var x vars, root, -1) in
         ((nodes, edges), root, vars)
-    | EUnOp (_, e) -> (add_subtree e nodes edges root 1, root, vars)
+    | EUnOp (_, e) -> (add_subtree e nodes edges vars root 1, root, vars)
     | EBinOp (e1, _, e2) | EPair (e1, e2) ->
-        let nodes, edges = add_subtree e1 nodes edges root 1 in
-        (add_subtree e2 nodes edges root 2, root, vars)
+        let nodes, edges = add_subtree e1 nodes edges vars root 1 in
+        (add_subtree e2 nodes edges vars root 2, root, vars)
     | EFun (x, ty, e) | EFix (x, ty, e) ->
         let nodes, new_root = add_node nodes (Expr.node_to_tag (EVar x)) in
         let edges = add_edge edges (root, new_root, 1) in
@@ -772,53 +773,54 @@ let expr_to_list (e : Expr.z_t) : Expr.graph * CursorInfo.t =
           append_type_tree nodes edges ty_nodes ty_edges new_root
         in
         let edges = add_edge edges (root, new_root, 2) in
-        (add_subtree e nodes edges root 3, root, vars)
+        (add_subtree e nodes edges vars root 3, root, vars)
     | ELet (x, edef, ebody) ->
         let nodes, new_root = add_node nodes (Expr.node_to_tag (EVar x)) in
         let edges = add_edge edges (root, new_root, 1) in
-        let nodes, edges = add_subtree edef nodes edges root 2 in
+        let nodes, edges = add_subtree edef nodes edges vars root 2 in
         let vars = add_var x new_root vars in
-        (add_subtree ebody nodes edges root 3, root, vars)
+        (add_subtree ebody nodes edges vars root 3, root, vars)
     | EIf (econd, ethen, eelse) ->
-        let nodes, edges = add_subtree econd nodes edges root 1 in
-        let nodes, edges = add_subtree ethen nodes edges root 2 in
-        (add_subtree eelse nodes edges root 3, root, vars)
+        let nodes, edges = add_subtree econd nodes edges vars root 1 in
+        let nodes, edges = add_subtree ethen nodes edges vars root 2 in
+        (add_subtree eelse nodes edges vars root 3, root, vars)
   in
   let graph, _, _ = to_list_aux (Expr.unzip_ast e) [] [] [] in
   (graph, get_cursor_info (ZENode e))
 
-(* let%test_module "Test Expr.to_list" =
-    (module struct
-      let check_id e =
-        let (nodes, edges), _ = to_list (select_root e) in
-        let changed_tree = from_list nodes edges 0 in
-        e = changed_tree
-      let%test _ =
-        check_id
-          (EFun
-            ( "x",
-              THole,
-              EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) ))
+let%test_module "Test Expr.to_list" =
+  (module struct
+    let check_id e =
+      let (nodes, edges), _ = expr_to_list (Cursor e) in
+      let changed_tree = Expr.from_list nodes edges 0 in
+      e = changed_tree
 
-      let%test _ =
-        check_id
-          (ELet
-            ( "x",
-              EFix
-                ( "x",
-                  THole,
-                  EFun
-                    ( "y",
-                      TInt,
-                      EIf
-                        ( EBinOp (EVar "y", OpLt, EInt 1),
-                          EInt 1,
-                          EBinOp
-                            ( EVar "y",
-                              OpTimes,
-                              EBinOp
-                                ( EVar "x",
-                                  OpAp,
-                                  EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
-              EBinOp (EVar "x", OpAp, EInt 2) ))
-    end) *)
+    let%test _ =
+      check_id
+        (EFun
+           ( "x",
+             THole,
+             EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) ))
+
+    let%test _ =
+      check_id
+        (ELet
+           ( "x",
+             EFix
+               ( "x",
+                 THole,
+                 EFun
+                   ( "y",
+                     TInt,
+                     EIf
+                       ( EBinOp (EVar "y", OpLt, EInt 1),
+                         EInt 1,
+                         EBinOp
+                           ( EVar "y",
+                             OpTimes,
+                             EBinOp
+                               ( EVar "x",
+                                 OpAp,
+                                 EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
+             EBinOp (EVar "x", OpAp, EInt 2) ))
+  end)
