@@ -296,7 +296,7 @@ module Expr = struct
 
       let%test _ =
         from_list
-          [ 15; 38; 24; 1; 3; 37; 38; 36 ]
+          [ 15; 38; 25; 1; 3; 37; 38; 36 ]
           [
             (0, 1, 1);
             (0, 2, 2);
@@ -313,42 +313,6 @@ module Expr = struct
               THole,
               EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) )
     end)
-
-  (* let%test_module "Test Expr.to_list" =
-     (module struct
-       let check_id e =
-         let (nodes, edges), _ = to_list (select_root e) in
-         let changed_tree = from_list nodes edges 0 in
-         e = changed_tree
-       let%test _ =
-         check_id
-           (EFun
-              ( "x",
-                THole,
-                EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) ))
-
-       let%test _ =
-         check_id
-           (ELet
-              ( "x",
-                EFix
-                  ( "x",
-                    THole,
-                    EFun
-                      ( "y",
-                        TInt,
-                        EIf
-                          ( EBinOp (EVar "y", OpLt, EInt 1),
-                            EInt 1,
-                            EBinOp
-                              ( EVar "y",
-                                OpTimes,
-                                EBinOp
-                                  ( EVar "x",
-                                    OpAp,
-                                    EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
-                EBinOp (EVar "x", OpAp, EInt 2) ))
-     end) *)
 
   (* Change tree representation to string to better interpret graph *)
   let rec to_string (e : t) : string =
@@ -508,7 +472,8 @@ module Action = struct
     | TypArrow_R
     | TypList (*beacause there's only one child no need for option*)
     | TypHole
-    | TypProd
+    | TypProd_L
+    | TypProd_R
   [@@deriving sexp]
 
   type dir = Parent | Child of int [@@deriving sexp]
@@ -552,48 +517,54 @@ module Action = struct
     | 21 -> Construct (Bool false)
     | 22 -> Construct (UnOp OpNeg)
     | 23 -> Construct (BinOp_L OpPlus)
-    | 23 -> Construct (BinOp_L OpMinus)
-    | 23 -> Construct (BinOp_L OpTimes)
-    | 23 -> Construct (BinOp_L OpDiv)
-    | 23 -> Construct (BinOp_L OpLt)
-    | 23 -> Construct (BinOp_L OpLe)
-    | 23 -> Construct (BinOp_L OpGt)
-    | 23 -> Construct (BinOp_L OpGe)
-    | 23 -> Construct (BinOp_L OpEq)
-    | 23 -> Construct (BinOp_L OpNe)
-    | 23 -> Construct (BinOp_L OpAp)
-    | 23 -> Construct (BinOp_L OpCon)
-    | 23 -> Construct (BinOp_R OpPlus)
-    | 23 -> Construct (BinOp_R OpMinus)
-    | 23 -> Construct (BinOp_R OpTimes)
-    | 23 -> Construct (BinOp_R OpDiv)
-    | 23 -> Construct (BinOp_R OpLt)
-    | 23 -> Construct (BinOp_R OpLe)
-    | 23 -> Construct (BinOp_R OpGt)
-    | 23 -> Construct (BinOp_R OpGe)
-    | 23 -> Construct (BinOp_R OpEq)
-    | 23 -> Construct (BinOp_R OpNe)
-    | 23 -> Construct (BinOp_R OpAp)
-    | 23 -> Construct (BinOp_R OpCon)
-    | 23 -> Construct (Let_L "x")
-    | 23 -> Construct (Let_L "y")
-    | 23 -> Construct (Let_L "z")
-    | 23 -> Construct (Let_R "x")
-    | 23 -> Construct (Let_R "y")
-    | 23 -> Construct (Let_R "z")
-    | 23 -> Construct If_L
-    | 23 -> Construct If_C
-    | 23 -> Construct If_R
-    (* TODO: Cannot enumerate all action types *)
-    | 23 -> Construct Pair_L
-    | 23 -> Construct Pair_R
-    | 23 -> Construct TypInt
-    | 23 -> Construct TypBool
-    | 23 -> Construct TypArrow_L
-    | 23 -> Construct TypArrow_R
-    (* TODO: No products? *)
-    | 23 -> Construct TypList
-    | 23 -> Construct TypHole
+    | 24 -> Construct (BinOp_L OpMinus)
+    | 25 -> Construct (BinOp_L OpTimes)
+    | 26 -> Construct (BinOp_L OpDiv)
+    | 27 -> Construct (BinOp_L OpLt)
+    | 28 -> Construct (BinOp_L OpLe)
+    | 29 -> Construct (BinOp_L OpGt)
+    | 30 -> Construct (BinOp_L OpGe)
+    | 31 -> Construct (BinOp_L OpEq)
+    | 32 -> Construct (BinOp_L OpNe)
+    | 33 -> Construct (BinOp_L OpAp)
+    | 34 -> Construct (BinOp_L OpCon)
+    | 35 -> Construct (BinOp_R OpPlus)
+    | 36 -> Construct (BinOp_R OpMinus)
+    | 37 -> Construct (BinOp_R OpTimes)
+    | 38 -> Construct (BinOp_R OpDiv)
+    | 39 -> Construct (BinOp_R OpLt)
+    | 40 -> Construct (BinOp_R OpLe)
+    | 41 -> Construct (BinOp_R OpGt)
+    | 42 -> Construct (BinOp_R OpGe)
+    | 43 -> Construct (BinOp_R OpEq)
+    | 44 -> Construct (BinOp_R OpNe)
+    | 45 -> Construct (BinOp_R OpAp)
+    | 46 -> Construct (BinOp_R OpCon)
+    | 47 -> Construct (Let_L "x")
+    | 48 -> Construct (Let_L "y")
+    | 49 -> Construct (Let_L "z")
+    | 50 -> Construct (Let_R "x")
+    | 51 -> Construct (Let_R "y")
+    | 52 -> Construct (Let_R "z")
+    | 53 -> Construct If_L
+    | 54 -> Construct If_C
+    | 55 -> Construct If_R
+    | 56 -> Construct (Fun "x")
+    | 57 -> Construct (Fun "y")
+    | 58 -> Construct (Fun "z")
+    | 59 -> Construct (Fix "x")
+    | 60 -> Construct (Fix "y")
+    | 61 -> Construct (Fix "z")
+    | 62 -> Construct Pair_L
+    | 63 -> Construct Pair_R
+    | 64 -> Construct TypInt
+    | 65 -> Construct TypBool
+    | 66 -> Construct TypArrow_L
+    | 67 -> Construct TypArrow_R
+    | 68 -> Construct TypProd_L
+    | 69 -> Construct TypProd_R
+    | 70 -> Construct TypList
+    | 71 -> Construct TypHole
     | _ -> raise (Failure "Not supported.")
 
   (* TODO: Change number after finalize *)
@@ -602,69 +573,75 @@ module Action = struct
     | Move Parent -> 0
     | Move (Child 1) -> 1
     | Move (Child 2) -> 2
-    | Move (Child 3) -> 2
-    | Construct (Var "x") -> 2
-    | Construct (Var "y") -> 2
-    | Construct (Var "z") -> 2
-    | Construct Hole -> 2
-    | Construct Nil -> 2
-    | Construct (Int -2) -> 2
-    | Construct (Int -1) -> 2
-    | Construct (Int 0) -> 2
-    | Construct (Int 1) -> 2
-    | Construct (Int 2) -> 2
-    | Construct (Bool true) -> 2
-    | Construct (Bool false) -> 2
-    | Construct (UnOp OpNeg) -> 2
-    | Construct (BinOp_L OpPlus) -> 2
-    | Construct (BinOp_L OpMinus) -> 2
-    | Construct (BinOp_L OpTimes) -> 2
-    | Construct (BinOp_L OpDiv) -> 2
-    | Construct (BinOp_L OpLt) -> 2
-    | Construct (BinOp_L OpLe) -> 2
-    | Construct (BinOp_L OpGt) -> 2
-    | Construct (BinOp_L OpGe) -> 2
-    | Construct (BinOp_L OpEq) -> 2
-    | Construct (BinOp_L OpNe) -> 2
-    | Construct (BinOp_L OpAp) -> 2
-    | Construct (BinOp_L OpCon) -> 2
-    | Construct (BinOp_R OpPlus) -> 2
-    | Construct (BinOp_R OpMinus) -> 2
-    | Construct (BinOp_R OpTimes) -> 2
-    | Construct (BinOp_R OpDiv) -> 2
-    | Construct (BinOp_R OpLt) -> 2
-    | Construct (BinOp_R OpLe) -> 2
-    | Construct (BinOp_R OpGt) -> 2
-    | Construct (BinOp_R OpGe) -> 2
-    | Construct (BinOp_R OpEq) -> 2
-    | Construct (BinOp_R OpNe) -> 2
-    | Construct (BinOp_R OpAp) -> 2
-    | Construct (BinOp_R OpCon) -> 2
-    | Construct (Let_L "x") -> 2
-    | Construct (Let_L "y") -> 2
-    | Construct (Let_L "z") -> 2
-    | Construct (Let_R "x") -> 2
-    | Construct (Let_R "y") -> 2
-    | Construct (Let_R "z") -> 2
-    | Construct If_L -> 2
-    | Construct If_C -> 2
-    | Construct If_R -> 2
-    (* TODO: Cannot enumerate all action types *)
-    | Construct Pair_L -> 2
-    | Construct Pair_R -> 2
-    | Construct TypInt -> 2
-    | Construct TypBool -> 2
-    | Construct TypArrow_L -> 2
-    | Construct TypArrow_R -> 2
-    (* TODO: No products? *)
-    | Construct TypList -> 2
-    | Construct TypHole -> 2
+    | Move (Child 3) -> 3
+    | Construct (Var "x") -> 10
+    | Construct (Var "y") -> 11
+    | Construct (Var "z") -> 12
+    | Construct Hole -> 13
+    | Construct Nil -> 14
+    | Construct (Int -2) -> 15
+    | Construct (Int -1) -> 16
+    | Construct (Int 0) -> 17
+    | Construct (Int 1) -> 18
+    | Construct (Int 2) -> 19
+    | Construct (Bool true) -> 20
+    | Construct (Bool false) -> 21
+    | Construct (UnOp OpNeg) -> 22
+    | Construct (BinOp_L OpPlus) -> 23
+    | Construct (BinOp_L OpMinus) -> 24
+    | Construct (BinOp_L OpTimes) -> 25
+    | Construct (BinOp_L OpDiv) -> 26
+    | Construct (BinOp_L OpLt) -> 27
+    | Construct (BinOp_L OpLe) -> 28
+    | Construct (BinOp_L OpGt) -> 29
+    | Construct (BinOp_L OpGe) -> 30
+    | Construct (BinOp_L OpEq) -> 31
+    | Construct (BinOp_L OpNe) -> 32
+    | Construct (BinOp_L OpAp) -> 33
+    | Construct (BinOp_L OpCon) -> 34
+    | Construct (BinOp_R OpPlus) -> 35
+    | Construct (BinOp_R OpMinus) -> 36
+    | Construct (BinOp_R OpTimes) -> 37
+    | Construct (BinOp_R OpDiv) -> 38
+    | Construct (BinOp_R OpLt) -> 39
+    | Construct (BinOp_R OpLe) -> 40
+    | Construct (BinOp_R OpGt) -> 41
+    | Construct (BinOp_R OpGe) -> 42
+    | Construct (BinOp_R OpEq) -> 43
+    | Construct (BinOp_R OpNe) -> 44
+    | Construct (BinOp_R OpAp) -> 45
+    | Construct (BinOp_R OpCon) -> 46
+    | Construct (Let_L "x") -> 47
+    | Construct (Let_L "y") -> 48
+    | Construct (Let_L "z") -> 49
+    | Construct (Let_R "x") -> 50
+    | Construct (Let_R "y") -> 51
+    | Construct (Let_R "z") -> 52
+    | Construct If_L -> 53
+    | Construct If_C -> 54
+    | Construct If_R -> 55
+    | Construct (Fun "x") -> 56
+    | Construct (Fun "y") -> 57
+    | Construct (Fun "z") -> 58
+    | Construct (Fix "x") -> 59
+    | Construct (Fix "y") -> 60
+    | Construct (Fix "z") -> 61
+    | Construct Pair_L -> 62
+    | Construct Pair_R -> 63
+    | Construct TypInt -> 64
+    | Construct TypBool -> 65
+    | Construct TypArrow_L -> 66
+    | Construct TypArrow_R -> 67
+    | Construct TypProd_L -> 68
+    | Construct TypProd_R -> 69
+    | Construct TypList -> 70
+    | Construct TypHole -> 71
     | _ -> raise (Failure "Not supported.")
 
   let to_list (action_list : t list) : bool list =
     let action_list = List.map action_to_tag action_list in
     let action_list = List.sort compare action_list in
-    let bool_list = Array.make 40 false in
+    let bool_list = Array.make 71 false in
     (* TODO: Change max num of actions *)
     let to_bool (action_list : int list) (bool_list : bool Array.t) =
       match action_list with

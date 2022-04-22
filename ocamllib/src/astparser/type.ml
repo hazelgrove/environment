@@ -122,7 +122,7 @@ module Typ = struct
       let%test _ = from_list [ 20 ] [] 0 = TInt
 
       let%test _ =
-        from_list [ 23; 22; 20; 21; 24 ]
+        from_list [ 23; 22; 20; 21; 25 ]
           [ (0, 1, 1); (0, 4, 2); (1, 2, 1); (1, 3, 2) ]
           0
         = TProd (TArrow (TInt, TBool), THole)

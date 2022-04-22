@@ -30,7 +30,8 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | TypArrow_L -> Typ.TArrow (subtr, Typ.THole)
         | TypArrow_R -> Typ.TArrow (Typ.THole, subtr)
         | TypList -> Typ.TList subtr
-        | TypProd -> Typ.TProd (THole, THole)
+        | TypProd_L -> Typ.TProd (subtr, THole)
+        | TypProd_R -> Typ.TProd (THole, subtr)
         | _ ->
             subtr (* all other shapes are for exprssions which are not valid*))
     in
@@ -280,68 +281,6 @@ let%test_module "Test run_unit_tests" =
         (parse "let f n = n + true in f 1")
       = false
   end)
-
-(* let possible_actions (expr : Expr.z_t) : Action.avail_actions =
-   let rec make_var_arr (i : int) =
-     (* create an array of 10 falses *)
-     if i < 10 then false :: make_var_arr (i + 1) else []
-   in
-
-   let update_var_arr (varname : string) (varlist : bool list) : bool list =
-     (* if a variable is in scope, mark its value to true *)
-     let rec update_arr (i : int) (l : bool list) : bool list =
-       match l with
-       | a :: tl ->
-           ("v" ^ string_of_int i = varname || a) :: update_arr (i + 1) tl
-       | [] -> []
-     in
-     update_arr 0 varlist
-   in
-
-   let acts_init : Action.avail_actions =
-     {
-       move_parent = (match expr with Cursor _ -> false | _ -> true);
-       max_child = 0;
-       in_scope = make_var_arr 0;
-     }
-   in
-   (* now finally we recurse *)
-   let rec recurse (expr : Expr.z_t) (state : Action.avail_actions) :
-       Action.avail_actions =
-     match expr with
-     | EUnOp_L (_, child)
-     | EBinOp_L (child, _, _)
-     | EBinOp_R (_, _, child)
-     | ELet_L (_, child, _) (* variable not in self-scope in definition*)
-     | EIf_L (child, _, _)
-     | EIf_C (_, child, _)
-     | EIf_R (_, _, child)
-     | EFix_R (_, child)
-     | EPair_L (child, _)
-     | EPair_R (_, child) ->
-         recurse child state
-     (*functions: update  *)
-     | EFun_R (varname, child) | ELet_R (varname, _, child) ->
-         recurse child
-           {
-             move_parent = state.move_parent;
-             max_child = state.max_child;
-             in_scope = update_var_arr varname state.in_scope;
-           }
-     (*Now finally we do our cursor logic *)
-     | Cursor subtree ->
-         {
-           move_parent = state.move_parent;
-           max_child =
-             (match subtree with
-             | EVar _ | EInt _ | EBool _ | EHole | ENil -> 0
-             | EUnOp _ | EFun _ | EFix _ -> 1
-             | EBinOp _ | ELet _ | EPair _ -> 2
-             | EIf _ -> 3);
-           in_scope = state.in_scope;
-         }
-   in
-   recurse expr acts_init *)
 
 (* Given an assignment number, load the unit test
    Input:
@@ -644,7 +583,7 @@ let cursor_info_to_list (info : CursorInfo.t) : Action.t list =
   let handle_constr_typ (currlist : Action.t list) : Action.t list =
     Construct TypInt :: Construct TypBool :: Construct TypArrow_L
     :: Construct TypArrow_R :: Construct TypList :: Construct TypHole
-    :: Construct TypProd :: currlist
+    :: Construct TypProd_L :: Construct TypProd_R :: currlist
   in
   let handle_constr_arithmetic_binops (currlist : Action.t list) : Action.t list
       =
@@ -745,10 +684,8 @@ let cursor_info_to_list (info : CursorInfo.t) : Action.t list =
   let handle_fix (currlist : Action.t list) : Action.t list =
     match (info.expected_ty, info.actual_ty) with
     | Some (TArrow (a, b)), Some c ->
-        if Typ.equal b c
-        then Construct (Fix ("", THole)) :: currlist
-        else currlist
-    | None, _ -> Construct (Fix ("", THole)) :: currlist
+        if Typ.equal b c then Construct (Fix "") :: currlist else currlist
+    | None, _ -> Construct (Fix "") :: currlist
     | _ -> currlist
   in
   let handle_pair (currlist : Action.t list) : Action.t list =
@@ -849,3 +786,39 @@ let expr_to_list (e : Expr.z_t) : Expr.graph * CursorInfo.t =
   in
   let graph, _, _ = to_list_aux (Expr.unzip_ast e) [] [] [] in
   (graph, get_cursor_info (ZENode e))
+
+(* let%test_module "Test Expr.to_list" =
+    (module struct
+      let check_id e =
+        let (nodes, edges), _ = to_list (select_root e) in
+        let changed_tree = from_list nodes edges 0 in
+        e = changed_tree
+      let%test _ =
+        check_id
+          (EFun
+            ( "x",
+              THole,
+              EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) ))
+
+      let%test _ =
+        check_id
+          (ELet
+            ( "x",
+              EFix
+                ( "x",
+                  THole,
+                  EFun
+                    ( "y",
+                      TInt,
+                      EIf
+                        ( EBinOp (EVar "y", OpLt, EInt 1),
+                          EInt 1,
+                          EBinOp
+                            ( EVar "y",
+                              OpTimes,
+                              EBinOp
+                                ( EVar "x",
+                                  OpAp,
+                                  EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
+              EBinOp (EVar "x", OpAp, EInt 2) ))
+    end) *)
