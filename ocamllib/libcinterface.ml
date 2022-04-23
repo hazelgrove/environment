@@ -28,6 +28,9 @@ external get_unit_tests : unit -> (int32, int32_elt, c_layout) Array2.t
 external pass_unit_tests : (int32, int32_elt, c_layout) Array2.t -> unit
   = "get_unit_tests"
 
+external pass_actions : (int32, int32_elt, c_layout) Array1.t -> unit
+  = "get_actions"
+
 (* Convert nodes from Bigarray to OCaml list *)
 let array1_to_list (arr : (int32, int32_elt, c_layout) Array1.t) : int list =
   let rec array1_to_list_aux (arr : (int32, int32_elt, c_layout) Array1.t)
@@ -118,14 +121,17 @@ let change_zast_c (ser_zast : string) (action : int) : string =
   let zast = change_ast zast action in
   serialize zast
 
-(* Return the nodes, edges, and cursor position indicated by the serialized zast *)
+(* Update the observation space for the given ast *)
 (* TODO: change cursorInfo *)
 let get_ast_c (ser_zast : string) : unit =
   let zast = deserialize ser_zast in
   let (nodes, edges), cursorInfo = expr_to_list zast in
+  let actions = cursor_info_to_list cursorInfo in
+  let actions = Action.to_list actions in
+  let actions = List.map (fun b -> if b then 1 else 0) actions in
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
-  (* cursorInfo; *)
+  pass_actions (list_to_array1 actions);
   ()
 
 (* run_unittests function that will be called by C *)

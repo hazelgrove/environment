@@ -13,9 +13,9 @@ change-deps:
 
 astclib: $(CLIB)/astlib.c
 	gcc -shared -Wall -Werror -fPIC -o $(CLIB)/astclib.so \
-	$(CLIB)/astlib.c $(CLIB)/ocamlInterface.c _build/default/$(OCAMLLIB)/libcinterface.so -lcurses \
-	-L./_build/default/$(OCAMLLIB) -lcinterface \
-	-Wl,-rpath,./_build/default/$(OCAMLLIB)
+	$(CLIB)/astlib.c $(CLIB)/ocamlInterface.c $(OCAMLLIB)/_build/default/libcinterface.so -lcurses \
+	-L./$(OCAMLLIB)/_build/default/ -lcinterface \
+	-Wl,-rpath,./$(OCAMLLIB)/_build/default/
 
 watch: 
 	cd $(OCAMLLIB) && dune build @fmt --auto-promote --watch && cd ../
@@ -24,7 +24,8 @@ astparser:
 	ocamlbuild -use-menhir main.byte -I ocamllib/astparser
 
 ocamlinterface:
-	dune build
+	eval $(opam env)
+	cd $(OCAMLLIB) && dune build && cd ../
 
 astenv:
 	make ocamlinterface

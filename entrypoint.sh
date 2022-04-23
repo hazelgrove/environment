@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
 
-eval '$(opam config env)'
+eval '$(opam env)'
 make astenv
-python main.py
+python test.py

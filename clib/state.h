@@ -3,19 +3,20 @@
 
 #define MAX_NUM_NODES 10
 #define MAX_NUM_TESTS 10
-#define NUM_ACTIONS 5
+#define NUM_ACTIONS 80
 #define MAX_TREE_LENGTH 10000
 
 /*
 Struct defining the AST structure
 */
-typedef struct{
+typedef struct
+{
     /*
     Edge showing indices of vertices on each edge and which child it belongs to.
 
     Edges are in the format : (begin, end, descriptor)
     For non-negative descriptors, the number representes that the edge connects to the n-th child of the parent.
-    For descriptor == -1, the edge shows the binding of a variable. 
+    For descriptor == -1, the edge shows the binding of a variable.
     */
     int edges[MAX_NUM_NODES * MAX_NUM_NODES][3];
 

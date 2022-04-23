@@ -282,13 +282,6 @@ let%test_module "Test run_unit_tests" =
       = false
   end)
 
-(* Given an assignment number, load the unit test
-   Input:
-     - assignment : index of assignment
-   Output:
-     - the unit test for the assignment
-*)
-
 (* syn and ana*)
 let rec synthesis (context : Assumptions.t) (e : Expr.t) : Typ.t option =
   match e with
@@ -382,6 +375,12 @@ and analysis (context : Assumptions.t) (e : Expr.t) (targ : Typ.t) : bool =
       | None -> false
       | Some expt -> Typ.equal expt targ)
 
+(* Given an assignment number, load the unit test
+   Input:
+     - assignment : index of assignment
+   Output:
+     - the unit test for the assignment
+*)
 let load_tests (directory : string) (assignment : int) : testType list =
   let filename = directory ^ "/" ^ string_of_int assignment ^ "/test.ml" in
   let tests_cons = parse_file filename in
