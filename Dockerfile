@@ -40,11 +40,9 @@ WORKDIR "/deps"
 COPY pyproject.toml poetry.lock /deps/
 RUN pip3 install poetry && poetry install
 ENV PYTHON_ENV=/root/.cache/pypoetry/virtualenvs/hazelnut-K3BlsyQa-py3.8/
-ENV OCAML_ENV=_opam
-
-# Not sure how to do this with dune.
 
 FROM base AS runtime
+COPY --from=deps $PYTHON_ENV $PYTHON_ENV
 WORKDIR "/RL_env"
 RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
@@ -58,9 +56,7 @@ RUN opam init --yes --disable-sandboxing \
   && opam update \
   && opam switch create . ocaml-base-compiler.4.13.1 \
   && opam switch import opam.export --yes
-ENV PATH="$PYTHON_ENV/bin:$OCAML_ENV/bin:$PATH"
-COPY --from=deps $PYTHON_ENV $PYTHON_ENV
-COPY --from=deps $OCAML_ENV $OCAML_ENV
+ENV PATH="$PYTHON_ENV/bin:$PATH"
 COPY . .
 
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT /RL_env/entrypoint.sh

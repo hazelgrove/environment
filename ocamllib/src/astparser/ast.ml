@@ -540,21 +540,13 @@ module Action = struct
     | 44 -> Construct (BinOp_R OpNe)
     | 45 -> Construct (BinOp_R OpAp)
     | 46 -> Construct (BinOp_R OpCon)
-    | 47 -> Construct (Let_L "x")
-    | 48 -> Construct (Let_L "y")
-    | 49 -> Construct (Let_L "z")
-    | 50 -> Construct (Let_R "x")
-    | 51 -> Construct (Let_R "y")
-    | 52 -> Construct (Let_R "z")
+    | 47 -> Construct (Let_L Var.undef_var)
+    | 50 -> Construct (Let_R Var.undef_var)
     | 53 -> Construct If_L
     | 54 -> Construct If_C
     | 55 -> Construct If_R
-    | 56 -> Construct (Fun "x")
-    | 57 -> Construct (Fun "y")
-    | 58 -> Construct (Fun "z")
-    | 59 -> Construct (Fix "x")
-    | 60 -> Construct (Fix "y")
-    | 61 -> Construct (Fix "z")
+    | 56 -> Construct (Fun Var.undef_var)
+    | 59 -> Construct (Fix Var.undef_var)
     | 62 -> Construct Pair_L
     | 63 -> Construct Pair_R
     | 64 -> Construct TypInt
@@ -571,9 +563,9 @@ module Action = struct
   let action_to_tag (action : t) : int =
     match action with
     | Move Parent -> 0
-    | Move (Child 1) -> 1
-    | Move (Child 2) -> 2
-    | Move (Child 3) -> 3
+    | Move (Child 0) -> 1
+    | Move (Child 1) -> 2
+    | Move (Child 2) -> 3
     | Construct (Var "x") -> 10
     | Construct (Var "y") -> 11
     | Construct (Var "z") -> 12
@@ -611,21 +603,13 @@ module Action = struct
     | Construct (BinOp_R OpNe) -> 44
     | Construct (BinOp_R OpAp) -> 45
     | Construct (BinOp_R OpCon) -> 46
-    | Construct (Let_L "x") -> 47
-    | Construct (Let_L "y") -> 48
-    | Construct (Let_L "z") -> 49
-    | Construct (Let_R "x") -> 50
-    | Construct (Let_R "y") -> 51
-    | Construct (Let_R "z") -> 52
+    | Construct (Let_L "") -> 47
+    | Construct (Let_R "") -> 50
     | Construct If_L -> 53
     | Construct If_C -> 54
     | Construct If_R -> 55
-    | Construct (Fun "x") -> 56
-    | Construct (Fun "y") -> 57
-    | Construct (Fun "z") -> 58
-    | Construct (Fix "x") -> 59
-    | Construct (Fix "y") -> 60
-    | Construct (Fix "z") -> 61
+    | Construct (Fun "") -> 56
+    | Construct (Fix "") -> 59
     | Construct Pair_L -> 62
     | Construct Pair_R -> 63
     | Construct TypInt -> 64
@@ -643,12 +627,12 @@ module Action = struct
     let action_list = List.sort compare action_list in
     let bool_list = Array.make 71 false in
     (* TODO: Change max num of actions *)
-    let to_bool (action_list : int list) (bool_list : bool Array.t) =
+    let rec to_bool (action_list : int list) (bool_list : bool Array.t) =
       match action_list with
       | [] -> bool_list
       | hd :: tl ->
           bool_list.(hd) <- true;
-          bool_list
+          to_bool tl bool_list
     in
     Array.to_list (to_bool action_list bool_list)
 end
