@@ -162,6 +162,8 @@ CAMLprim value get_vars_in_scope(value bigarray)
 {
     int dim = Caml_ba_array_val(bigarray)->dim[0];
     copy_1d(Caml_ba_data_val(bigarray), dim, curr_state.vars_in_scope);
+    for (int i = dim; i < MAX_VARS; i++)
+        curr_state.vars_in_scope[i] = -1;
     return Val_unit;
 }
 
