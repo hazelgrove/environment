@@ -20,6 +20,9 @@ external get_edges : unit -> (int32, int32_elt, c_layout) Array2.t
 external pass_edges : (int32, int32_elt, c_layout) Array2.t -> unit
   = "get_edges"
 
+external pass_vars_in_scope : (int32, int32_elt, c_layout) Array1.t -> unit
+  = "get_vars_in_scope"
+
 (* Get unit tests from C *)
 external get_unit_tests : unit -> (int32, int32_elt, c_layout) Array2.t
   = "pass_unit_tests"
@@ -122,17 +125,25 @@ let change_zast_c (ser_zast : string) (action : int) : string =
   serialize zast
 
 (* Update the observation space for the given ast *)
-(* TODO: change cursorInfo *)
 let get_ast_c (ser_zast : string) : unit =
+  let zast = deserialize ser_zast in
+  let (nodes, edges), _ = expr_to_list zast in
+  pass_nodes (list_to_array1 nodes);
+  pass_edges (list_to_edge edges);
+  ()
+
+let get_cursor_info_c (ser_zast : string) : int =
   let zast = deserialize ser_zast in
   let (nodes, edges), cursorInfo = expr_to_list zast in
   let actions = cursor_info_to_list cursorInfo in
   let actions = Action.to_list actions in
   let actions = List.map (fun b -> if b then 1 else 0) actions in
-  pass_nodes (list_to_array1 nodes);
-  pass_edges (list_to_edge edges);
+  let vars_in_scope =
+    List.map (fun (var, _) -> Expr.node_to_tag (EVar var)) cursorInfo.ctx
+  in
   pass_actions (list_to_array1 actions);
-  ()
+  pass_vars_in_scope (list_to_array1 vars_in_scope);
+  get_cursor_position (ZENode zast)
 
 (* run_unittests function that will be called by C *)
 let run_unit_tests_c (root : int) : bool =
@@ -165,6 +176,7 @@ let print_code_c (root : int) : unit =
 let _ = Callback.register "run_unit_tests" run_unit_tests_c
 let _ = Callback.register "change_zast" change_zast_c
 let _ = Callback.register "get_ast" get_ast_c
+let _ = Callback.register "get_cursor_info" get_cursor_info_c
 let _ = Callback.register "load_tests" load_tests_c
 let _ = Callback.register "load_starter_code" load_starter_code_c
 let _ = Callback.register "print_code" print_code_c

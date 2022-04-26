@@ -436,7 +436,7 @@ module CursorInfo = struct
     parent_term : SyntaxTree.t option;
     (* parent of current term (use to decide whether we can go up)  *)
     ctx : (Var.t * int) list;
-    (* variable types*)
+    (* variable types *)
     typ_ctx : (Var.t * Typ.t) list;
     (*mapping of vars in scope to types (use to determine vars in scope)    *)
     expected_ty : Typ.t option;

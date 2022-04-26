@@ -787,7 +787,7 @@ let expr_to_list (e : Expr.z_t) : Expr.graph * CursorInfo.t =
   let graph, _, _ = to_list_aux (Expr.unzip_ast e) [] [] [] in
   (graph, get_cursor_info (ZENode e))
 
-let%test_module "Test Expr.to_list" =
+let%test_module "Test expr_to_list" =
   (module struct
     let check_id e =
       let (nodes, edges), _ = expr_to_list (Cursor e) in
@@ -822,4 +822,64 @@ let%test_module "Test Expr.to_list" =
                                  OpAp,
                                  EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
              EBinOp (EVar "x", OpAp, EInt 2) ))
+  end)
+
+let rec get_cursor_position (tree : SyntaxTree.z_t) =
+  match tree with
+  | ZENode e -> (
+      match e with
+      | Cursor _ -> 0
+      | EUnOp_L (_, e) | EBinOp_L (e, _, _) | EIf_L (e, _, _) | EPair_L (e, _)
+        ->
+          1 + get_cursor_position (ZENode e)
+      | EBinOp_R (e1, _, e2) | EIf_C (e1, e2, _) | EPair_R (e1, e2) ->
+          1 + Expr.size e1 + get_cursor_position (ZENode e2)
+      | ELet_L (_, e, _) -> 1 + 1 + get_cursor_position (ZENode e)
+      | ELet_R (_, e1, e2) ->
+          1 + 1 + Expr.size e1 + get_cursor_position (ZENode e2)
+      | EIf_R (e1, e2, e3) ->
+          1 + Expr.size e1 + Expr.size e2 + get_cursor_position (ZENode e3)
+      | EFun_L (_, ty, _) | EFix_L (_, ty, _) ->
+          1 + 1 + get_cursor_position (ZTNode ty)
+      | EFun_R (_, ty, e) | EFix_R (_, ty, e) ->
+          1 + 1 + Typ.size ty + get_cursor_position (ZENode e))
+  | ZTNode ty -> (
+      match ty with
+      | Cursor _ -> 0
+      | Arrow_L (ty, _) | Prod_L (ty, _) -> 1 + get_cursor_position (ZTNode ty)
+      | Arrow_R (t1, t2) | Prod_R (t1, t2) ->
+          1 + Typ.size t1 + get_cursor_position (ZTNode t2)
+      | List_L ty -> 1 + get_cursor_position (ZTNode ty))
+
+let%test_module "Test get_cursor_position" =
+  (module struct
+    let e = Expr.Cursor (parse "(2 + 3 / 10, true)")
+
+    let%test _ = get_cursor_position (ZENode e) = 0
+
+    let e = Expr.EBinOp_L (Expr.Cursor (parse "fun x -> x + 1"), OpAp, EInt 2)
+
+    let%test _ = get_cursor_position (ZENode e) = 1
+
+    let e =
+      Expr.ELet_R
+        ( "x",
+          parse "2 + 3",
+          EBinOp_R (parse "10", OpTimes, Expr.Cursor (EVar "x")) )
+
+    let%test _ = get_cursor_position (ZENode e) = 7
+
+    let e =
+      Expr.EFun_R
+        ( "x",
+          TArrow (TInt, TInt),
+          EBinOp_R (parse "x", OpTimes, Expr.Cursor (EInt 2)) )
+
+    let%test _ = get_cursor_position (ZENode e) = 7
+
+    let e =
+      Expr.EFun_L
+        ("x", Arrow_L (Cursor TInt, TInt), EBinOp (parse "x", OpTimes, EInt 2))
+
+    let%test _ = get_cursor_position (ZENode e) = 3
   end)

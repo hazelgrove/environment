@@ -16,7 +16,7 @@ def main():
 
         done = False
         while not done:
-            action = 0 # TODO: change this to policy + permitted actions
+            action = 0  # TODO: change this to policy + permitted actions
             print(f"Action taken: {action}")
 
             obs, reward, done, info = env.step(action)

@@ -46,6 +46,19 @@ void get_ast()
             exit(1);
     }
     value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
+    caml_callback(*get_ast_closure, ser_zast);
+}
+
+void get_cursor_info()
+{
+    static const value *get_ast_closure = NULL;
+    if (get_ast_closure == NULL)
+    {
+        get_ast_closure = caml_named_value("get_cursor_info");
+        if (get_ast_closure == NULL)
+            exit(1);
+    }
+    value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
     int cursor = Int_val(caml_callback(*get_ast_closure, ser_zast));
     curr_state.cursor = cursor;
 }
@@ -142,6 +155,13 @@ CAMLprim value get_actions(value bigarray)
 {
     int dim = Caml_ba_array_val(bigarray)->dim[0];
     copy_1d(Caml_ba_data_val(bigarray), dim, curr_state.permitted_actions);
+    return Val_unit;
+}
+
+CAMLprim value get_vars_in_scope(value bigarray)
+{
+    int dim = Caml_ba_array_val(bigarray)->dim[0];
+    copy_1d(Caml_ba_data_val(bigarray), dim, curr_state.vars_in_scope);
     return Val_unit;
 }
 
