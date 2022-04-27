@@ -14,6 +14,7 @@ void take_action(State *ast, int action)
 {
     change_zast(action);
     get_ast();
+    get_cursor_info();
     copy_ast(ast, &curr_state);
 }
 

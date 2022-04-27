@@ -17,9 +17,9 @@ def main():
         done = False
         while not done:
             # TODO: change this to policy + permitted actions
-            action = env.action_space.sample()
-            while obs["permitted_actions"][action] == 0:
-                action = env.action_space.sample()
+            for i in len(obs["permitted_actions"]):
+                if obs["permitted_actions"][i] == 1:
+                    action = i
 
             print(f"Action taken: {action}")
 
