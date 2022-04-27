@@ -102,4 +102,5 @@ class ASTEnv(gym.Env):
             "num_edges": self.state.num_edges,
             "assignment": self.state.assignment,
             "cursor": self.state.cursor,
+            "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
         }

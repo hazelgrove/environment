@@ -8,7 +8,7 @@ def main():
         print("-----------------------")
         print(f"Timestep: {i + 1}")
 
-        env.reset()
+        obs = env.reset()
         print("Reset environment.")
         print(f"Assignment index: {env.get_state()['assignment']}")
         env.render()
@@ -16,7 +16,11 @@ def main():
 
         done = False
         while not done:
-            action = 0  # TODO: change this to policy + permitted actions
+            # TODO: change this to policy + permitted actions
+            action = env.action_space.sample()
+            while obs["permitted_actions"][action] == 0:
+                action = env.action_space.sample()
+
             print(f"Action taken: {action}")
 
             obs, reward, done, info = env.step(action)
