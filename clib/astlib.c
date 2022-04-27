@@ -70,6 +70,8 @@ void init_assignment(State *ast, int assignment, int index)
     curr_state.assignment = assignment;
     curr_state.code = index;
 
+    get_cursor_info();
+
     copy_ast(ast, &curr_state);
 }
 
@@ -89,6 +91,13 @@ void print_curr_state(State *ast)
     {
         if (curr_state.vars_in_scope[i] != -1)
             printf("%d ", curr_state.vars_in_scope[i]);
+    }
+    printf("\n");
+    printf("Permitted Actions: ");
+    for (int i = 0; i < NUM_ACTIONS; i++)
+    {
+        if (curr_state.permitted_actions[i] == 1)
+            printf("%d ", i);
     }
     printf("\n");
     print_code();

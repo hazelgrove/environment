@@ -500,9 +500,9 @@ module Action = struct
   let tag_to_action (action : int) : t =
     match action with
     | 0 -> Move Parent
-    | 1 -> Move (Child 1)
-    | 2 -> Move (Child 2)
-    | 3 -> Move (Child 3)
+    | 1 -> Move (Child 0)
+    | 2 -> Move (Child 1)
+    | 3 -> Move (Child 2)
     | 10 -> Construct (Var "x")
     | 11 -> Construct (Var "y")
     | 12 -> Construct (Var "z")

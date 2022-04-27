@@ -15,11 +15,14 @@ def main():
         print()
 
         done = False
-        while not done:
+        count = 0
+        while not done and count < 20:
+            action = -1
             # TODO: change this to policy + permitted actions
-            for i in len(obs["permitted_actions"]):
+            for i in range(len(obs["permitted_actions"])):
                 if obs["permitted_actions"][i] == 1:
                     action = i
+                    break
 
             print(f"Action taken: {action}")
 
@@ -28,7 +31,12 @@ def main():
             env.render()
 
             print(f"Reward: {reward}\n")
-        print("Done!")
+
+            count += 1
+        if count == 20:
+            print("Too many steps")
+        else:
+            print("Done!")
     env.close()
 
 

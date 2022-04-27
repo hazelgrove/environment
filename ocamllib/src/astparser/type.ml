@@ -55,7 +55,6 @@ module Typ = struct
 
   let node_to_tag (node : t) : int =
     match node with
-    (* HOW ARE THESE NUMBERS CHOSEN*)
     | TInt -> 20
     | TBool -> 21
     | TArrow (_, _) -> 22
