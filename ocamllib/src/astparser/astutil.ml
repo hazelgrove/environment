@@ -1,100 +1,98 @@
 open Ast
+open Var
 
 exception SyntaxError of string
+exception RuntimeError of string
 exception NotImplemented
 
-(* Substitute the variable x in e2 with e1 (i.e. [e1/x]e2) *)
-let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
-  let subx = subst e1 x in
-  let subx_unless cond = if cond then Fun.id else subx in
-  match e2 with
-    | EBool _ | EInt _ | ENil | EHole -> e2
-    | EVar y -> if Var.equal x y then e1 else e2
-    | EUnOp (op, e) -> EUnOp (op, subx e)
-    | EBinOp (e_l, op, e_r) -> EBinOp (subx e_l, op, subx e_r)
-    | EIf (e_cond, e_then, e_else) -> EIf (subx e_cond, subx e_then, subx e_else)
-    | EFun (y, e_body) -> EFun (y, subx_unless (Var.equal x y) e_body)
-    | ELet (y, e_def, e_body) -> ELet (y, subx e_def, subx_unless (Var.equal x y) e_body)
-    | EFix (y, e_body) -> EFix (y, subx_unless (Var.equal x y) e_body)
-    | EPair (e_l, e_r) -> EPair (subx e_l, subx e_r)
-
-
-let expecting_num (v : Value.t): int =
-  match v with
-  | VInt n -> n
-  | _ -> raise (Failure "Cannot be evaluated")
-
-let expecting_bool (v : Value.t): bool =
-  match v with
-  | VBool b -> b
-  | _ -> raise (Failure "Cannot be evaluated")
-
-let expecting_fun (v : Value.t): (Var.t * Expr.t) =
-  match v with
-  | VFun (x, body) -> (x, body)
-  | _ -> raise (Failure "Cannot be evaluated")  
-
-(* Evalutate the expression e *)
-let rec eval (e : Expr.t) : Value.t =
-  let eval_unop (op: Expr.unop) (v: Value.t): Value.t =
-    match op with
-    | OpNeg ->
-        let n = expecting_num v in
-        VInt (-1 * n)
-  in
-  match e with
-    | EInt n -> VInt n
-    | EBool b -> VBool b
-    | EFun (x, e_body) -> VFun (x, e_body)
-    | ENil -> VNil
-    | EUnOp (unop, e) -> eval_unop unop (eval e)
-    | EBinOp (e_l, binop, e_r) -> eval_binop (eval e_l) binop (eval e_r)
-    | EIf (e_cond, e_then, e_else) ->
-      let b = expecting_bool (eval e_cond) in
-      if b then eval e_then else eval e_else
-    | ELet (x, e_def, e_body) ->
-      let v_def = eval e_def in
-      eval (subst (Value.to_expr v_def) x e_body)
-    | EPair (e_l, e_r) -> VPair (eval e_l, eval e_r)
-    | EFix (x, e_body) ->
-      let unrolled = subst (EFix (x, e_body)) x e_body in
-      eval unrolled
-    | _ -> raise (Failure "Invalid syntax")
-and eval_binop (v_l: Value.t) (op: Expr.binop) (v_r: Value.t): Value.t =
-  match op with
-  | OpAp ->
-    let (x, body) = expecting_fun v_l in
-    eval (subst (Value.to_expr v_r) x body)
-  | OpPlus | OpMinus | OpTimes | OpDiv ->
-    let f =
-      match op with
-      | OpPlus -> (+)
-      | OpMinus -> (-)
-      | OpTimes -> ( * )
-      | _ -> (/)
-    in
-    VInt (f (expecting_num v_l) (expecting_num v_r))
-  | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
-    let f =
-      match op with
-      | OpLt -> (<)
-      | OpLe -> (<=)
-      | OpGt -> (>)
-      | OpGe -> (>=)
-      | OpNe -> (!=)
-      | _ -> (=)
-    in
-    VBool (f (expecting_num v_l) (expecting_num v_r))
-  | OpCon ->
-    raise NotImplemented
-  
-(* Parse a string into an ast *)
-let parse s =
+(*
+    Parse a string into an ast
+    Input :
+      - s : a string resembling the code
+    Output : 
+      - an ast corresponding to s
+*)
+let parse (s : string) : Expr.t =
   let lexbuf = Lexing.from_string s in
   let ast = Parser.main Lexer.read lexbuf in
   ast
 
-(* Parse a file (assuming it is a well-typed .ml file) into an ast *)
+let%test_module "Test parse" =
+  (module struct
+    (* BinOp *)
+    let%test _ =
+      parse "32 + 54 * 2 / 10"
+      = EBinOp
+          ( EInt 32,
+            OpPlus,
+            EBinOp (EBinOp (EInt 54, OpTimes, EInt 2), OpDiv, EInt 10) )
+
+    let%test _ = parse "10 <= 23" = EBinOp (EInt 10, OpLe, EInt 23)
+
+    let%test _ =
+      parse "f 2 3" = EBinOp (EBinOp (EVar "f", OpAp, EInt 2), OpAp, EInt 3)
+
+    (* Functions *)
+    let%test _ =
+      parse "fun (x : int) -> x + 1"
+      = EFun ("x", TInt, EBinOp (EVar "x", OpPlus, EInt 1))
+
+    let%test _ =
+      parse "let f (x : int) = x != 2 in f 1"
+      = ELet
+          ( "f",
+            EFun ("x", TInt, EBinOp (EVar "x", OpNe, EInt 2)),
+            EBinOp (EVar "f", OpAp, EInt 1) )
+
+    let%test _ =
+      parse "let f x (y : int) = x + y"
+      = ELet
+          ( "f",
+            EFun
+              ("x", THole, EFun ("y", TInt, EBinOp (EVar "x", OpPlus, EVar "y"))),
+            EHole )
+
+    let%test _ =
+      parse
+        "let rec fact (n : int) = if n = 0 then 1 else n * fact (n - 1) in \
+         fact 4"
+      = ELet
+          ( "fact",
+            EFix
+              ( "fact",
+                THole,
+                EFun
+                  ( "n",
+                    TInt,
+                    EIf
+                      ( EBinOp (EVar "n", OpEq, EInt 0),
+                        EInt 1,
+                        EBinOp
+                          ( EVar "n",
+                            OpTimes,
+                            EBinOp
+                              ( EVar "fact",
+                                OpAp,
+                                EBinOp (EVar "n", OpMinus, EInt 1) ) ) ) ) ),
+            EBinOp (EVar "fact", OpAp, EInt 4) )
+
+    (* Let and if expressions *)
+    let%test _ =
+      parse "let x = true in if x then 2 else 3"
+      = ELet ("x", EBool true, EIf (EVar "x", EInt 2, EInt 3))
+
+    (* Pairs *)
+    let%test _ =
+      parse "(2 + 3, true)" = EPair (EBinOp (EInt 2, OpPlus, EInt 3), EBool true)
+  end)
+
+(*
+  Parse a file (assuming it is a well-typed .ml file) into an ast
+  Input :
+    - filename : directory of the .ml file
+  Output :
+    - an ast corresponding to the .ml file at the directory filename
+*)
 let parse_file filename =
   let read_whole_file filename =
     let ch = open_in filename in
@@ -105,140 +103,159 @@ let parse_file filename =
   let s = read_whole_file filename in
   parse s
 
-type edge = (int * int * int)
-type node = int
-type graph = (node list) * (edge list)
-type varlist = (Var.t * int) list
+(*
+  Substitute the variable x in e2 with e1 (i.e. [e1/x]e2)
+  Inputs :
+    - e1 : expression to be substituted for x
+    - x : variable to substitue
+    - e2 : expression where x needs to be substituted
+  Output :
+    - e2 with the variable x substituted with e1
+  *)
+let rec subst (e1 : Expr.t) (x : Var.t) (e2 : Expr.t) : Expr.t =
+  (* Shorthand for the function substituting the variable x with e1 *)
+  let subx = subst e1 x in
+  (* Substitute if condition is not met *)
+  let subx_unless cond = if cond then Fun.id else subx in
+  match e2 with
+  | EBool _ | EInt _ | ENil | EHole -> e2
+  | EVar y -> if Var.equal x y then e1 else e2
+  | EUnOp (op, e) -> EUnOp (op, subx e)
+  | EBinOp (e_l, op, e_r) -> EBinOp (subx e_l, op, subx e_r)
+  | EIf (e_cond, e_then, e_else) -> EIf (subx e_cond, subx e_then, subx e_else)
+  | EFun (y, ty, e_body) -> EFun (y, ty, subx_unless (Var.equal x y) e_body)
+  | ELet (y, e_def, e_body) ->
+      ELet (y, subx e_def, subx_unless (Var.equal x y) e_body)
+  | EFix (y, ty, e_body) -> EFix (y, ty, subx_unless (Var.equal x y) e_body)
+  | EPair (e_l, e_r) -> EPair (subx e_l, subx e_r)
 
-let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
-  List.filter (fun (start, _, _) -> start = start_node) edges
-
-(* Change list representation to tree representation of AST *)
-let rec c_to_expr (nodes : node list) (edges : edge list) (root : int) : Expr.t =
-  let tag = List.nth nodes root in
-  if tag >= 30 then Expr.tag_to_node tag None None None else
-  let adj_nodes = get_adj_nodes edges root in
-  let get_nth_child n = 
-    let nth_child = List.filter (fun (_, _, child_num) -> child_num = n) adj_nodes in
-    match nth_child with
-    | [] -> None
-    | [(_, endpt, _)] -> Some (c_to_expr nodes edges endpt)
-    | _ -> raise (Failure "Invalid syntax")
+(*
+  Evalutate the expression e
+  Inputs :
+    - e : expression to be evaluated
+    - stack : number of stack frames to be allocated towards the evaluation
+  Outputs :
+    - the value of the expression e
+  Raises :
+    - SyntaxError :
+      - "Variable not bound" : iff there is a free variable
+      - "Hole in expression" : iff there is an empty hole in the expression
+    - RuntimeError :
+      - "Stack overflow" : iff the number of stack frames used exceeds stack
+      - "Expected [type]" : iff there is a type error
+    - NotImplemented :
+      - iff OpCons is used
+  *)
+let rec eval (e : Expr.t) (stack : int) : Expr.value =
+  (* Checks if v is an int, and return the value of the int *)
+  let expecting_int (v : Expr.value) : int =
+    match v with VInt n -> n | _ -> raise (RuntimeError "Expected int")
   in
-  Expr.tag_to_node tag (get_nth_child 1) (get_nth_child 2) (get_nth_child 3)
-
-(* Change tree representation to list representation of AST *)
-let expr_to_c (e : Expr.t) : (graph * int) = 
-  let add_node (nodes : node list) (tag : Expr.tag) : (node list * int) =
-    let new_nodes = nodes @ [tag] in (new_nodes, List.length nodes)
+  (* Checks if v is a bool, and return the value of the bool *)
+  let expecting_bool (v : Expr.value) : bool =
+    match v with VBool b -> b | _ -> raise (RuntimeError "Expected bool")
   in
-  let add_edge (edges : edge list) (new_edge : edge) : (edge list) =
-    new_edge :: edges
-  in
-  let is_var (tag : Expr.tag) : bool =
-    (tag >= 38) && (tag <= 40)
-  in
-  let get_var_name (v : Expr.t) : string =
+  (* Checks if v is a function, and returns its argument name and body *)
+  let expecting_fun (v : Expr.value) : Var.t * Expr.t =
     match v with
-      | EVar s -> s
-      | _ -> raise (SyntaxError "")
+    | VFun (x, _, body) -> (x, body)
+    | _ -> raise (RuntimeError "Expected function")
   in
-  let add_var (var : Var.t) (index : int) (vars : varlist) : varlist = 
-    (var, index) :: vars
-  in
-  let find_var (target : string) (vars : varlist) : int =
-    let indices = List.filter (fun (var, index) -> Var.equal target var) vars in
-    match indices with
-      | (_, index) :: tl -> index
-      | [] -> raise (SyntaxError "Expression not closed")
-  in
-  let is_binding (tag : Expr.tag) : bool = 
-    (tag = 15) || (tag = 16) || (tag = 13)
-  in
-  let rec expr_to_c_aux (e : Expr.t) (nodes : node list) (edges : edge list) (vars : varlist) : (graph * int) = 
-    let tag = Expr.node_to_tag e in
-    if is_var tag then
-      let (nodes, root) = add_node nodes tag in 
-      let edges = add_edge edges (find_var (get_var_name e) vars, root, -1) in 
-      ((nodes, edges), root)
-    else if tag >= 30 then 
-      let (nodes, root) = add_node nodes tag in 
-      ((nodes, edges), root)
-    else 
-      let add_unary subexpr = 
-        let (nodes, new_root) = add_node nodes tag in
-        let ((nodes, edges), root) = expr_to_c_aux subexpr nodes edges vars in
-        let edges = add_edge edges (new_root, root, 1) in
-        ((nodes, edges), new_root)
-      in
-      let add_binary sub1 sub2 = 
-        let (nodes, new_root) = add_node nodes tag in
-        let ((nodes, edges), root1) = 
-          if is_binding tag then
-            let (nodes, root) = add_node nodes (Expr.node_to_tag sub1) in
-            ((nodes, edges), root)
-          else
-            expr_to_c_aux sub1 nodes edges vars 
-        in
-        let vars = if is_binding tag then add_var (get_var_name sub1) root1 vars else vars in
-        let ((nodes, edges), root2) = expr_to_c_aux sub2 nodes edges vars in
-        let edges = add_edge edges (new_root, root1, 1) in
-        let edges = add_edge edges (new_root, root2, 2) in
-        ((nodes, edges), new_root)
-      in
-      let add_ternary sub1 sub2 sub3 = 
-        let (nodes, new_root) = add_node nodes tag in
-        let ((nodes, edges), root1) = 
-          if is_binding tag then
-            let (nodes, root) = add_node nodes (Expr.node_to_tag sub1) in
-            ((nodes, edges), root)
-          else
-            expr_to_c_aux sub1 nodes edges vars 
-        in
-        let ((nodes, edges), root2) = expr_to_c_aux sub2 nodes edges vars in
-        let vars = if is_binding tag then add_var (get_var_name sub1) root1 vars else vars in
-        let ((nodes, edges), root3) = expr_to_c_aux sub3 nodes edges vars in
-        let edges = add_edge edges (new_root, root1, 1) in
-        let edges = add_edge edges (new_root, root2, 2) in
-        let edges = add_edge edges (new_root, root3, 3) in
-        ((nodes, edges), new_root)
-      in
-      match e with
-        | EUnOp (_, subexpr) -> add_unary subexpr
-        | EBinOp (sub1, _ , sub2) -> add_binary sub1 sub2
-        | ELet (sub1, sub2, sub3) -> add_ternary (EVar sub1) sub2 sub3
-        | EIf (sub1, sub2, sub3) -> add_ternary sub1 sub2 sub3
-        | EFun (sub1, sub2) -> add_binary (EVar sub1) sub2
-        | EFix (sub1, sub2) -> add_binary (EVar sub1) sub2
-        | EPair (sub1, sub2) -> add_binary sub1 sub2
-        | _ -> raise (Failure "Incorrect syntax")
-    in
-      expr_to_c_aux e [] [] []
+  if stack = 0
+  then raise (RuntimeError "Stack overflow")
+  else
+    match e with
+    | EInt n -> VInt n
+    | EBool b -> VBool b
+    | EFun (x, ty, e_body) -> VFun (x, ty, e_body)
+    | ENil -> VNil
+    | EUnOp (op, e) -> (
+        let v = eval e stack in
+        match op with OpNeg -> VInt (-1 * expecting_int v))
+    | EBinOp (e1, op, e2) -> (
+        let v1 = eval e1 stack in
+        let v2 = eval e2 stack in
+        match op with
+        | OpAp ->
+            let x, body = expecting_fun v1 in
+            eval (subst (Expr.from_val v2) x body) (stack - 1)
+        | OpPlus | OpMinus | OpTimes | OpDiv ->
+            let f =
+              match op with
+              | OpPlus -> ( + )
+              | OpMinus -> ( - )
+              | OpTimes -> ( * )
+              | _ -> ( / )
+            in
+            VInt (f (expecting_int v1) (expecting_int v2))
+        | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
+            let f =
+              match op with
+              | OpLt -> ( < )
+              | OpLe -> ( <= )
+              | OpGt -> ( > )
+              | OpGe -> ( >= )
+              | OpNe -> ( != )
+              | _ -> ( = )
+            in
+            VBool (f (expecting_int v1) (expecting_int v2))
+        | OpCon -> raise NotImplemented)
+    | EIf (e_cond, e_then, e_else) ->
+        let b = expecting_bool (eval e_cond stack) in
+        if b then eval e_then stack else eval e_else stack
+    | ELet (x, e_def, e_body) ->
+        let v_def = eval e_def stack in
+        eval (subst (Expr.from_val v_def) x e_body) stack
+    | EPair (e_l, e_r) -> VPair (eval e_l stack, eval e_r stack)
+    | EFix (x, ty, e_body) ->
+        let unrolled = subst (EFix (x, ty, e_body)) x e_body in
+        eval unrolled stack
+    | EVar _ -> raise (SyntaxError "Variable not bound")
+    | EHole -> raise (SyntaxError "Hole in expression")
 
-let rec nodelist_to_words (nodes : node list) : string list = 
-  match nodes with
-    | [] -> []
-    | hd :: tl -> (Expr.tag_to_word hd) :: nodelist_to_words tl
+let%test_module "Test eval" =
+  (module struct
+    let eval_string s = eval (parse s) 100
 
-let select_root : (Expr.t -> Expr.z_t) =
-  (* Convert an unzipped ast into a zipped one, by selecting the root*)
-  (function tree -> Expr.Cursor tree) 
+    (* Ints *)
+    let%test _ = eval_string "32" = VInt 32
+    let%test _ = eval_string "-5" = VInt (-5)
+    let%test _ = eval_string "0" = VInt 0
+    (* Bools *)
+    let%test _ = eval_string "true" = VBool true
+    let%test _ = eval_string "false" = VBool false
 
-let rec unzip_ast  (tree : Expr.z_t) : Expr.t =
-  match tree with 
-  | Cursor arg -> arg 
-  | EUnOp_L (unop, l_child) -> EUnOp (unop, unzip_ast l_child)
-  | EBinOp_L (l_child, binop,r_child) -> EBinOp (unzip_ast l_child, binop,r_child)
-  | EBinOp_R (l_child, binop,r_child) -> EBinOp (l_child, binop,unzip_ast r_child)
-  | ELet_L (var,l_child, r_child) -> ELet (var, unzip_ast l_child, r_child)
-  | ELet_R (var,l_child, r_child) -> ELet (var, l_child, unzip_ast r_child)
-  | EIf_L (l, c, r) -> EIf(unzip_ast l, c,r)
-  | EIf_C (l, c, r) -> EIf(l, unzip_ast c, r) 
-  | EIf_R (l, c, r) -> EIf(l, c, unzip_ast r) 
-  | EPair_L (l, r) ->  EPair (unzip_ast l, r) 
-  | EPair_R (l, r) ->  EPair (l, unzip_ast r)
-  | EFun_L (var, child) -> EFun(var, unzip_ast child) 
-  | EFix_L (var, child) -> EFix(var, unzip_ast child)
+    (* Functions *)
+    let%test _ =
+      eval_string "fun x -> 2 * x + 1" = VFun ("x", THole, parse "2 * x + 1")
 
-(* let serialize (zast : Expr.z_t) : string = 
-  Core.Sexp.to_string (Expr.sexp_of_z_t zast) *)
+    let%test _ = eval_string "fun a -> a 2" = VFun ("a", THole, parse "a 2")
+    let%test _ = eval_string "(fun x -> 3 * x - 1) 4" = VInt 11
+    (* Arithmetic Operations *)
+    let%test _ = eval_string "- (4 * 3) / 2 + -1" = VInt (-7)
+
+    (* If Expressions *)
+    let%test _ =
+      eval_string "if (6 > 4) then if (2 != 3) then 5 else 8 else 10" = VInt 5
+
+    (* Let Expressions *)
+    let%test _ = eval_string "let x = 1 in let x = x + 3 in 2 * x" = VInt 8
+    let%test _ = eval_string "let f x = 2 - x * 6 in f 3" = VInt (-16)
+    let%test _ = eval_string "let f x y = x + y in f 2 3" = VInt 5
+
+    let%test _ =
+      eval_string
+        "let rec fact n = if n < 1 then 1 else n * fact (n - 1) in fact 4"
+      = VInt 24
+
+    (* Pairs *)
+    let%test _ =
+      eval_string "(8 <= 20, fun x -> 2 * x + 1)"
+      = VPair (VBool true, VFun ("x", THole, parse "2 * x + 1"))
+  end)
+
+let serialize (zast : Expr.z_t) : string =
+  Core.Sexp.to_string (Expr.sexp_of_z_t zast)
+
+let deserialize (zast : string) : Expr.z_t =
+  Expr.z_t_of_sexp (Core.Sexp.of_string zast)

@@ -29,3 +29,6 @@ To run the OCaml AST side independently, you can use
 dune utop
 ```
 The utop has the modules included automatically.
+
+## Bug Fix Notes
+1. If there is a sudden error of not finding a child or something like that, check if num_nodes is sufficient for problem.

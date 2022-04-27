@@ -8,9 +8,10 @@ let int = '-'? digit+
 let letter = ['a'-'z' 'A'-'Z']
 let id = letter (letter | digit | '_')*
 
-rule read = 
+rule read =
   parse
-  | white   { read lexbuf }
+  | [' ' '\t' '\n'] { read lexbuf }
+  | int as i{ INT (int_of_string i) }
   | "+"     { PLUS }
   | "-"     { MINUS }
   | "*"     { TIMES }
@@ -22,11 +23,11 @@ rule read =
   | "<"     { LT }
   | ">"     { GT }
   | "::"    { CON }
+  | ":"     { OFTYPE }
   | "("     { LPAREN }
   | ")"     { RPAREN }
   | ","     { COMMA }
   | ";"     { SEMI }
-  | "[]"    { LIST }
   | "["     { LBRAC }
   | "]"     { RBRAC }
   | "true"  { TRUE }
@@ -38,7 +39,9 @@ rule read =
   | "else"  { ELSE }
   | "fun"   { FUN }
   | "rec"   { REC }
+  | "int"   { TINT }
+  | "bool"  { TBOOL }
   | "->"    { RIGHTARROW }
-  | id      { ID (Lexing.lexeme lexbuf) }
-  | int     { INT (int_of_string (Lexing.lexeme lexbuf)) }
+  | id as i { ID (i) }
   | eof     { EOF }
+  | _       { raise (Failure "unknown token")}

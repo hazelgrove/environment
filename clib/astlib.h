@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 #define CAML_NAME_SPACE
 #include "caml/mlvalues.h"
@@ -91,14 +92,15 @@ Shut down the OCaml Code
 */
 void close_c();
 
-
 /*
 External functions from ocaml interface
 */
-extern void change_ast(int action);
+extern void change_zast(int action);
+extern void get_ast();
 extern int run_unit_tests();
 extern void load_starter_code(int assignment, int index);
 extern void load_tests(int assignment);
 extern void print_code();
+extern void get_cursor_info();
 
 #endif

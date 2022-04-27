@@ -1,20 +1,23 @@
 #ifndef __STATE_H
 #define __STATE_H
 
-#define MAX_NUM_NODES 10
+#define MAX_NUM_NODES 20
 #define MAX_NUM_TESTS 10
-#define NUM_ACTIONS 5
+#define NUM_ACTIONS 80
+#define MAX_TREE_LENGTH 10000
+#define MAX_VARS 10
 
 /*
 Struct defining the AST structure
 */
-typedef struct{
+typedef struct
+{
     /*
     Edge showing indices of vertices on each edge and which child it belongs to.
 
     Edges are in the format : (begin, end, descriptor)
     For non-negative descriptors, the number representes that the edge connects to the n-th child of the parent.
-    For descriptor == -1, the edge shows the binding of a variable. 
+    For descriptor == -1, the edge shows the binding of a variable.
     */
     int edges[MAX_NUM_NODES * MAX_NUM_NODES][3];
 
@@ -39,10 +42,14 @@ typedef struct{
     */
     int permitted_actions[NUM_ACTIONS];
 
+    int vars_in_scope[MAX_VARS];
+
+    char zast[MAX_TREE_LENGTH];
+
     /*
     The index of the root of the tree.
     */
-    int root;
+    int cursor;
 
     /*
     The number of nodes

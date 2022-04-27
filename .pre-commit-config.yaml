@@ -1,0 +1,38 @@
+repos:
+- repo: https://github.com/arenadotio/pre-commit-ocamlformat
+  rev: master
+  rev: 0439858f79b3bcb49e757278eb1312e212d7dd4f
+  hooks:
+    - id: ocamlformat
+      exclude: "^vendor/"
+-   repo: https://github.com/asottile/seed-isort-config
+    rev: v2.2.0
+    hooks:
+    -   id: seed-isort-config
+-   repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1
+    hooks:
+    -   id: isort
+-   repo: https://github.com/ambv/black
+    rev: 22.3.0
+    hooks:
+    -   id: black
+        language_version: python3.8
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+    -   id: flake8
+-   repo: https://github.com/jumanjihouse/pre-commit-hooks
+    rev: 2.1.6
+    hooks:
+    -   id: shellcheck
+    -   id: shfmt
+-   repo: local
+    hooks:
+    -   id: run-tests
+        name: Run unit tests
+        entry: ./unittest.sh
+        language: script
+        types:
+        - directory
+        always_run: true
