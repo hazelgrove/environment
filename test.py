@@ -17,12 +17,14 @@ def main():
         done = False
         count = 0
         while not done and count < 20:
-            action = -1
             # TODO: change this to policy + permitted actions
-            for i in range(len(obs["permitted_actions"])):
-                if obs["permitted_actions"][i] == 1:
-                    action = i
-                    break
+            action = env.action_space.sample()
+            while obs["permitted_actions"][action] == 0:
+                action = env.action_space.sample()
+            # for i in range(len(obs["permitted_actions"])):
+            #     if obs["permitted_actions"][i] == 1:
+            #         action = i
+            #         break
 
             print(f"Action taken: {action}")
 

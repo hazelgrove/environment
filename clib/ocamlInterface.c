@@ -51,15 +51,15 @@ void get_ast()
 
 void get_cursor_info()
 {
-    static const value *get_ast_closure = NULL;
-    if (get_ast_closure == NULL)
+    static const value *get_cursor_info_closure = NULL;
+    if (get_cursor_info_closure == NULL)
     {
-        get_ast_closure = caml_named_value("get_cursor_info");
-        if (get_ast_closure == NULL)
+        get_cursor_info_closure = caml_named_value("get_cursor_info");
+        if (get_cursor_info_closure == NULL)
             exit(1);
     }
     value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
-    int cursor = Int_val(caml_callback(*get_ast_closure, ser_zast));
+    int cursor = Int_val(caml_callback(*get_cursor_info_closure, ser_zast));
     curr_state.cursor = cursor;
 }
 

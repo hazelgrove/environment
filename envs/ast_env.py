@@ -5,7 +5,7 @@ from typing import List
 import gym
 import numpy as np
 
-max_num_nodes = 10
+max_num_nodes = 20
 num_actions = 80
 max_num_tests = 10
 max_tree_length = 10000
