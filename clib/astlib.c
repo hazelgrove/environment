@@ -82,7 +82,11 @@ void print_curr_state(State *ast)
 {
     copy_ast(&curr_state, ast);
     printf("Zippered AST in Sexp form: %s\n", curr_state.zast);
+<<<<<<< HEAD
     printf("Cursor Position: %d\n", curr_state.cursor);
+=======
+    printf("Cursor Position: %s\n", curr_state.cursor);
+>>>>>>> 7ad13cd8ad84b568f820ce733ecc57fba7864208
     printf("Variables in scope: ");
     for (int i = 0; i < MAX_VARS; i++)
     {
