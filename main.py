@@ -9,7 +9,7 @@ import torch
 from agent import algo, utils
 from agent.arguments import get_args
 from agent.envs import make_vec_envs
-from agent.model import Policy
+from agent.policy import Policy
 from agent.storage import RolloutStorage
 from evaluation import evaluate
 from logger import get_logger, log_data

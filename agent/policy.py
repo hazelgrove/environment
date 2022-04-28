@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch_geometric.nn as gnn
 
 from agent.distributions import Bernoulli, Categorical, DiagGaussian
 from agent.utils import init
@@ -76,6 +77,70 @@ class Policy(nn.Module):
         dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, rnn_hxs
+
+
+# Our NN model
+class GNNBase(nn.Module):
+    def __init__(self):
+        super(GNNBase, self).__init__()
+        self.hid_1 = 128
+        self.in_head = 8
+        self.hid_2 = 64
+        self.hid_head = 8
+        self.out = 32
+        self.out_head = 1
+        self.in_edge_channels = 10
+
+        self.conv1 = gnn.GeneralConv(
+            1035,
+            self.hid_1,
+            in_edge_channels=self.in_edge_channels,
+            directed_msg=True,
+            attention=True,
+            heads=self.in_head,
+        )
+        self.conv2 = gnn.GeneralConv(
+            self.hid_1,
+            self.hid_2,
+            in_edge_channels=self.in_edge_channels,
+            directed_msg=True,
+            attention=True,
+            heads=self.hid_head,
+        )
+        self.conv3 = gnn.GeneralConv(
+            self.hid_2,
+            self.out,
+            in_edge_channels=self.in_edge_channels,
+            directed_msg=True,
+            attention=True,
+            heads=16,
+        )
+        self.extra_conv = gnn.GeneralConv(
+            self.out,
+            2,
+            in_edge_channels=self.in_edge_channels,
+            directed_msg=True,
+            attention=True,
+            heads=1,
+        )
+
+    def forward(self, data):
+        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
+        x = x.float()
+        # print(x.size())
+        x = self.conv1(x, edge_index, edge_feature=edge_attr)
+        # print(x.size())
+        x = F.elu(x)
+        # print(x.size())
+        x = F.dropout(x, p=0.4, training=self.training)
+        x = self.conv2(x, edge_index, edge_feature=edge_attr)
+        x = F.elu(x)
+        x = F.dropout(x, p=0.4, training=self.training)
+        x = self.conv3(x, edge_index, edge_feature=edge_attr)
+        x = F.elu(x)
+
+        z = self.extra_conv(x, edge_index)
+        return z
 
 
 class NNBase(nn.Module):
@@ -199,15 +264,6 @@ class CNNBase(NNBase):
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
 
         return self.critic_linear(x), x, rnn_hxs
-
-
-# Our GNN model
-class GNNBase(NNBase):
-    def __init__(self):
-        super(GNNBase, self).__init__()
-
-    def forward(self):
-        pass
 
 
 class MLPBase(NNBase):
