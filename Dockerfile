@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cuda:11.6.0-base-ubuntu20.04 as base
+FROM nvidia/cuda:11.5.0-base-ubuntu20.04 as base
 
 ENV LC_ALL C.UTF-8
 
@@ -29,12 +29,7 @@ FROM base AS deps
 # build dependencies
 RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
-  apt-get install -yq \
-  # required by poetry
-  python3-pip \
-  opam \
-  gcc \
-  cmake \
+  apt-get install -yq python3-pip \
   && apt-get clean
 WORKDIR "/deps"
 COPY pyproject.toml poetry.lock /deps/
