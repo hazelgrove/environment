@@ -2,7 +2,12 @@ from envs.ast_env import ASTEnv
 
 
 def main():
-    env = ASTEnv(1, [1])
+    env = ASTEnv(
+        max_num_nodes=20,
+        num_assignments=1,
+        code_per_assignment=[1],
+        num_actions=80,
+    )
 
     for i in range(5):
         print("-----------------------")
