@@ -5,10 +5,11 @@ from typing import List
 import gym
 import numpy as np
 
-max_num_nodes = 10
-num_actions = 5
+max_num_nodes = 20
+num_actions = 80
 max_num_tests = 10
 max_tree_length = 10000
+max_num_vars = 10
 
 
 class State(ctypes.Structure):
@@ -17,6 +18,7 @@ class State(ctypes.Structure):
         ("tests", (ctypes.c_int * max_num_tests) * 2),
         ("nodes", ctypes.c_int * max_num_nodes),
         ("permitted_actions", ctypes.c_int * num_actions),
+        ("vars_in_scope", ctypes.c_int * max_num_vars),
         ("zast", ctypes.c_char * max_tree_length),
         ("cursor", ctypes.c_int),
         ("num_nodes", ctypes.c_int),
@@ -100,4 +102,5 @@ class ASTEnv(gym.Env):
             "num_edges": self.state.num_edges,
             "assignment": self.state.assignment,
             "cursor": self.state.cursor,
+            "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
         }

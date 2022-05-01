@@ -1,11 +1,10 @@
-from cProfile import run
 import os
 import time
 from collections import deque
+from cProfile import run
 
 import numpy as np
 import torch
-import run_logger
 
 from agent import algo, utils
 from agent.arguments import get_args
@@ -13,32 +12,12 @@ from agent.envs import make_vec_envs
 from agent.model import Policy
 from agent.storage import RolloutStorage
 from evaluation import evaluate
+from logger import get_logger, log_data
 
 
 def main():
     args = get_args()
-
-    config = "logger_config.yaml"
-    chart = {
-        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-        "description": "Mean Episode Reward Over Update",
-        "data": {
-            "data": "data",
-            "values": [] 
-            }, 
-        "transform": [{}],
-        "mark": "line",
-        "encoding": {
-            "x": {"field": "update", "type": "quantitative"},
-            "y": {"field": "reward", "type": "quantitative"}
-        }
-    }
-    params, logger = run_logger.initialize(
-        graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
-        config=config,
-        charts=[chart],
-        load_id=None
-    )
+    params, logger = get_logger()
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -198,7 +177,27 @@ def main():
                     np.max(episode_rewards),
                 )
             )
-            logger.log(update=j, reward=np.mean(episode_rewards))
+
+            grad_norm = 0
+            parameters = [
+                p
+                for p in actor_critic.parameters()
+                if p.grad is not None and p.requires_grad
+            ]
+            for p in parameters:
+                param_norm = p.grad.detach().data.norm(2)
+                grad_norm += param_norm.item() ** 2
+            grad_norm = grad_norm**0.5
+
+            logger.log(
+                update=j,
+                mean_episode_rewards=np.mean(episode_rewards),
+                episode_timesteps=total_num_steps,
+                gradient_norms=grad_norm,  # TODO: Right thing?
+                policy_loss=action_loss,  # TODO: Same thing?
+                value_loss=value_loss,
+                policy_entropy=dist_entropy,  # TODO: Same thing?
+            )
 
         if (
             args.eval_interval is not None

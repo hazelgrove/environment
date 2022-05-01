@@ -92,7 +92,6 @@ Shut down the OCaml Code
 */
 void close_c();
 
-
 /*
 External functions from ocaml interface
 */
@@ -102,5 +101,6 @@ extern int run_unit_tests();
 extern void load_starter_code(int assignment, int index);
 extern void load_tests(int assignment);
 extern void print_code();
+extern void get_cursor_info();
 
 #endif

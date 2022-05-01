@@ -14,56 +14,49 @@ ENV PYTHONBREAKPOINT=ipdb.set_trace
 
 # common dependencies
 RUN apt-get update -q \
- && DEBIAN_FRONTEND="noninteractive" \
-    apt-get install -yq \
-      # git-state
-      git \
-      # primary interpreter
-      python3.8 \
-      # redis-python
-      redis \
- && apt-get clean
+  && DEBIAN_FRONTEND="noninteractive" \
+  apt-get install -yq \
+  # git-state
+  git \
+  # primary interpreter
+  python3.8 \
+  # redis-python
+  redis \
+  && apt-get clean
 
 FROM base AS deps
 # TODO: This is probably where most of the logic from your current Dockerfile goes
 # build dependencies
 RUN apt-get update -q \
- && DEBIAN_FRONTEND="noninteractive" \
-    apt-get install -yq \
-      # required by poetry
-      python3-pip \
-      opam \
-      gcc \
-      cmake \
- && apt-get clean
+  && DEBIAN_FRONTEND="noninteractive" \
+  apt-get install -yq \
+  # required by poetry
+  python3-pip \
+  opam \
+  gcc \
+  cmake \
+  && apt-get clean
 WORKDIR "/deps"
-COPY pyproject.toml poetry.lock opam.export /deps/
-RUN pip3 install poetry && poetry install \
- && opam init --yes --disable-sandboxing \
- && opam install --yes \
- ocaml \
- dune \
- ocamlformat.0.20.1 \
- menhir \
- core \
- sexplib \
- ppx_sexp_conv \
- lwt
+COPY pyproject.toml poetry.lock /deps/
+RUN pip3 install poetry && poetry install
 ENV PYTHON_ENV=/root/.cache/pypoetry/virtualenvs/hazelnut-K3BlsyQa-py3.8/
 
-# Build OCaml code
-WORKDIR "/env"
-COPY ocamllib .
-COPY clib .
-RUN eval $(opam config env) \
- && make astenv
-ENV OCAML_ENV=/root/.opam
-
 FROM base AS runtime
-WORKDIR "/RL_env"
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY --from=deps $PYTHON_ENV $PYTHON_ENV
-COPY --from=deps $OCAML_ENV $OCAML_ENV
-COPY --from=deps /env/_build/default/ocamllib/libcinterface.so /env/clib/astclib.so .
+WORKDIR "/RL_env"
+RUN apt-get update -q \
+  && DEBIAN_FRONTEND="noninteractive" \
+  apt-get install -yq \
+  opam \
+  gcc \
+  cmake \
+  && apt-get clean
+COPY opam.export .
+RUN opam init --yes --disable-sandboxing \
+  && opam update \
+  && opam switch create . ocaml-base-compiler.4.13.1 \
+  && opam switch import opam.export --yes
+ENV PATH="$PYTHON_ENV/bin:$PATH"
 COPY . .
-ENTRYPOINT ["/bin/bash"]
+
+ENTRYPOINT /RL_env/entrypoint.sh

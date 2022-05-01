@@ -240,6 +240,15 @@ class CNNBase(NNBase):
         return self.critic_linear(x), x, rnn_hxs
 
 
+# Our GNN model
+class GNNBase(NNBase):
+    def __init__(self):
+        super(GNNBase, self).__init__()
+
+    def forward(self):
+        pass
+
+
 class MLPBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=64):
         super(MLPBase, self).__init__(recurrent, num_inputs, hidden_size)

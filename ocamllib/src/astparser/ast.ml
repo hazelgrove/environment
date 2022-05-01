@@ -1,7 +1,6 @@
 open Type
 open Sexplib.Std
-open Var 
-
+open Var
 
 (* AST Definition *)
 module Expr = struct
@@ -20,7 +19,7 @@ module Expr = struct
     | OpNe
     | OpCon
     | OpAp
-    [@@deriving sexp]
+  [@@deriving sexp]
 
   type t =
     | EVar of Var.t (* Node Descriptor Number : 35 - 37 *)
@@ -35,8 +34,7 @@ module Expr = struct
     | EPair of t * t
     | EHole (* Node Descriptor Number : 19 *)
     | ENil
-    [@@deriving sexp]
-
+  [@@deriving sexp]
 
   type z_t =
     | Cursor of t
@@ -49,13 +47,12 @@ module Expr = struct
     | EIf_C of t * z_t * t
     | EIf_R of t * t * z_t
     | EFun_R of Var.t * Typ.t * z_t
-    | EFun_L of Var.t * Typ.z_t * t (* TOOD: need to fix all our rerucsion operations now *) 
+    | EFun_L of Var.t * Typ.z_t * t (* TOOD: need to fix all our rerucsion operations now *)
     | EFix_R of Var.t * Typ.t * z_t
-    | EFix_L of Var.t * Typ.z_t * t (* TOOD: need to fix all our rerucsion operations now *) 
+    | EFix_L of Var.t * Typ.z_t * t (* TOOD: need to fix all our rerucsion operations now *)
     | EPair_L of z_t * t
     | EPair_R of t * z_t
-    [@@deriving sexp]
-
+  [@@deriving sexp]
 
   type value =
     | VInt of int
@@ -180,6 +177,7 @@ module Expr = struct
 
   (* Convert an unzipped ast into a zipped one, by selecting the root *)
   let select_root (e : t) : z_t = Cursor e
+
   type edge = int * int * int
   type node = int
   type graph = node list * edge list
@@ -200,15 +198,22 @@ module Expr = struct
     | EPair_L (l, r) -> EPair (unzip_ast l, r)
     | EPair_R (l, r) -> EPair (l, unzip_ast r)
     | EFun_R (var_n, var_t, child) -> EFun (var_n, var_t, unzip_ast child)
-    | EFun_L (var_n, var_t, child) -> EFun (var_n, Typ.unzip var_t, child ) (*unzip child type*)
+    | EFun_L (var_n, var_t, child) ->
+        EFun (var_n, Typ.unzip var_t, child) (*unzip child type*)
     | EFix_R (var_n, var_t, child) -> EFix (var_n, var_t, unzip_ast child)
-    | EFix_L (var_n, var_t, child) -> EFix (var_n, Typ.unzip var_t, child) (*unzip child type*)
+    | EFix_L (var_n, var_t, child) -> EFix (var_n, Typ.unzip var_t, child)
+  (*unzip child type*)
+
   (* Each edge is represented as (index of start node, index of end node, edge type) *)
   let%test_module "Test Expr.unzip_ast" =
     (module struct
-      let%test _ = unzip_ast (Cursor(EHole)) = EHole
-      let%test _ = unzip_ast (EPair_L(Cursor(EInt 7),EBool false)) = EPair(EInt 7,EBool false)
+      let%test _ = unzip_ast (Cursor EHole) = EHole
+
+      let%test _ =
+        unzip_ast (EPair_L (Cursor (EInt 7), EBool false))
+        = EPair (EInt 7, EBool false)
     end)
+
   (* A list of variables and the node index of their declaration in the code *)
   type varlist = (Var.t * int) list
 
@@ -291,7 +296,7 @@ module Expr = struct
 
       let%test _ =
         from_list
-          [ 15; 38; 24; 1; 3; 37; 38; 36 ]
+          [ 15; 38; 25; 1; 3; 37; 38; 36 ]
           [
             (0, 1, 1);
             (0, 2, 2);
@@ -308,42 +313,6 @@ module Expr = struct
               THole,
               EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) )
     end)
-
-  (* let%test_module "Test Expr.to_list" =
-    (module struct
-      let check_id e =
-        let (nodes, edges), _ = to_list (select_root e) in
-        let changed_tree = from_list nodes edges 0 in
-        e = changed_tree
-      let%test _ =
-        check_id
-          (EFun
-             ( "x",
-               THole,
-               EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) ))
-
-      let%test _ =
-        check_id
-          (ELet
-             ( "x",
-               EFix
-                 ( "x",
-                   THole,
-                   EFun
-                     ( "y",
-                       TInt,
-                       EIf
-                         ( EBinOp (EVar "y", OpLt, EInt 1),
-                           EInt 1,
-                           EBinOp
-                             ( EVar "y",
-                               OpTimes,
-                               EBinOp
-                                 ( EVar "x",
-                                   OpAp,
-                                   EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
-               EBinOp (EVar "x", OpAp, EInt 2) ))
-    end) *)
 
   (* Change tree representation to string to better interpret graph *)
   let rec to_string (e : t) : string =
@@ -401,53 +370,63 @@ module Expr = struct
         then " " ^ x ^ resolve_fun e
         else " (" ^ x ^ " : " ^ Typ.to_string ty ^ ") " ^ resolve_fun e
     | _ -> " = " ^ to_string e ^ " "
-  end
-
+end
 
 (* had issues refactoring this into a seperate file *)
 module SyntaxTree = struct
-  type t = (* mixed type- zippers and non-zippers*)
-  | ENode of Expr.t 
-  | TNode  of Typ.t
+  type t =
+    (* mixed type- zippers and non-zippers*)
+    | ENode of Expr.t
+    | TNode of Typ.t
   [@@deriving sexp]
 
-  type z_t  = 
-  | ZENode of Expr.z_t 
-  | ZTNode of Typ.z_t
-  [@@deriving sexp]
+  type z_t = ZENode of Expr.z_t | ZTNode of Typ.z_t [@@deriving sexp]
 
-  let rec size (tree : t) : int = 
+  let rec size (tree : t) : int =
     match tree with
-    | ENode (EVar _  |EInt _ |EBool _ | EHole | ENil ) -> 1 
-    | ENode EUnOp (_,arg) -> size (ENode arg)+1
-    | ENode (EBinOp (argl, _,argr) 
-            | ELet (_,argl, argr )
-            | EPair (argl, argr))  -> size (ENode argl) + size (ENode argr) +1
-    | ENode EIf (argl, argc, argr) -> size (ENode argl) + size (ENode argc) + size (ENode argr) +1
-    | ENode (EFun (_,typ, arg) | EFix (_,typ, arg)) -> Typ.size typ + size (ENode arg) + 1 
+    | ENode (EVar _ | EInt _ | EBool _ | EHole | ENil) -> 1
+    | ENode (EUnOp (_, arg)) -> size (ENode arg) + 1
+    | ENode (EBinOp (argl, _, argr) | ELet (_, argl, argr) | EPair (argl, argr))
+      ->
+        size (ENode argl) + size (ENode argr) + 1
+    | ENode (EIf (argl, argc, argr)) ->
+        size (ENode argl) + size (ENode argc) + size (ENode argr) + 1
+    | ENode (EFun (_, typ, arg) | EFix (_, typ, arg)) ->
+        Typ.size typ + size (ENode arg) + 1
     | TNode type_tree -> Typ.size type_tree
-  
-  let rec zsize (tree: z_t) : int = 
-    match tree with 
+
+  let rec zsize (tree : z_t) : int =
+    match tree with
     | ZENode (Cursor cursed) -> size (ENode cursed)
-    | ZENode (EUnOp_L (_,argl) ) -> zsize (ZENode argl)+1
-    | ZENode  EBinOp_L (argl, _, argr) -> zsize (ZENode argl) +  size (ENode argr) +1
-    | ZENode  EBinOp_R (argl, _, argr) -> size (ENode argl) +  zsize (ZENode argr)+1
-    | ZENode  ELet_L (_,argl,argr )    -> zsize (ZENode argl) + size (ENode argr) +1
-    | ZENode  ELet_R (_,argl,argr )    -> size (ENode argl) + zsize (ZENode argr) +1
-    | ZENode  EIf_L (argl, argc,argr) -> zsize (ZENode argl)+ size (ENode argc) + size (ENode argr)+1
-    | ZENode  EIf_C (argl, argc,argr) -> size (ENode argl) + zsize (ZENode argc) + size (ENode argr)+1
-    | ZENode  EIf_R (argl, argc,argr) -> size (ENode argl) + size (ENode argc) +  zsize (ZENode argr)+1
-    | ZENode  EFun_L (_, typ, argr) -> size (ENode argr) + size (ENode argr) +1
-    | ZENode  EFun_R (_, typ, argr) -> size (TNode typ) +  zsize (ZENode argr) +1
-    | ZENode  EFix_L (_, typ, argr) -> zsize (ZTNode typ) + size (ENode argr) +1
-    | ZENode  EFix_R (_, typ, argr) -> size (TNode typ) +  zsize (ZENode argr) +1
-    | ZENode  EPair_L (argl, argr)  -> zsize (ZENode argl) +size (ENode argr)+1
-    | ZENode  EPair_R (argl, argr)  -> size (ENode argl) + zsize (ZENode argr)+1
+    | ZENode (EUnOp_L (_, argl)) -> zsize (ZENode argl) + 1
+    | ZENode (EBinOp_L (argl, _, argr)) ->
+        zsize (ZENode argl) + size (ENode argr) + 1
+    | ZENode (EBinOp_R (argl, _, argr)) ->
+        size (ENode argl) + zsize (ZENode argr) + 1
+    | ZENode (ELet_L (_, argl, argr)) ->
+        zsize (ZENode argl) + size (ENode argr) + 1
+    | ZENode (ELet_R (_, argl, argr)) ->
+        size (ENode argl) + zsize (ZENode argr) + 1
+    | ZENode (EIf_L (argl, argc, argr)) ->
+        zsize (ZENode argl) + size (ENode argc) + size (ENode argr) + 1
+    | ZENode (EIf_C (argl, argc, argr)) ->
+        size (ENode argl) + zsize (ZENode argc) + size (ENode argr) + 1
+    | ZENode (EIf_R (argl, argc, argr)) ->
+        size (ENode argl) + size (ENode argc) + zsize (ZENode argr) + 1
+    | ZENode (EFun_L (_, typ, argr)) ->
+        size (ENode argr) + size (ENode argr) + 1
+    | ZENode (EFun_R (_, typ, argr)) ->
+        size (TNode typ) + zsize (ZENode argr) + 1
+    | ZENode (EFix_L (_, typ, argr)) ->
+        zsize (ZTNode typ) + size (ENode argr) + 1
+    | ZENode (EFix_R (_, typ, argr)) ->
+        size (TNode typ) + zsize (ZENode argr) + 1
+    | ZENode (EPair_L (argl, argr)) ->
+        zsize (ZENode argl) + size (ENode argr) + 1
+    | ZENode (EPair_R (argl, argr)) ->
+        size (ENode argl) + zsize (ZENode argr) + 1
     | ZTNode type_tree -> Typ.size (Typ.unzip type_tree)
 end
-
-
 
 module CursorInfo = struct
   type t = {
@@ -457,8 +436,8 @@ module CursorInfo = struct
     parent_term : SyntaxTree.t option;
     (* parent of current term (use to decide whether we can go up)  *)
     ctx : (Var.t * int) list;
-    (* variable types*)
-    typ_ctx : (Var.t * Typ.t) list; 
+    (* variable types *)
+    typ_ctx : (Var.t * Typ.t) list;
     (*mapping of vars in scope to types (use to determine vars in scope)    *)
     expected_ty : Typ.t option;
     (* analyzed type of cursor_term; build up through recursion (use with ctx to determine viable insert actions) *)
@@ -466,9 +445,7 @@ module CursorInfo = struct
         (* result of calling Syn on current_term (use to determine wrapping viability)  *)
   }
   [@@deriving sexp]
-
 end
-
 
 module Action = struct
   type shape =
@@ -485,23 +462,21 @@ module Action = struct
     | If_L
     | If_C
     | If_R
-    | Fun of Var.t 
-    | Fix of Var.t 
+    | Fun of Var.t
+    | Fix of Var.t
     | Pair_L
     | Pair_R
-    
-    | TypInt 
-    | TypBool 
-    | TypArrow_L 
+    | TypInt
+    | TypBool
+    | TypArrow_L
     | TypArrow_R
-    | TypList  (*beacause there's only one child no need for option*)
-    | TypHole 
-    | TypProd
-    [@@deriving sexp]
-
-
-  type dir = Parent | Child of int
+    | TypList (*beacause there's only one child no need for option*)
+    | TypHole
+    | TypProd_L
+    | TypProd_R
   [@@deriving sexp]
+
+  type dir = Parent | Child of int [@@deriving sexp]
 
   (* write a numbered action to inser all of <- *)
   (* Have some sort of default value analog for type t *)
@@ -513,7 +488,7 @@ module Action = struct
       (* | Finish                  Action Number: 1 *)*)
     | Move of dir (* Action Number: 2-5 *)
     | Construct of shape
-    [@@deriving sexp]
+  [@@deriving sexp]
   (* Action Number: 6- (36 ish) *)
 
   (*  Contains short-form avaliable actions*)
@@ -524,150 +499,140 @@ module Action = struct
 
   let tag_to_action (action : int) : t =
     match action with
-      | 0 -> Move Parent
-      | 1 -> Move (Child 1)
-      | 2 -> Move (Child 2)
-      | 3 -> Move (Child 3)
-      | 10 -> Construct (Var "x")
-      | 11 -> Construct (Var "y")
-      | 12 -> Construct (Var "z")
-      | 13 -> Construct (Hole)
-      | 14 -> Construct (Nil)
-      | 15 -> Construct (Int (-2))
-      | 16 -> Construct (Int (-1))
-      | 17 -> Construct (Int 0)
-      | 18 -> Construct (Int 1)
-      | 19 -> Construct (Int 2)
-      | 20 -> Construct (Bool true)
-      | 21 -> Construct (Bool false)
-      | 22 -> Construct (UnOp OpNeg)
-      | 23 -> Construct (BinOp_L OpPlus)
-      | 23 -> Construct (BinOp_L OpMinus)
-      | 23 -> Construct (BinOp_L OpTimes)
-      | 23 -> Construct (BinOp_L OpDiv)
-      | 23 -> Construct (BinOp_L OpLt)
-      | 23 -> Construct (BinOp_L OpLe)
-      | 23 -> Construct (BinOp_L OpGt)
-      | 23 -> Construct (BinOp_L OpGe)
-      | 23 -> Construct (BinOp_L OpEq)
-      | 23 -> Construct (BinOp_L OpNe)
-      | 23 -> Construct (BinOp_L OpAp)
-      | 23 -> Construct (BinOp_L OpCon)
-      | 23 -> Construct (BinOp_R OpPlus)
-      | 23 -> Construct (BinOp_R OpMinus)
-      | 23 -> Construct (BinOp_R OpTimes)
-      | 23 -> Construct (BinOp_R OpDiv)
-      | 23 -> Construct (BinOp_R OpLt)
-      | 23 -> Construct (BinOp_R OpLe)
-      | 23 -> Construct (BinOp_R OpGt)
-      | 23 -> Construct (BinOp_R OpGe)
-      | 23 -> Construct (BinOp_R OpEq)
-      | 23 -> Construct (BinOp_R OpNe)
-      | 23 -> Construct (BinOp_R OpAp)
-      | 23 -> Construct (BinOp_R OpCon)
-      | 23 -> Construct (Let_L "x")
-      | 23 -> Construct (Let_L "y")
-      | 23 -> Construct (Let_L "z")
-      | 23 -> Construct (Let_R "x")
-      | 23 -> Construct (Let_R "y")
-      | 23 -> Construct (Let_R "z")
-      | 23 -> Construct (If_L)
-      | 23 -> Construct (If_C)
-      | 23 -> Construct (If_R)
-
-      (* TODO: Cannot enumerate all action types *)
-
-      | 23 -> Construct (Pair_L)
-      | 23 -> Construct (Pair_R)
-      | 23 -> Construct (TypInt)
-      | 23 -> Construct (TypBool)
-      | 23 -> Construct (TypArrow_L)
-      | 23 -> Construct (TypArrow_R)
-
-      (* TODO: No products? *)
-      | 23 -> Construct (TypList)
-      | 23 -> Construct (TypHole)
-      | _ -> raise (Failure "Not supported.")
+    | 0 -> Move Parent
+    | 1 -> Move (Child 0)
+    | 2 -> Move (Child 1)
+    | 3 -> Move (Child 2)
+    | 10 -> Construct (Var "x")
+    | 11 -> Construct (Var "y")
+    | 12 -> Construct (Var "z")
+    | 13 -> Construct Hole
+    | 14 -> Construct Nil
+    | 15 -> Construct (Int (-2))
+    | 16 -> Construct (Int (-1))
+    | 17 -> Construct (Int 0)
+    | 18 -> Construct (Int 1)
+    | 19 -> Construct (Int 2)
+    | 20 -> Construct (Bool true)
+    | 21 -> Construct (Bool false)
+    | 22 -> Construct (UnOp OpNeg)
+    | 23 -> Construct (BinOp_L OpPlus)
+    | 24 -> Construct (BinOp_L OpMinus)
+    | 25 -> Construct (BinOp_L OpTimes)
+    | 26 -> Construct (BinOp_L OpDiv)
+    | 27 -> Construct (BinOp_L OpLt)
+    | 28 -> Construct (BinOp_L OpLe)
+    | 29 -> Construct (BinOp_L OpGt)
+    | 30 -> Construct (BinOp_L OpGe)
+    | 31 -> Construct (BinOp_L OpEq)
+    | 32 -> Construct (BinOp_L OpNe)
+    | 33 -> Construct (BinOp_L OpAp)
+    | 34 -> Construct (BinOp_L OpCon)
+    | 35 -> Construct (BinOp_R OpPlus)
+    | 36 -> Construct (BinOp_R OpMinus)
+    | 37 -> Construct (BinOp_R OpTimes)
+    | 38 -> Construct (BinOp_R OpDiv)
+    | 39 -> Construct (BinOp_R OpLt)
+    | 40 -> Construct (BinOp_R OpLe)
+    | 41 -> Construct (BinOp_R OpGt)
+    | 42 -> Construct (BinOp_R OpGe)
+    | 43 -> Construct (BinOp_R OpEq)
+    | 44 -> Construct (BinOp_R OpNe)
+    | 45 -> Construct (BinOp_R OpAp)
+    | 46 -> Construct (BinOp_R OpCon)
+    | 47 -> Construct (Let_L Var.undef_var)
+    | 50 -> Construct (Let_R Var.undef_var)
+    | 53 -> Construct If_L
+    | 54 -> Construct If_C
+    | 55 -> Construct If_R
+    | 56 -> Construct (Fun Var.undef_var)
+    | 59 -> Construct (Fix Var.undef_var)
+    | 62 -> Construct Pair_L
+    | 63 -> Construct Pair_R
+    | 64 -> Construct TypInt
+    | 65 -> Construct TypBool
+    | 66 -> Construct TypArrow_L
+    | 67 -> Construct TypArrow_R
+    | 68 -> Construct TypProd_L
+    | 69 -> Construct TypProd_R
+    | 70 -> Construct TypList
+    | 71 -> Construct TypHole
+    | _ -> raise (Failure "Not supported.")
 
   (* TODO: Change number after finalize *)
   let action_to_tag (action : t) : int =
     match action with
-      | Move Parent -> 0
-      | Move (Child 1) -> 1
-      | Move (Child 2) -> 2
-      | Move (Child 3) -> 2
-      | Construct (Var "x") -> 2
-      | Construct (Var "y") -> 2
-      | Construct (Var "z") -> 2
-      | Construct (Hole) -> 2
-      | Construct (Nil) -> 2
-      | Construct (Int (-2)) -> 2
-      | Construct (Int (-1)) -> 2
-      | Construct (Int 0) -> 2
-      | Construct (Int 1) -> 2
-      | Construct (Int 2) -> 2
-      | Construct (Bool true) -> 2
-      | Construct (Bool false) -> 2
-      | Construct (UnOp OpNeg) -> 2
-      | Construct (BinOp_L OpPlus) -> 2
-      | Construct (BinOp_L OpMinus) -> 2
-      | Construct (BinOp_L OpTimes) -> 2
-      | Construct (BinOp_L OpDiv) -> 2
-      | Construct (BinOp_L OpLt) -> 2
-      | Construct (BinOp_L OpLe) -> 2
-      | Construct (BinOp_L OpGt) -> 2
-      | Construct (BinOp_L OpGe) -> 2
-      | Construct (BinOp_L OpEq) -> 2
-      | Construct (BinOp_L OpNe) -> 2
-      | Construct (BinOp_L OpAp) -> 2
-      | Construct (BinOp_L OpCon) -> 2
-      | Construct (BinOp_R OpPlus) -> 2
-      | Construct (BinOp_R OpMinus) -> 2
-      | Construct (BinOp_R OpTimes) -> 2
-      | Construct (BinOp_R OpDiv) -> 2
-      | Construct (BinOp_R OpLt) -> 2
-      | Construct (BinOp_R OpLe) -> 2
-      | Construct (BinOp_R OpGt) -> 2
-      | Construct (BinOp_R OpGe) -> 2
-      | Construct (BinOp_R OpEq) -> 2
-      | Construct (BinOp_R OpNe) -> 2
-      | Construct (BinOp_R OpAp) -> 2
-      | Construct (BinOp_R OpCon) -> 2
-      | Construct (Let_L "x") -> 2
-      | Construct (Let_L "y") -> 2
-      | Construct (Let_L "z") -> 2
-      | Construct (Let_R "x") -> 2
-      | Construct (Let_R "y") -> 2
-      | Construct (Let_R "z") -> 2
-      | Construct (If_L) -> 2
-      | Construct (If_C) -> 2
-      | Construct (If_R) -> 2
-      
-      (* TODO: Cannot enumerate all action types *)
+    | Move Parent -> 0
+    | Move (Child 0) -> 1
+    | Move (Child 1) -> 2
+    | Move (Child 2) -> 3
+    | Construct (Var "x") -> 10
+    | Construct (Var "y") -> 11
+    | Construct (Var "z") -> 12
+    | Construct Hole -> 13
+    | Construct Nil -> 14
+    | Construct (Int -2) -> 15
+    | Construct (Int -1) -> 16
+    | Construct (Int 0) -> 17
+    | Construct (Int 1) -> 18
+    | Construct (Int 2) -> 19
+    | Construct (Bool true) -> 20
+    | Construct (Bool false) -> 21
+    | Construct (UnOp OpNeg) -> 22
+    | Construct (BinOp_L OpPlus) -> 23
+    | Construct (BinOp_L OpMinus) -> 24
+    | Construct (BinOp_L OpTimes) -> 25
+    | Construct (BinOp_L OpDiv) -> 26
+    | Construct (BinOp_L OpLt) -> 27
+    | Construct (BinOp_L OpLe) -> 28
+    | Construct (BinOp_L OpGt) -> 29
+    | Construct (BinOp_L OpGe) -> 30
+    | Construct (BinOp_L OpEq) -> 31
+    | Construct (BinOp_L OpNe) -> 32
+    | Construct (BinOp_L OpAp) -> 33
+    | Construct (BinOp_L OpCon) -> 34
+    | Construct (BinOp_R OpPlus) -> 35
+    | Construct (BinOp_R OpMinus) -> 36
+    | Construct (BinOp_R OpTimes) -> 37
+    | Construct (BinOp_R OpDiv) -> 38
+    | Construct (BinOp_R OpLt) -> 39
+    | Construct (BinOp_R OpLe) -> 40
+    | Construct (BinOp_R OpGt) -> 41
+    | Construct (BinOp_R OpGe) -> 42
+    | Construct (BinOp_R OpEq) -> 43
+    | Construct (BinOp_R OpNe) -> 44
+    | Construct (BinOp_R OpAp) -> 45
+    | Construct (BinOp_R OpCon) -> 46
+    | Construct (Let_L "") -> 47
+    | Construct (Let_R "") -> 50
+    | Construct If_L -> 53
+    | Construct If_C -> 54
+    | Construct If_R -> 55
+    | Construct (Fun "") -> 56
+    | Construct (Fix "") -> 59
+    | Construct Pair_L -> 62
+    | Construct Pair_R -> 63
+    | Construct TypInt -> 64
+    | Construct TypBool -> 65
+    | Construct TypArrow_L -> 66
+    | Construct TypArrow_R -> 67
+    | Construct TypProd_L -> 68
+    | Construct TypProd_R -> 69
+    | Construct TypList -> 70
+    | Construct TypHole -> 71
+    | _ -> raise (Failure "Not supported.")
 
-      | Construct (Pair_L) -> 2
-      | Construct (Pair_R) -> 2
-      | Construct (TypInt) -> 2
-      | Construct (TypBool) -> 2
-      | Construct (TypArrow_L) -> 2
-      | Construct (TypArrow_R) -> 2
-
-      (* TODO: No products? *)
-      | Construct (TypList) -> 2
-      | Construct (TypHole) -> 2
-      | _ -> raise (Failure "Not supported.")
-
-  let to_list (action_list : t list) : bool list = 
+  let to_list (action_list : t list) : bool list =
     let action_list = List.map action_to_tag action_list in
     let action_list = List.sort compare action_list in
-    let bool_list = Array.make 40 false in (* TODO: Change max num of actions *)
-    let to_bool (action_list : int list) (bool_list : bool Array.t) = 
+    let bool_list = Array.make 71 false in
+    (* TODO: Change max num of actions *)
+    let rec to_bool (action_list : int list) (bool_list : bool Array.t) =
       match action_list with
       | [] -> bool_list
-      | hd :: tl -> bool_list.(hd) <- true; bool_list
+      | hd :: tl ->
+          bool_list.(hd) <- true;
+          to_bool tl bool_list
     in
     Array.to_list (to_bool action_list bool_list)
 end
-
-
-
