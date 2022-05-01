@@ -695,9 +695,9 @@ in
     : Action.t list = 
       match info.expected_ty, info.actual_ty with
       | Some TArrow (a,b), Some c -> 
-        if Typ.equal b c then Construct (Fix ("",THole)) :: currlist 
+        if Typ.equal b c then Construct (Fix ("")) :: currlist 
         else currlist 
-      | None, _ ->  Construct (Fix ("",THole)) :: currlist 
+      | None, _ ->  Construct (Fix ("")) :: currlist 
       | _ -> currlist 
     in 
     let handle_pair
