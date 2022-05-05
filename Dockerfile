@@ -13,7 +13,8 @@ ENV PYTHONFAULTHANDLER 1
 ENV PYTHONBREAKPOINT=ipdb.set_trace
 
 # common dependencies
-RUN apt-get update -q \
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub \
+  && apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
   apt-get install -yq \
   # git-state
@@ -22,11 +23,10 @@ RUN apt-get update -q \
   python3.8 \
   # redis-python
   redis \
+  cmake \
   && apt-get clean
 
 FROM base AS deps
-# TODO: This is probably where most of the logic from your current Dockerfile goes
-# build dependencies
 RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
   apt-get install -yq python3-pip \
@@ -44,7 +44,6 @@ RUN apt-get update -q \
   apt-get install -yq \
   opam \
   gcc \
-  cmake \
   && apt-get clean
 COPY opam.export .
 RUN opam init --yes --disable-sandboxing \

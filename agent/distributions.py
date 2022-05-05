@@ -73,7 +73,29 @@ class Categorical(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         return FixedCategorical(logits=x)
+    
 
+class CategoricalAction(nn.Module):
+    def __init__(self, num_inputs, num_outputs, zero : int = 1e-5) -> None:
+        super(CategoricalAction, self).__init__()
+        
+        init_ = lambda m: init(
+            m,
+            nn.init.orthogonal_,
+            lambda x: nn.init.constant_(x, 0),
+            gain=0.01,
+        )
+        self.linear = init_(nn.Linear(num_inputs, num_outputs))
+        
+        self.zero = zero
+        
+    def forward(self, x, permitted_actions):
+        x = self.linear(x)
+        for i in range(len(permitted_actions)):
+            if (permitted_actions[i] == 0):
+                x[i] = self.zero
+        return FixedCategorical(logits=x)
+        
 
 class DiagGaussian(nn.Module):
     def __init__(self, num_inputs, num_outputs):

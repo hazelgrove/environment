@@ -13,26 +13,14 @@ max_num_vars = 10
 
 
 class State(ctypes.Structure):
-    _fields_ = [
-        ("edges", (ctypes.c_int * (max_num_nodes**2)) * 3),
-        ("tests", (ctypes.c_int * max_num_tests) * 2),
-        ("nodes", ctypes.c_int * max_num_nodes),
-        ("permitted_actions", ctypes.c_int * num_actions),
-        ("vars_in_scope", ctypes.c_int * max_num_vars),
-        ("zast", ctypes.c_char * max_tree_length),
-        ("cursor", ctypes.c_int),
-        ("num_nodes", ctypes.c_int),
-        ("num_edges", ctypes.c_int),
-        ("num_tests", ctypes.c_int),
-        ("assignment", ctypes.c_int),
-        ("code", ctypes.c_int),
-    ]
+    pass
 
 
 class ASTEnv(gym.Env):
     def __init__(
         self,
         max_num_nodes: int,
+        num_node_descriptor: int,
         num_assignments: int,
         code_per_assignment: List[int],
         num_actions: int,
@@ -57,15 +45,17 @@ class ASTEnv(gym.Env):
             ("code", ctypes.c_int),
         ]
 
-        # Set observation space
-        num_node_descriptor = 10  # TODO: Specify this number
-        node_nvec = num_node_descriptor * np.ones(max_num_nodes)
-        edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 2))
+        # Set action and observation space
+        self.node_nvec = num_node_descriptor * np.ones(max_num_nodes)
+        self.edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 2))
+        self.num_actions = num_actions
+        self.max_num_vars = max_num_vars
+        
         self.action_space = gym.spaces.Discrete(num_actions)
         self.observation_space = gym.spaces.Dict(
             {
-                "nodes": gym.spaces.MultiDiscrete(node_nvec),
-                "edges": gym.spaces.MultiDiscrete(edge_nvec),
+                "nodes": gym.spaces.MultiDiscrete(self.node_nvec),
+                "edges": gym.spaces.MultiDiscrete(self.edge_nvec),
                 "permitted_actions": gym.spaces.MultiBinary(num_actions),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(max_num_nodes),
@@ -113,6 +103,7 @@ class ASTEnv(gym.Env):
     def render(self):
         print("Current state:")
         self.astclib.print_curr_state(ctypes.byref(self.state))
+        print(self.get_state()["edges"])
 
     def close(self):
         self.astclib.close_c()

@@ -1,4 +1,6 @@
 import os
+from typing import List
+from envs.wrapper import ObsWrapper
 
 import gym
 import numpy as np
@@ -19,53 +21,34 @@ from stable_baselines3.common.vec_env.vec_normalize import VecNormalize as VecNo
 
 from envs.ast_env import ASTEnv
 
-
-def make_env(env_id, seed, rank, log_dir, allow_early_resets):
+def make_env(
+    max_num_nodes: int,
+    num_node_descriptor: int,
+    num_assignments: int,
+    code_per_assignment: List[int],
+    num_actions: int,
+    device,
+    max_num_tests: int = 10,
+    max_tree_length: int = 10000,
+    max_num_vars: int = 10,
+):
     def _thunk():
-        env = gym.make(env_id)
-
-        is_atari = hasattr(gym.envs, "atari") and isinstance(
-            env.unwrapped, gym.envs.atari.AtariEnv
+        env = ASTEnv(
+            max_num_nodes,
+            num_node_descriptor,
+            num_assignments,
+            code_per_assignment,
+            num_actions,
+            max_num_tests,
+            max_tree_length,
+            max_num_vars,
         )
-        if is_atari:
-            env = NoopResetEnv(env, noop_max=30)
-            env = MaxAndSkipEnv(env, skip=4)
-
-        env.seed(seed + rank)
-
-        if str(env.__class__.__name__).find("TimeLimit") >= 0:
-            env = TimeLimitMask(env)
-
-        if log_dir is not None:
-            env = Monitor(
-                env,
-                os.path.join(log_dir, str(rank)),
-                allow_early_resets=allow_early_resets,
-            )
-
-        if is_atari:
-            if len(env.observation_space.shape) == 3:
-                env = EpisodicLifeEnv(env)
-                if "FIRE" in env.unwrapped.get_action_meanings():
-                    env = FireResetEnv(env)
-                env = WarpFrame(env, width=84, height=84)
-                env = ClipRewardEnv(env)
-        elif len(env.observation_space.shape) == 3:
-            raise NotImplementedError(
-                "CNN models work only for atari,\n"
-                "please use a custom wrapper for a custom pixel input env.\n"
-                "See wrap_deepmind for an example."
-            )
-
-        # If the input has shape (W,H,3), wrap for PyTorch convolutions
-        obs_shape = env.observation_space.shape
-        if len(obs_shape) == 3 and obs_shape[2] in [1, 3]:
-            env = TransposeImage(env, op=[2, 0, 1])
+        
+        env = ObsWrapper(env, device)
 
         return env
 
     return _thunk
-
 
 def make_vec_envs(
     env_name,
@@ -103,65 +86,11 @@ def make_vec_envs(
     return envs
 
 
-# Checks whether done was caused my timit limits or not
-class TimeLimitMask(gym.Wrapper):
-    def step(self, action):
-        obs, rew, done, info = self.env.step(action)
-        if done and self.env._max_episode_steps == self.env._elapsed_steps:
-            info["bad_transition"] = True
-
-        return obs, rew, done, info
-
-    def reset(self, **kwargs):
-        return self.env.reset(**kwargs)
-
-
-# Can be used to test recurrent policies for Reacher-v2
-class MaskGoal(gym.ObservationWrapper):
-    def observation(self, observation):
-        if self.env._elapsed_steps > 0:
-            observation[-2:] = 0
-        return observation
-
-
-class TransposeObs(gym.ObservationWrapper):
-    def __init__(self, env=None):
-        """
-        Transpose observation space (base class)
-        """
-        super(TransposeObs, self).__init__(env)
-
-
-class TransposeImage(TransposeObs):
-    def __init__(self, env=None, op=[2, 0, 1]):
-        """
-        Transpose observation space for images
-        """
-        super(TransposeImage, self).__init__(env)
-        assert len(op) == 3, "Error: Operation, " + str(op) + ", must be dim3"
-        self.op = op
-        obs_shape = self.observation_space.shape
-        self.observation_space = Box(
-            self.observation_space.low[0, 0, 0],
-            self.observation_space.high[0, 0, 0],
-            [
-                obs_shape[self.op[0]],
-                obs_shape[self.op[1]],
-                obs_shape[self.op[2]],
-            ],
-            dtype=self.observation_space.dtype,
-        )
-
-    def observation(self, ob):
-        return ob.transpose(self.op[0], self.op[1], self.op[2])
-
-
 class VecPyTorch(VecEnvWrapper):
     def __init__(self, venv, device):
         """Return only every `skip`-th frame"""
         super(VecPyTorch, self).__init__(venv)
         self.device = device
-        # TODO: Fix data types
 
     def reset(self):
         obs = self.venv.reset()

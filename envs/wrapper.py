@@ -33,5 +33,21 @@ class ObsWrapper(gym.ObservationWrapper):
 
         return x
 
-    def unwrap(x):
-        pass
+    def unwrap(self, x):
+        vecs = torch.split(x, [
+            self.env.node_nvec,
+            self.env.edge_nvec,
+            self.env.num_actions,
+            1,
+            self.env.max_num_vars,
+            1,
+        ])
+        
+        return {
+            "nodes": vecs[0],
+            "edges": vecs[1],
+            "permitted_actions": vecs[2],
+            "cursor_position": vecs[3][0],
+            "vars_in_scope": vecs[4],
+            "assignment": vecs[5]
+        }

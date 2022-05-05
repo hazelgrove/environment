@@ -47,24 +47,21 @@ def main():
     actor_critic = Policy(
         envs.observation_space.shape,
         envs.action_space,
-        base_kwargs={"recurrent": args.recurrent_policy},
+        base_kwargs={},
     )
     actor_critic.to(device)
 
-    if args.algo == "ppo":
-        agent = algo.PPO(
-            actor_critic,
-            args.clip_param,
-            args.ppo_epoch,
-            args.num_mini_batch,
-            args.value_loss_coef,
-            args.entropy_coef,
-            lr=args.lr,
-            eps=args.eps,
-            max_grad_norm=args.max_grad_norm,
-        )
-    else:
-        raise NotImplementedError
+    agent = algo.PPO(
+        actor_critic,
+        args.clip_param,
+        args.ppo_epoch,
+        args.num_mini_batch,
+        args.value_loss_coef,
+        args.entropy_coef,
+        lr=args.lr,
+        eps=args.eps,
+        max_grad_norm=args.max_grad_norm,
+    )
 
     rollouts = RolloutStorage(
         args.num_steps,

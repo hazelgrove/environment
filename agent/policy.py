@@ -1,10 +1,11 @@
+from typing import List
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric.nn as gnn
 
-from agent.distributions import Bernoulli, Categorical, DiagGaussian
+from agent.distributions import CategoricalAction
 from agent.utils import init
 
 
@@ -15,102 +16,108 @@ class Flatten(nn.Module):
 
 # Our NN model
 class GNNBase(nn.Module):
-    def __init__(self):
+    def __init__(
+        self,
+        gnn_layer_size: List[int] = [1035, 128, 64, 32],
+        heads: List[int] = [8, 8, 16, 1],
+        in_edge_channels: int = 10,
+        linear_hidden_size: int = 512,
+    ):
         super(GNNBase, self).__init__()
-        self.hid_1 = 128
-        self.in_head = 8
-        self.hid_2 = 64
-        self.hid_head = 8
-        self.out = 32
-        self.out_head = 1
-        self.in_edge_channels = 10
-
-        self.conv1 = gnn.GeneralConv(
-            1035,
-            self.hid_1,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=self.in_head,
+        
+        self.gnn_layer_size = gnn_layer_size
+        self.heads = heads
+        self.in_edge_channels = in_edge_channels
+        self.linear_hidden_size = linear_hidden_size
+        
+        self.main = gnn.Sequential('x, edge_index, edge_feature', [
+            (gnn.GeneralConv(
+                self.hidden_layer_size[0], 
+                self.hidden_layer_size[1],
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[0],
+            ), 'x, edge_index, edge_feature -> x'),
+            nn.ELU(),
+            nn.Dropout(p=0.4),
+            (gnn.GeneralConv(
+                self.hidden_layer_size[1], 
+                self.hidden_layer_size[2],
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[1],
+            ), 'x, edge_index, edge_feature -> x'),
+            nn.ELU(),
+            nn.Dropout(p=0.4),
+            (gnn.GeneralConv(
+                self.hidden_layer_size[2], 
+                self.hidden_layer_size[3],
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[2],
+            ), 'x, edge_index, edge_feature -> x'),
+            nn.ELU(),
+            (gnn.GeneralConv(
+                self.hidden_layer_size[3],
+                self.hidden_layer_size[4],
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[3],
+            ), 'x, edge_index -> x')
+        ])
+        
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
-        self.conv2 = gnn.GeneralConv(
-            self.hid_1,
-            self.hid_2,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=self.hid_head,
-        )
-        self.conv3 = gnn.GeneralConv(
-            self.hid_2,
-            self.out,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=16,
-        )
-        self.extra_conv = gnn.GeneralConv(
-            self.out,
-            2,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=1,
-        )
+        self.critic_linear = init_(nn.Linear(self.linear_hidden_size, 1))
+        
+        self.train()
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
         x = x.float()
-        # print(x.size())
-        x = self.conv1(x, edge_index, edge_feature=edge_attr)
-        # print(x.size())
-        x = F.elu(x)
-        # print(x.size())
-        x = F.dropout(x, p=0.4, training=self.training)
-        x = self.conv2(x, edge_index, edge_feature=edge_attr)
-        x = F.elu(x)
-        x = F.dropout(x, p=0.4, training=self.training)
-        x = self.conv3(x, edge_index, edge_feature=edge_attr)
-        x = F.elu(x)
-
-        z = self.extra_conv(x, edge_index)
-        return z
+        
+        x = self.main(x, edge_index, edge_attr)
+        
+        return self.critic_linear(x), x
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=GNNBase, base_kwargs=None):
+    def __init__(self, action_space, base=None, base_kwargs=None):
         super(Policy, self).__init__()
+        
         if base_kwargs is None:
             base_kwargs = {}
-
-        self.base = base(obs_shape[0], **base_kwargs)
-
-        if action_space.__class__.__name__ == "Discrete":
-            num_outputs = action_space.n
-            self.dist = Categorical(self.base.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "Box":
-            num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "MultiBinary":
-            num_outputs = action_space.shape[0]
-            self.dist = Bernoulli(self.base.output_size, num_outputs)
-        else:
-            raise NotImplementedError
+        if base is None:
+            base = GNNBase
+        
+        self.base = base(**base_kwargs)
+        
+        num_outputs = action_space.n
+        self.dist = CategoricalAction(self.base.hidden_layer_size[-1], num_outputs)
 
     @property
     def is_recurrent(self):
-        return self.base.is_recurrent
+        return False
 
     @property
     def recurrent_hidden_state_size(self):
-        """Size of rnn_hx."""
-        return self.base.recurrent_hidden_state_size
+        return 1
 
     def forward(self, inputs, rnn_hxs, masks):
         raise NotImplementedError
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
+        #TODO: unwrap inputs
+        unwrapped_input = {}
+        
+        data = gnn.data.Data(
+            x=unwrapped_input["nodes"],
+            edge_index=unwrapped_input["edges"],
+            edge_attr=unwrapped_input["edge-type"]
+        )
+        
+        value, actor_features = self.base(data)
         dist = self.dist(actor_features)
 
         if deterministic:

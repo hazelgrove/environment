@@ -4,6 +4,7 @@ from envs.ast_env import ASTEnv
 def main():
     env = ASTEnv(
         max_num_nodes=20,
+        num_node_descriptor=50,
         num_assignments=1,
         code_per_assignment=[1],
         num_actions=80,
