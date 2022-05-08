@@ -22,6 +22,8 @@ class GNNBase(nn.Module):
         heads: List[int] = [8, 8, 16, 1],
         in_edge_channels: int = 10,
         linear_hidden_size: int = 512,
+        num_node_descriptor: int = 50,
+        embedding_dim: int = 30
     ):
         super(GNNBase, self).__init__()
         
@@ -66,6 +68,9 @@ class GNNBase(nn.Module):
             ), 'x, edge_index -> x')
         ])
         
+        # TODO: Set embedding size
+        self.node_embedding = nn.Embedding(num_node_descriptor, embedding_dim)
+        
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
@@ -74,8 +79,11 @@ class GNNBase(nn.Module):
         self.train()
 
     def forward(self, data):
+        #TODO: where to add in cursor & assignment index
+        
         x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
         x = x.float()
+        x = self.node_embedding(x)
         
         x = self.main(x, edge_index, edge_attr)
         

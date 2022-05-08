@@ -46,6 +46,7 @@ class ASTEnv(gym.Env):
         ]
 
         # Set action and observation space
+        self.num_node_descriptor = num_node_descriptor
         self.node_nvec = num_node_descriptor * np.ones(max_num_nodes)
         self.edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 2))
         self.num_actions = num_actions
