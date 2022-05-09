@@ -47,16 +47,18 @@ class ASTEnv(gym.Env):
 
         # Set action and observation space
         self.num_node_descriptor = num_node_descriptor
-        self.node_nvec = num_node_descriptor * np.ones(max_num_nodes)
-        self.edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 2))
+        self.max_num_nodes = max_num_nodes
         self.num_actions = num_actions
         self.max_num_vars = max_num_vars
+        
+        node_nvec = num_node_descriptor * np.ones(max_num_nodes)
+        edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 3))
         
         self.action_space = gym.spaces.Discrete(num_actions)
         self.observation_space = gym.spaces.Dict(
             {
-                "nodes": gym.spaces.MultiDiscrete(self.node_nvec),
-                "edges": gym.spaces.MultiDiscrete(self.edge_nvec),
+                "nodes": gym.spaces.MultiDiscrete(node_nvec),
+                "edges": gym.spaces.MultiDiscrete(edge_nvec),
                 "permitted_actions": gym.spaces.MultiBinary(num_actions),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(max_num_nodes),
@@ -119,4 +121,5 @@ class ASTEnv(gym.Env):
             "assignment": self.state.assignment,
             "cursor": self.state.cursor,
             "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
+            "vars_in_scope": np.ctypeslib.as_array(self.state.vars_in_scope),
         }
