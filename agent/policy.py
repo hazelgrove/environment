@@ -23,7 +23,7 @@ class GNNBase(nn.Module):
         in_edge_channels: int = 10,
         linear_hidden_size: int = 512,
         num_node_descriptor: int = 50,
-        embedding_dim: int = 30
+        embedding_dim: int = 512,
     ):
         super(GNNBase, self).__init__()
         
@@ -79,10 +79,14 @@ class GNNBase(nn.Module):
         self.train()
 
     def forward(self, data):
-        #TODO: where to add in cursor & assignment index
+        #TODO: Add / Concatenate assignment index to node/edge embedding.
+        #TODO: only want info on cursor node
+        #TODO: embedding for edge types
         
-        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
-        x = x.float()
+        #TODO: edge_index to long
+        
+        x, edge_index, edge_attr = data["nodes"].reshape((-1, 1)), data["edges"], data["edge-type"].reshape((-1, 1))
+        x = x.long()
         x = self.node_embedding(x)
         
         x = self.main(x, edge_index, edge_attr)
@@ -92,6 +96,8 @@ class GNNBase(nn.Module):
 
 class Policy(nn.Module):
     def __init__(self, action_space, base=None, base_kwargs=None):
+        # TODO: Add env here
+        
         super(Policy, self).__init__()
         
         if base_kwargs is None:
@@ -116,16 +122,8 @@ class Policy(nn.Module):
         raise NotImplementedError
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        #TODO: unwrap inputs
-        unwrapped_input = {}
-        
-        data = gnn.data.Data(
-            x=unwrapped_input["nodes"],
-            edge_index=unwrapped_input["edges"],
-            edge_attr=unwrapped_input["edge-type"]
-        )
-        
-        value, actor_features = self.base(data)
+        value, actor_features = self.base(inputs)
+        #TODO: Add permitted actions
         dist = self.dist(actor_features)
 
         if deterministic:

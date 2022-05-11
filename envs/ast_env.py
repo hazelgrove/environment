@@ -113,11 +113,12 @@ class ASTEnv(gym.Env):
 
     # Get Python dictionary for self.state
     def get_state(self):
+        nodes = np.ctypeslib.as_array(self.state.nodes)[:self.state.num_nodes]
+        edges = np.ctypeslib.as_array(self.state.edges).reshape(-1, 3)[:self.state.num_edges]
+        
         return {
-            "nodes": np.ctypeslib.as_array(self.state.nodes),
-            "num_nodes": self.state.num_nodes,
-            "edges": np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
-            "num_edges": self.state.num_edges,
+            "nodes": nodes,
+            "edges": edges,
             "assignment": self.state.assignment,
             "cursor": self.state.cursor,
             "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),

@@ -1,6 +1,6 @@
 from envs.ast_env import ASTEnv
 from envs.wrapper import ObsWrapper
-import torch
+import numpy as np
 
 
 def main():
@@ -12,7 +12,7 @@ def main():
         num_actions=80,
     )
     wrapped_env = ObsWrapper(env)
-    torch.set_printoptions(threshold=10000)
+    np.set_printoptions(threshold=10000)
     
     obs = env.reset()
     print(obs)

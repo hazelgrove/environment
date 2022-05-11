@@ -9,10 +9,10 @@ import torch
 from agent import algo, utils
 from agent.arguments import get_args
 from agent.envs import make_vec_envs
-from agent.policy import Policy
+from agent.model import Policy
 from agent.storage import RolloutStorage
 from evaluation import evaluate
-from logger import get_logger, log_data
+from logger import get_logger
 
 
 def main():
@@ -45,8 +45,7 @@ def main():
     )
 
     actor_critic = Policy(
-        envs.observation_space.shape,
-        envs.action_space,
+        envs,
         base_kwargs={},
     )
     actor_critic.to(device)
@@ -86,6 +85,8 @@ def main():
             utils.update_linear_schedule(agent.optimizer, j, num_updates, args.lr)
 
         for step in range(args.num_steps):
+            policy_input = envs.unwrap(rollouts.obs[step])
+            
             # Sample actions
             with torch.no_grad():
                 (
@@ -94,7 +95,7 @@ def main():
                     action_log_prob,
                     recurrent_hidden_states,
                 ) = actor_critic.act(
-                    rollouts.obs[step],
+                    policy_input,
                     rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step],
                 )

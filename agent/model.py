@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,6 +7,7 @@ import torch_geometric.nn as gnn
 
 from agent.distributions import Bernoulli, Categorical, DiagGaussian
 from agent.utils import init
+import ipdb
 
 
 class Flatten(nn.Module):
@@ -14,31 +16,38 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+    def __init__(self, env, base=None, base_kwargs=None, dist_mask=False):
         super(Policy, self).__init__()
+        
+        self.env = env
+        
         if base_kwargs is None:
             base_kwargs = {}
         if base is None:
-            if len(obs_shape) == 3:
+            if len(self.env.observation_space.shape) == 3:
                 base = CNNBase
-            elif len(obs_shape) == 1:
+            elif len(self.env.observation_space.shape) == 1:
                 base = MLPBase
             else:
                 raise NotImplementedError
+            
+        if base == CNNBase or base == MLPBase:
+            self.base = base(self.env.observation_space.shape[0], **base_kwargs)
+        else:
+            self.base = GNNBase(self.env, **base_kwargs)
 
-        self.base = base(obs_shape[0], **base_kwargs)
-
-        if action_space.__class__.__name__ == "Discrete":
-            num_outputs = action_space.n
-            self.dist = Categorical(self.base.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "Box":
-            num_outputs = action_space.shape[0]
+        if self.env.action_space.__class__.__name__ == "Discrete":
+            num_outputs = self.env.action_space.n
+            self.dist = Categorical(self.base.output_size, num_outputs, mask=dist_mask)
+        elif self.env.action_space.__class__.__name__ == "Box":
+            num_outputs = self.env.action_space.shape[0]
             self.dist = DiagGaussian(self.base.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "MultiBinary":
-            num_outputs = action_space.shape[0]
+        elif self.env.action_space.__class__.__name__ == "MultiBinary":
+            num_outputs = self.env.action_space.shape[0]
             self.dist = Bernoulli(self.base.output_size, num_outputs)
         else:
             raise NotImplementedError
+        self.dist_mask = dist_mask
 
     @property
     def is_recurrent(self):
@@ -54,7 +63,11 @@ class Policy(nn.Module):
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
-        dist = self.dist(actor_features)
+        if self.dist_mask:
+            #TODO: batch
+            dist = self.dist(actor_features, self.env.unwrap(inputs)["permitted_actions"])
+        else:
+            dist = self.dist(actor_features)
 
         if deterministic:
             action = dist.mode()
@@ -77,70 +90,6 @@ class Policy(nn.Module):
         dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, rnn_hxs
-
-
-# Our NN model
-class GNNBase(nn.Module):
-    def __init__(self):
-        super(GNNBase, self).__init__()
-        self.hid_1 = 128
-        self.in_head = 8
-        self.hid_2 = 64
-        self.hid_head = 8
-        self.out = 32
-        self.out_head = 1
-        self.in_edge_channels = 10
-
-        self.conv1 = gnn.GeneralConv(
-            1035,
-            self.hid_1,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=self.in_head,
-        )
-        self.conv2 = gnn.GeneralConv(
-            self.hid_1,
-            self.hid_2,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=self.hid_head,
-        )
-        self.conv3 = gnn.GeneralConv(
-            self.hid_2,
-            self.out,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=16,
-        )
-        self.extra_conv = gnn.GeneralConv(
-            self.out,
-            2,
-            in_edge_channels=self.in_edge_channels,
-            directed_msg=True,
-            attention=True,
-            heads=1,
-        )
-
-    def forward(self, data):
-        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
-        x = x.float()
-        # print(x.size())
-        x = self.conv1(x, edge_index, edge_feature=edge_attr)
-        # print(x.size())
-        x = F.elu(x)
-        # print(x.size())
-        x = F.dropout(x, p=0.4, training=self.training)
-        x = self.conv2(x, edge_index, edge_feature=edge_attr)
-        x = F.elu(x)
-        x = F.dropout(x, p=0.4, training=self.training)
-        x = self.conv3(x, edge_index, edge_feature=edge_attr)
-        x = F.elu(x)
-
-        z = self.extra_conv(x, edge_index)
-        return z
 
 
 class NNBase(nn.Module):
@@ -308,3 +257,108 @@ class MLPBase(NNBase):
         hidden_actor = self.actor(x)
 
         return self.critic_linear(hidden_critic), hidden_actor, rnn_hxs
+    
+    
+class GNNBase(NNBase):
+    def __init__(
+        self,
+        env,
+        hidden_size=32,
+        gnn_layer_size: List[int] = [128, 64],
+        heads: List[int] = [8, 8, 16, 1],
+        in_edge_channels: int = 10,
+        num_node_descriptor: int = 50,
+        num_edge_descriptor: int = 4,
+        num_assignments: int = 1,
+        embedding_dim: int = 512,
+        assignment_aggr: str = "add",
+    ):
+        super(GNNBase, self).__init__(False, 1, hidden_size)
+        
+        self.env = env
+        self.assignment_aggr = assignment_aggr
+        
+        self.gnn_layer_size = gnn_layer_size
+        self.heads = heads
+        self.in_edge_channels = in_edge_channels
+        self.hidden_size = hidden_size
+        
+        self.main = gnn.Sequential('x, edge_index, edge_feature', [
+            (gnn.GeneralConv(
+                -1, 
+                self.hidden_layer_size[0],
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[0],
+            ), 'x, edge_index, edge_feature -> x'),
+            nn.ELU(),
+            nn.Dropout(p=0.4),
+            (gnn.GeneralConv(
+                self.hidden_layer_size[0], 
+                self.hidden_layer_size[1],
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[1],
+            ), 'x, edge_index, edge_feature -> x'),
+            nn.ELU(),
+            nn.Dropout(p=0.4),
+            (gnn.GeneralConv(
+                self.hidden_layer_size[1], 
+                self.hidden_layer_size[2],
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[2],
+            ), 'x, edge_index, edge_feature -> x'),
+            nn.ELU(),
+            (gnn.GeneralConv(
+                self.hidden_layer_size[2],
+                self.hidden_size,
+                in_edge_channels=self.in_edge_channels,
+                attention=True,
+                heads=self.heads[3],
+            ), 'x, edge_index -> x')
+        ])
+        
+        self.node_embedding = nn.Embedding(num_node_descriptor, embedding_dim)
+        self.edge_embedding = nn.Embedding(num_edge_descriptor, embedding_dim)
+        self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
+        
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
+        )
+        self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
+        
+        self.train()
+
+    def forward(self, data, rnn_hxs, masks):
+        #TODO: Batch => unwrap needs to unwrap in batches, named tuple
+        
+        # Unwrap the given obs array
+        data = self.env.unwrap(data)
+        x, edge_index, edge_attr, assignment = data["nodes"].reshape((-1, 1)), data["edges"], data["edge-type"].reshape((-1, 1)), data["assignment"]
+        
+        # Change descriptor numbering to embedding
+        x = x.long()
+        x = self.node_embedding(x)
+        edge_attr = edge_attr.long()
+        edge_attr = self.edge_embedding(edge_attr)
+        assignment = assignment.long()
+        assignment = self.assignment_embedding(assignment)
+        
+        # Append assignment index to node and edge embeddings
+        if self.assignment_aggr == "add":
+            x += assignment
+            edge_attr += assignment
+        elif self.assignment_aggr == "concat":
+            x = torch.concat((x, assignment), dim=-1)
+            edge_attr = torch.concat((edge_attr, assignment), dim=-1)
+        else:
+            raise NotImplementedError
+        
+        # Pass through GNN & get info on current node
+        x = self.main(x, edge_index, edge_attr)
+        
+        ipdb.set_trace()
+        x = x[data["cursor"]]
+        
+        return self.critic_linear(x), x, rnn_hxs
