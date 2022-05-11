@@ -8,6 +8,7 @@ open Var
 exception SyntaxError of string
 exception IOError of string
 exception NotImplemented of unit
+exception InvalidAction of int
 
 type testType = int * int
 
@@ -20,8 +21,14 @@ type testType = int * int
        the modified AST
 *)
 let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
+  (*handles actions on type subtrees:  
+      > uses three subfunctions to handle Move parent Move child and Construct
+      actions, respectively*)
   let rec act_on_type (type_tree : Typ.z_t) : Typ.z_t =
+    
     let build_type (subtr : Typ.t) (shape : Action.shape) : Typ.z_t =
+      (* actually creates the desired type at the cursor.*)
+      (*Also handles child wrapping logics *)
       Cursor
         (match shape with
         | TypInt -> Typ.TInt
@@ -36,6 +43,8 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
             subtr (* all other shapes are for exprssions which are not valid*))
     in
     let rec construct (shape : Action.shape) (tree : Typ.z_t) : Typ.z_t =
+      (*recurses to cursor in type tree and builds the appropriate tree*)
+      (* at the cursor *)
       let construct_shape = construct shape in
       match tree with
       | Arrow_L (tl, tr) -> Arrow_L (construct_shape tl, tr)
@@ -46,19 +55,22 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | Cursor subtr -> build_type subtr shape
     in
     let rec move_child (n : int) (tree : Typ.z_t) : Typ.z_t =
-      let move_n_child = move_child n in
+      (* handles move_child actions *)
+      let move_n_child = move_child n in 
+      (*helper variable to simplify downstream code*)
       match (n, type_tree) with
       | _, Arrow_L (tl, tr) -> Arrow_L (move_n_child tl, tr)
       | _, Prod_L (tl, tr) -> Prod_L (move_n_child tl, tr)
       | _, Arrow_R (tl, tr) -> Arrow_R (tl, move_n_child tr)
       | _, Prod_R (tl, tr) -> Prod_R (tl, move_n_child tr)
       | _, List_L tl -> List_L (move_n_child tl)
+      (* construct appropriate child, else do nothing *)
       | 0, Typ.Cursor (TArrow (tl, tr)) -> Arrow_L (Typ.Cursor tl, tr)
       | 1, Typ.Cursor (TArrow (tl, tr)) -> Arrow_R (tl, Typ.Cursor tr)
       | 0, Typ.Cursor (TProd (tl, tr)) -> Prod_L (Typ.Cursor tl, tr)
       | 1, Typ.Cursor (TProd (tl, tr)) -> Prod_R (tl, Typ.Cursor tr)
       | 0, Typ.Cursor (TList tl) -> List_L (Typ.Cursor tl)
-      | _ -> type_tree
+      | _ -> raise (InvalidAction (Action.action_to_tag action))
       (*other values are invalid *)
     in
     let move_parent (tree : Typ.z_t) : Typ.z_t =
@@ -77,15 +89,18 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       (* otherwise we've reached the cursor: this can only happen if act_on_type is
          called directly on a type cursor, which shouldn't be possible when the action
          is move parent. *)
-      | Cursor _ -> tree
+      | Cursor _ -> raise (InvalidAction (Action.action_to_tag action))
       (* for when cursor is reached (shouldnt happen)*)
     in
+    (* actual switch statement that uses action to determine which subfuncc to call *)
     match action with
     | Construct shape -> construct shape type_tree
     | Move (Child n) -> move_child n type_tree
     | Move Parent -> move_parent type_tree
   in
   let build_expr (shape : Action.shape) (subtree : Expr.t) : Expr.t =
+      (* builds the actual expression at the cursor for expression types *)
+      (* handles wrapping logics appropriately *)
     match shape with
     | Var varname -> EVar varname
     | Hole -> EHole
@@ -104,11 +119,14 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | Fix varname -> EFix (varname, THole, subtree)
     | Pair_L -> EPair (subtree, EHole)
     | Pair_R -> EPair (EHole, subtree)
-    | _ -> subtree
+    (* throw invalid action if no actions match *)
+    | _ -> raise (InvalidAction (Action.action_to_tag action))
     (* only other option is type 'shapes' which arent valid in this scope*)
   in
   let rec construct (shape : Action.shape) (tree : Expr.z_t) : Expr.z_t =
+      (* recurses to cursor then constructs (and wraps) the appropriate node *)
     let construct_shape = construct shape in
+    (* recurse to cursor *)
     match tree with
     | EUnOp_L (op, r_child) -> EUnOp_L (op, construct_shape r_child)
     | EBinOp_L (l_child, op, r_child) ->
@@ -128,9 +146,11 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
     | EPair_L (l_child, r_child) -> EPair_L (construct_shape l_child, r_child)
     | EPair_R (l_child, r_child) -> EPair_R (l_child, construct_shape r_child)
+    (* at cursor, build the correct expression *)
     | Cursor subtree -> Cursor (build_expr shape subtree)
   in
   let shuffle_cursor (n_child : int) (subtree : Expr.t) : Expr.z_t =
+    (* moves curser to appropriate child of expression in `subtree` *)
     match (n_child, subtree) with
     | 0, EUnOp (op, arg) -> EUnOp_L (op, Cursor arg)
     | 0, EBinOp (arg_l, op, arg_r) -> EBinOp_L (Cursor arg_l, op, arg_r)
@@ -146,10 +166,11 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 1, EFun (varname, typ, arg_l) -> EFun_R (varname, typ, Cursor arg_l)
     | 1, EFix (varname, typ, arg_l) -> EFix_R (varname, typ, Cursor arg_l)
     | 2, EIf (arg_l, arg_c, arg_r) -> EIf_R (arg_l, arg_c, Cursor arg_r)
-    | _ -> tree
+    | _ -> raise (InvalidAction (Action.action_to_tag action))
     (*all invalid actions are noops*)
   in
   let rec move_child (n_child : int) (tree : Expr.z_t) : Expr.z_t =
+    (* recurses to cursor then moves cursor to appropriate child*)
     let move_n_child = move_child n_child in
     match tree with
     | EUnOp_L (op, r_child) -> EUnOp_L (op, move_n_child r_child)
@@ -170,9 +191,14 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
     | EPair_L (l_child, r_child) -> EPair_L (move_n_child l_child, r_child)
     | EPair_R (l_child, r_child) -> EPair_R (l_child, move_n_child r_child)
+    (*Once cursor is reached, use dedicated func to move to appropriate subtree*)
     | Cursor subtree -> shuffle_cursor n_child subtree
   in
   let rec move_parent (tree : Expr.z_t) : Expr.z_t =
+    (*Handles move-parent operations.
+       for each node type, we have two options: 
+        if the cursor is a direct child, move it upward 
+        Otherwise, continue recursing into the tree *)
     match tree with
     | EUnOp_L (op, Cursor arg) -> Cursor (EUnOp (op, arg))
     | EUnOp_L (op, arg) -> EUnOp_L (op, move_parent arg)
@@ -206,7 +232,7 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | EFun_R (var, typ, child) -> EFun_R (var, typ, move_parent child)
     | EFix_R (var, typ, Cursor arg) -> Cursor (EFix (var, typ, arg))
     | EFix_R (var, typ, child) -> EFix_R (var, typ, move_parent child)
-    | _ -> tree
+    | _ -> raise (InvalidAction (Action.action_to_tag action))
   in
   let act_on (tree : Expr.z_t) : Expr.z_t =
     match action with
@@ -284,17 +310,21 @@ let%test_module "Test run_unit_tests" =
 
 (* syn and ana*)
 let rec synthesis (context : Assumptions.t) (e : Expr.t) : Typ.t option =
-  match e with
+  (*given an expression and its type-context, infer its type by looking 
+     at its children, if possible *)
+  match e with  (*match epxression based on type (and operation for unops and binops)*)
   | EVar x -> Assumptions.lookup context x
   | EInt _ -> Some TInt
   | EBool _ -> Some TBool
-  | EUnOp (OpNeg, arg) ->
-      if analysis context arg Typ.TInt then Some TInt else None
-  | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) ->
+  | EUnOp (OpNeg, arg) -> (* negation: if child is bool or int, expr has same type*)
+      if analysis context arg Typ.TInt then Some TInt else 
+      if analysis context arg Typ.TBool then Some TBool else None
+  | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) -> 
+    (*arithmetic operations: if we see an int, return an int *)
       if analysis context argl TInt && analysis context argr TInt
       then Some TInt
       else None
-  | EBinOp (argl, (OpGt | OpGe | OpLt | OpLe), argr) ->
+  | EBinOp (argl, (OpGt | OpGe | OpLt | OpLe), argr) ->(*comparasons: int-> bool*)
       if analysis context argl TInt && analysis context argr TInt
       then Some TBool
       else None
@@ -350,21 +380,26 @@ let rec synthesis (context : Assumptions.t) (e : Expr.t) : Typ.t option =
   | ENil -> Some (TList THole)
 
 and analysis (context : Assumptions.t) (e : Expr.t) (targ : Typ.t) : bool =
+  (* given an epxression and an expected type, 
+      return a bool representing whether that's correct*)
   match e with
   | EFun (varn, vart, expr) -> (
       match synthesis (Assumptions.extend context (varn, vart)) expr with
-      | Some etyp -> Typ.equal etyp targ
+      | Some etyp -> Typ.lax_equal etyp targ
       | None -> false)
-  | EFix (varn, vart, arg) -> Typ.equal vart targ && analysis context arg targ
+  | EFix (varn, vart, arg) -> Typ.lax_equal vart targ && analysis context arg targ
   | EPair (lpair, rpair) -> (
       match targ with
       | TProd (l_t, r_t) ->
           analysis context lpair l_t && analysis context rpair r_t
       | _ -> false)
   | EIf (argl, argc, argr) ->
+     (* for if statements, first arg is expected to be a bool,
+        and second and third are expected to match *)
       analysis context argl TBool
       && analysis context argc targ && analysis context argr targ
-  | ELet (varn, dec, body) -> (
+  | ELet (varn, dec, body) -> (   
+    (* for variable declarations, add variable type to context*)
       let var_t = synthesis context dec in
       match var_t with
       | Some vart ->
@@ -373,7 +408,7 @@ and analysis (context : Assumptions.t) (e : Expr.t) (targ : Typ.t) : bool =
   | _ -> (
       match synthesis context e with
       | None -> false
-      | Some expt -> Typ.equal expt targ)
+      | Some expt -> Typ.lax_equal expt targ) (* this handles all the other cases*)
 
 (* Given an assignment number, load the unit test
    Input:
