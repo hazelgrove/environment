@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from gym.spaces.box import Box
 from gym.wrappers.clip_action import ClipAction
+from gym.wrappers.flatten_observation import FlattenObservation
 from stable_baselines3.common.atari_wrappers import (ClipRewardEnv,
                                                      EpisodicLifeEnv,
                                                      FireResetEnv,
@@ -17,7 +18,6 @@ from stable_baselines3.common.vec_env.vec_normalize import \
     VecNormalize as VecNormalize_
 
 from envs.ast_env import ASTEnv
-from envs.wrapper import ObsWrapper
 
 try:
     import dmc2gym
@@ -45,7 +45,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
                 code_per_assignment=[1],
                 num_actions=71,
             )
-            env = ObsWrapper(env)
+            env = FlattenObservation(env)
             return env
         
         if env_id.startswith("dm"):

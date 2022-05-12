@@ -1,6 +1,7 @@
 from envs.ast_env import ASTEnv
-from envs.wrapper import ObsWrapper
 import numpy as np
+from gym.wrappers.flatten_observation import FlattenObservation
+from gym.spaces import unflatten, flatten
 
 
 def main():
@@ -11,18 +12,10 @@ def main():
         code_per_assignment=[1],
         num_actions=80,
     )
-    wrapped_env = ObsWrapper(env)
-    np.set_printoptions(threshold=10000)
+    wrapped_env = FlattenObservation(env)
     
-    obs = env.reset()
-    print(obs)
+    print(env.observation_space.sample())
     
-    wrapped_obs = wrapped_env.observation(obs)
-    orig_obs = wrapped_env.unwrap(wrapped_obs)
-    print(wrapped_obs)
-    print(orig_obs)
-    
-
 
 if __name__ == "__main__":
     main()

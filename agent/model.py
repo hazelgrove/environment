@@ -8,6 +8,7 @@ import torch_geometric.nn as gnn
 from agent.distributions import Bernoulli, Categorical, DiagGaussian
 from agent.utils import init
 import ipdb
+from agent.utils import batch_unflatten
 
 
 class Flatten(nn.Module):
@@ -331,11 +332,18 @@ class GNNBase(NNBase):
         self.train()
 
     def forward(self, data, rnn_hxs, masks):
-        #TODO: Batch => unwrap needs to unwrap in batches, named tuple
-        
         # Unwrap the given obs array
-        data = self.env.unwrap(data)
-        x, edge_index, edge_attr, assignment = data["nodes"].reshape((-1, 1)), data["edges"], data["edge-type"].reshape((-1, 1)), data["assignment"]
+        data = batch_unflatten(data)
+        
+        # Reshape nodes so that each row is one node
+        x = data["nodes"].reshape((-1, 1))
+        
+        # Reshape and split edges into adjacent nodes' indices and edge attribute
+        edge = data["edges"]
+        edge_index = edge[:, :2].reshape((2, -1))
+        edge_attr = edge[:, 2].reshape((-1, 1))
+        
+        assignment = data["assignment"]
         
         # Change descriptor numbering to embedding
         x = x.long()
