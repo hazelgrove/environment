@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cuda:11.5.0-base-ubuntu20.04 as base
+FROM nvidia/cuda:11.5.0-devel-ubuntu20.04 as base
 
 ENV LC_ALL C.UTF-8
 
@@ -24,12 +24,16 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/
   # redis-python
   redis \
   cmake \
+  python3-opencv \
   && apt-get clean
 
 FROM base AS deps
 RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
-  apt-get install -yq python3-pip \
+  apt-get install -yq \
+    python3-pip \
+    gcc \
+    cmake \
   && apt-get clean
 WORKDIR "/deps"
 COPY pyproject.toml poetry.lock /deps/
