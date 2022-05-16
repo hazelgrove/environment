@@ -9,15 +9,19 @@ import torch
 from agent import algo, utils
 from agent.arguments import get_args
 from agent.envs import make_vec_envs
-from agent.model import Policy
+from agent.policy import Policy
 from agent.storage import RolloutStorage
 from evaluation import evaluate
-from logger import get_logger, log_data
+from logger import get_logger
 
 
 def main():
     args = get_args()
-    params, logger = get_logger()
+    
+    if args.log:
+        params, logger = get_logger()
+    else:
+        params, logger = None, None
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -45,26 +49,23 @@ def main():
     )
 
     actor_critic = Policy(
-        envs.observation_space.shape,
+        envs.observation_space,
         envs.action_space,
-        base_kwargs={"recurrent": args.recurrent_policy},
+        base_kwargs={},
     )
     actor_critic.to(device)
 
-    if args.algo == "ppo":
-        agent = algo.PPO(
-            actor_critic,
-            args.clip_param,
-            args.ppo_epoch,
-            args.num_mini_batch,
-            args.value_loss_coef,
-            args.entropy_coef,
-            lr=args.lr,
-            eps=args.eps,
-            max_grad_norm=args.max_grad_norm,
-        )
-    else:
-        raise NotImplementedError
+    agent = algo.PPO(
+        actor_critic,
+        args.clip_param,
+        args.ppo_epoch,
+        args.num_mini_batch,
+        args.value_loss_coef,
+        args.entropy_coef,
+        lr=args.lr,
+        eps=args.eps,
+        max_grad_norm=args.max_grad_norm,
+    )
 
     rollouts = RolloutStorage(
         args.num_steps,
@@ -89,6 +90,11 @@ def main():
             utils.update_linear_schedule(agent.optimizer, j, num_updates, args.lr)
 
         for step in range(args.num_steps):
+            if args.env_name == "pl":
+                policy_input = envs.unwrap(rollouts.obs[step])
+            else:
+                policy_input = rollouts.obs[step]
+            
             # Sample actions
             with torch.no_grad():
                 (
@@ -97,7 +103,7 @@ def main():
                     action_log_prob,
                     recurrent_hidden_states,
                 ) = actor_critic.act(
-                    rollouts.obs[step],
+                    policy_input,
                     rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step],
                 )
@@ -148,7 +154,7 @@ def main():
         if (
             j % args.save_interval == 0 or j == num_updates - 1
         ) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir, args.algo)
+            save_path = args.save_dir
             try:
                 os.makedirs(save_path)
             except OSError:
@@ -189,15 +195,16 @@ def main():
                 grad_norm += param_norm.item() ** 2
             grad_norm = grad_norm**0.5
 
-            logger.log(
-                update=j,
-                mean_episode_rewards=np.mean(episode_rewards),
-                episode_timesteps=total_num_steps,
-                gradient_norms=grad_norm,  # TODO: Right thing?
-                policy_loss=action_loss,  # TODO: Same thing?
-                value_loss=value_loss,
-                policy_entropy=dist_entropy,  # TODO: Same thing?
-            )
+            # if args.log:
+            #     logger.log(
+            #         update=j,
+            #         mean_episode_rewards=np.mean(episode_rewards),
+            #         episode_timesteps=total_num_steps,
+            #         gradient_norms=grad_norm,
+            #         policy_loss=action_loss,
+            #         value_loss=value_loss,
+            #         policy_entropy=dist_entropy,
+            #     )
 
         if (
             args.eval_interval is not None

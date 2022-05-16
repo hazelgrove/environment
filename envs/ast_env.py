@@ -13,30 +13,47 @@ max_num_vars = 10
 
 
 class State(ctypes.Structure):
-    _fields_ = [
-        ("edges", (ctypes.c_int * (max_num_nodes**2)) * 3),
-        ("tests", (ctypes.c_int * max_num_tests) * 2),
-        ("nodes", ctypes.c_int * max_num_nodes),
-        ("permitted_actions", ctypes.c_int * num_actions),
-        ("vars_in_scope", ctypes.c_int * max_num_vars),
-        ("zast", ctypes.c_char * max_tree_length),
-        ("cursor", ctypes.c_int),
-        ("num_nodes", ctypes.c_int),
-        ("num_edges", ctypes.c_int),
-        ("num_tests", ctypes.c_int),
-        ("assignment", ctypes.c_int),
-        ("code", ctypes.c_int),
-    ]
+    pass
 
 
 class ASTEnv(gym.Env):
-    def __init__(self, num_assignments: int, code_per_assignment: List[int]):
+    def __init__(
+        self,
+        max_num_nodes: int,
+        num_node_descriptor: int,
+        num_assignments: int,
+        code_per_assignment: List[int],
+        num_actions: int,
+        max_num_tests: int = 10,
+        max_tree_length: int = 10000,
+        max_num_vars: int = 10,
+    ):
         super(ASTEnv, self).__init__()
 
-        # Set observation space
-        num_node_descriptor = 10  # TODO: Specify this number
+        State._fields_ = [
+            ("edges", (ctypes.c_int * (max_num_nodes**2)) * 3),
+            ("tests", (ctypes.c_int * max_num_tests) * 2),
+            ("nodes", ctypes.c_int * max_num_nodes),
+            ("permitted_actions", ctypes.c_int * num_actions),
+            ("vars_in_scope", ctypes.c_int * max_num_vars),
+            ("zast", ctypes.c_char * max_tree_length),
+            ("cursor", ctypes.c_int),
+            ("num_nodes", ctypes.c_int),
+            ("num_edges", ctypes.c_int),
+            ("num_tests", ctypes.c_int),
+            ("assignment", ctypes.c_int),
+            ("code", ctypes.c_int),
+        ]
+
+        # Set action and observation space
+        self.num_node_descriptor = num_node_descriptor
+        self.max_num_nodes = max_num_nodes
+        self.num_actions = num_actions
+        self.max_num_vars = max_num_vars
+        
         node_nvec = num_node_descriptor * np.ones(max_num_nodes)
-        edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 2))
+        edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 3))
+        
         self.action_space = gym.spaces.Discrete(num_actions)
         self.observation_space = gym.spaces.Dict(
             {
@@ -44,7 +61,7 @@ class ASTEnv(gym.Env):
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
                 "permitted_actions": gym.spaces.MultiBinary(num_actions),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
-                "var_in_scope": gym.spaces.MultiDiscrete(max_num_nodes),
+                "vars_in_scope": gym.spaces.MultiDiscrete(max_num_nodes),
                 "assignment": gym.spaces.Discrete(num_assignments),
             }
         )
@@ -89,18 +106,21 @@ class ASTEnv(gym.Env):
     def render(self):
         print("Current state:")
         self.astclib.print_curr_state(ctypes.byref(self.state))
+        print(self.get_state()["edges"])
 
     def close(self):
         self.astclib.close_c()
 
     # Get Python dictionary for self.state
     def get_state(self):
+        nodes = np.ctypeslib.as_array(self.state.nodes)[:self.state.num_nodes]
+        edges = np.ctypeslib.as_array(self.state.edges).reshape(-1, 3)[:self.state.num_edges]
+        
         return {
-            "nodes": np.ctypeslib.as_array(self.state.nodes),
-            "num_nodes": self.state.num_nodes,
-            "edges": np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
-            "num_edges": self.state.num_edges,
-            "assignment": self.state.assignment,
-            "cursor": self.state.cursor,
+            "nodes": nodes,
+            "edges": edges,
             "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
+            "cursor_position": self.state.cursor,
+            "vars_in_scope": np.ctypeslib.as_array(self.state.vars_in_scope),
+            "assignment": self.state.assignment,
         }

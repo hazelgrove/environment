@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cuda:11.6.0-base-ubuntu20.04 as base
+FROM nvidia/cuda:11.5.0-devel-ubuntu20.04 as base
 
 ENV LC_ALL C.UTF-8
 
@@ -13,7 +13,8 @@ ENV PYTHONFAULTHANDLER 1
 ENV PYTHONBREAKPOINT=ipdb.set_trace
 
 # common dependencies
-RUN apt-get update -q \
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub \
+  && apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
   apt-get install -yq \
   # git-state
@@ -22,19 +23,17 @@ RUN apt-get update -q \
   python3.8 \
   # redis-python
   redis \
+  cmake \
+  python3-opencv \
   && apt-get clean
 
 FROM base AS deps
-# TODO: This is probably where most of the logic from your current Dockerfile goes
-# build dependencies
 RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
   apt-get install -yq \
-  # required by poetry
-  python3-pip \
-  opam \
-  gcc \
-  cmake \
+    python3-pip \
+    gcc \
+    cmake \
   && apt-get clean
 WORKDIR "/deps"
 COPY pyproject.toml poetry.lock /deps/
@@ -49,7 +48,6 @@ RUN apt-get update -q \
   apt-get install -yq \
   opam \
   gcc \
-  cmake \
   && apt-get clean
 COPY opam.export .
 RUN opam init --yes --disable-sandboxing \
