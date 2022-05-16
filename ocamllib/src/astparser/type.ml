@@ -25,6 +25,7 @@ module Typ = struct
     | List_L of z_t
   [@@deriving sexp]
 
+
   (* Check if two types are equal *)
   let rec equal (ty : t) (ty' : t) : bool =
     match (ty, ty') with
@@ -33,7 +34,28 @@ module Typ = struct
         equal tin1 tin2 && equal tout1 tout2
     | TList t_1, TList t_2 -> equal t_1 t_2
     | _ -> false
-
+  
+    let rec z_equal  (ty : z_t) (ty' : z_t) : bool =
+    match (ty, ty') with
+    | Cursor s1, Cursor s2 -> equal s1 s2
+    | Arrow_L (zt1, t1),Arrow_L (zt2, t2)
+    | Arrow_R (t1, zt1),Arrow_R (t2, zt2)
+    | Prod_L (zt1, t1),Prod_L (zt2, t2)
+    | Prod_R (t1, zt1),Prod_R (t2, zt2)
+      -> (equal t1 t2) && (z_equal zt1 zt2)
+    | List_L t1, List_L t2 -> (z_equal t1 t2)
+    |_-> false 
+   
+  let lax_equal (ty : t) (ty' : t) : bool =
+    (* like Type.equal, but we want hole types 
+       to act like wildcards (i.e. 'equal' all other types)*)
+  match (ty, ty') with
+  | _, THole | THole, _ -> true 
+  | TInt, TInt | TBool, TBool ->  true
+  | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
+      equal tin1 tin2 && equal tout1 tout2
+  | TList t_1, TList t_2 -> equal t_1 t_2
+  | _ -> false
   (*
      Return the size of the Type Tree
      Input :
