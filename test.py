@@ -15,7 +15,8 @@ def main():
     )
     wrapped_env = FlattenObservation(env)
 
-    print(env.observation_space.sample())
+    obs = wrapped_env.reset()
+    print(obs)
 
 
 if __name__ == "__main__":

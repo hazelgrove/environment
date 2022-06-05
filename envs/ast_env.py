@@ -61,7 +61,7 @@ class ASTEnv(gym.Env):
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
                 "permitted_actions": gym.spaces.MultiBinary(num_actions),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
-                "vars_in_scope": gym.spaces.MultiDiscrete(max_num_nodes),
+                "vars_in_scope": gym.spaces.MultiDiscrete(max_num_vars),
                 "assignment": gym.spaces.Discrete(num_assignments),
             }
         )
@@ -113,16 +113,35 @@ class ASTEnv(gym.Env):
 
     # Get Python dictionary for self.state
     def get_state(self):
-        nodes = np.ctypeslib.as_array(self.state.nodes)[: self.state.num_nodes]
-        edges = np.ctypeslib.as_array(self.state.edges).reshape(-1, 3)[
-            : self.state.num_edges
-        ]
-
-        return {
-            "nodes": nodes,
-            "edges": edges,
+        state = {
+            "nodes": np.ctypeslib.as_array(self.state.nodes),
+            "edges": np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
             "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
             "cursor_position": self.state.cursor,
             "vars_in_scope": np.ctypeslib.as_array(self.state.vars_in_scope),
             "assignment": self.state.assignment,
         }
+
+        return self.pad_states(state)
+
+    def pad_states(self, state):
+        for i in range(self.state.num_nodes, self.max_num_nodes):
+            state["nodes"][i] = -1
+
+        for i in range(self.state.num_edges, self.max_num_nodes**2):
+            state["edges"][i][0] = -1
+
+        return state
+
+    def unpad_states(self, state):
+        for i in range(self.max_num_nodes):
+            if state["nodes"][i] == -1:
+                state["nodes"] = state["nodes"][:i]
+                break
+
+        for i in range(self.max_num_nodes**2):
+            if state["edges"][i][0] == -1:
+                state["edges"] = state["edges"][:i]
+                break
+
+        return state
