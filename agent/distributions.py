@@ -14,6 +14,7 @@ Modify standard PyTorch distributions so they are compatible with this code.
 # Standardize distribution interfaces
 #
 
+
 # Categorical
 class FixedCategorical(torch.distributions.Categorical):
     def sample(self):
@@ -61,21 +62,19 @@ class Categorical(nn.Module):
         super(Categorical, self).__init__()
 
         init_ = lambda m: init(
-            m,
-            nn.init.orthogonal_,
-            lambda x: nn.init.constant_(x, 0),
-            gain=0.01)
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
+        )
 
         self.linear = init_(nn.Linear(num_inputs, num_outputs))
         self.has_mask = has_mask
 
     def forward(self, x, mask=None):
         x = self.linear(x)
-        
+
         if self.has_mask and mask is not None:
             x = x * mask
             x[x == 0] = -1e5
-        
+
         return FixedCategorical(logits=x)
 
 
@@ -83,8 +82,9 @@ class DiagGaussian(nn.Module):
     def __init__(self, num_inputs, num_outputs):
         super(DiagGaussian, self).__init__()
 
-        init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
-                               constant_(x, 0))
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
+        )
 
         self.fc_mean = init_(nn.Linear(num_inputs, num_outputs))
         self.logstd = AddBias(torch.zeros(num_outputs))
@@ -105,20 +105,21 @@ class Bernoulli(nn.Module):
     def __init__(self, num_inputs, num_outputs):
         super(Bernoulli, self).__init__()
 
-        init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
-                               constant_(x, 0))
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
+        )
 
         self.linear = init_(nn.Linear(num_inputs, num_outputs))
 
     def forward(self, x):
         x = self.linear(x)
         return FixedBernoulli(logits=x)
-    
+
 
 class CategoricalAction(nn.Module):
     def __init__(self, num_inputs, num_outputs) -> None:
         super(CategoricalAction, self).__init__()
-        
+
         init_ = lambda m: init(
             m,
             nn.init.orthogonal_,
@@ -126,14 +127,14 @@ class CategoricalAction(nn.Module):
             gain=0.01,
         )
         self.linear = init_(nn.Linear(num_inputs, num_outputs))
-        
+
         self.neg_inf = -1e5
-        
+
     def forward(self, x, permitted_actions):
-        #TODO: Change to without for loop
-        
+        # TODO: Change to without for loop
+
         x = self.linear(x)
         for i in range(len(permitted_actions)):
-            if (permitted_actions[i] == 0):
+            if permitted_actions[i] == 0:
                 x[i] = self.neg_inf
         return FixedCategorical(logits=x)

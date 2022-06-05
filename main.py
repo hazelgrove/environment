@@ -17,11 +17,11 @@ from logger import get_logger
 
 def main():
     args = get_args()
-    
-    if args.log:
-        params, logger = get_logger()
-    else:
-        params, logger = None, None
+
+    # if args.log:
+    #     params, logger = get_logger()
+    # else:
+    #     params, logger = None, None
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -94,7 +94,7 @@ def main():
                 policy_input = envs.unwrap(rollouts.obs[step])
             else:
                 policy_input = rollouts.obs[step]
-            
+
             # Sample actions
             with torch.no_grad():
                 (

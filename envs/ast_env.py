@@ -50,10 +50,10 @@ class ASTEnv(gym.Env):
         self.max_num_nodes = max_num_nodes
         self.num_actions = num_actions
         self.max_num_vars = max_num_vars
-        
+
         node_nvec = num_node_descriptor * np.ones(max_num_nodes)
         edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 3))
-        
+
         self.action_space = gym.spaces.Discrete(num_actions)
         self.observation_space = gym.spaces.Dict(
             {
@@ -113,9 +113,11 @@ class ASTEnv(gym.Env):
 
     # Get Python dictionary for self.state
     def get_state(self):
-        nodes = np.ctypeslib.as_array(self.state.nodes)[:self.state.num_nodes]
-        edges = np.ctypeslib.as_array(self.state.edges).reshape(-1, 3)[:self.state.num_edges]
-        
+        nodes = np.ctypeslib.as_array(self.state.nodes)[: self.state.num_nodes]
+        edges = np.ctypeslib.as_array(self.state.edges).reshape(-1, 3)[
+            : self.state.num_edges
+        ]
+
         return {
             "nodes": nodes,
             "edges": edges,

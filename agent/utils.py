@@ -1,10 +1,10 @@
 import glob
 import os
 
-import torch
-import torch.nn as nn
 import gym
 import numpy as np
+import torch
+import torch.nn as nn
 from gym.spaces.utils import unflatten
 
 from agent.envs import VecNormalize
@@ -66,12 +66,12 @@ def cleanup_log_dir(log_dir):
         files = glob.glob(os.path.join(log_dir, "*.monitor.csv"))
         for f in files:
             os.remove(f)
-            
+
 
 def batch_unflatten(env: gym.Space, x: np.ndarray):
     unflattened_vecs = []
     for vec in x:
         vec = unflatten(env, vec)
         unflattened_vecs.append(vec)
-    
+
     return unflattened_vecs

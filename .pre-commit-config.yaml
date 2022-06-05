@@ -13,15 +13,18 @@ repos:
     rev: v5.10.1
     hooks:
     -   id: isort
+        exclude: test.py
 -   repo: https://github.com/ambv/black
     rev: 22.3.0
     hooks:
     -   id: black
         language_version: python3.8
+        exclude: test.py
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:
     -   id: flake8
+        exclude: test.py
 -   repo: https://github.com/jumanjihouse/pre-commit-hooks
     rev: 2.1.6
     hooks:

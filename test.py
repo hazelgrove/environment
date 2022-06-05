@@ -1,7 +1,8 @@
-from envs.ast_env import ASTEnv
 import numpy as np
+from gym.spaces import flatten, unflatten
 from gym.wrappers.flatten_observation import FlattenObservation
-from gym.spaces import unflatten, flatten
+
+from envs.ast_env import ASTEnv
 
 
 def main():
@@ -13,9 +14,9 @@ def main():
         num_actions=80,
     )
     wrapped_env = FlattenObservation(env)
-    
+
     print(env.observation_space.sample())
-    
+
 
 if __name__ == "__main__":
     main()

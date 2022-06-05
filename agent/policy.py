@@ -1,4 +1,6 @@
 from typing import List
+
+import ipdb
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,9 +8,7 @@ import torch.nn.functional as F
 import torch_geometric.nn as gnn
 
 from agent.distributions import Bernoulli, Categorical, DiagGaussian
-from agent.utils import init
-import ipdb
-from agent.utils import batch_unflatten
+from agent.utils import batch_unflatten, init
 
 
 class Flatten(nn.Module):
@@ -17,7 +17,9 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_space, action_space, base=None, base_kwargs=None, dist_mask=False):
+    def __init__(
+        self, obs_space, action_space, base=None, base_kwargs=None, dist_mask=False
+    ):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
@@ -28,7 +30,7 @@ class Policy(nn.Module):
                 base = MLPBase
             else:
                 raise NotImplementedError
-            
+
         if base == CNNBase or base == MLPBase:
             self.base = base(obs_space.shape[0], **base_kwargs)
         else:
@@ -36,7 +38,9 @@ class Policy(nn.Module):
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
-            self.dist = Categorical(self.base.output_size, num_outputs, has_mask=dist_mask)
+            self.dist = Categorical(
+                self.base.output_size, num_outputs, has_mask=dist_mask
+            )
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
             self.dist = DiagGaussian(self.base.output_size, num_outputs)
@@ -62,8 +66,10 @@ class Policy(nn.Module):
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
         if self.dist_mask:
-            #TODO: batch
-            dist = self.dist(actor_features, self.env.unwrap(inputs)["permitted_actions"])
+            # TODO: batch
+            dist = self.dist(
+                actor_features, self.env.unwrap(inputs)["permitted_actions"]
+            )
         else:
             dist = self.dist(actor_features)
 
@@ -255,8 +261,8 @@ class MLPBase(NNBase):
         hidden_actor = self.actor(x)
 
         return self.critic_linear(hidden_critic), hidden_actor, rnn_hxs
-    
-    
+
+
 class GNNBase(NNBase):
     def __init__(
         self,
@@ -272,76 +278,91 @@ class GNNBase(NNBase):
         assignment_aggr: str = "add",
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)
-        
+
         self.obs_space = obs_space
         self.assignment_aggr = assignment_aggr
-        
+
         self.gnn_layer_size = gnn_layer_size
         self.heads = heads
         self.in_edge_channels = in_edge_channels
         self.hidden_size = hidden_size
-        
-        self.main = gnn.Sequential('x, edge_index, edge_feature', [
-            (gnn.GeneralConv(
-                -1, 
-                self.hidden_layer_size[0],
-                in_edge_channels=self.in_edge_channels,
-                attention=True,
-                heads=self.heads[0],
-            ), 'x, edge_index, edge_feature -> x'),
-            nn.ELU(),
-            nn.Dropout(p=0.4),
-            (gnn.GeneralConv(
-                self.hidden_layer_size[0], 
-                self.hidden_layer_size[1],
-                in_edge_channels=self.in_edge_channels,
-                attention=True,
-                heads=self.heads[1],
-            ), 'x, edge_index, edge_feature -> x'),
-            nn.ELU(),
-            nn.Dropout(p=0.4),
-            (gnn.GeneralConv(
-                self.hidden_layer_size[1], 
-                self.hidden_layer_size[2],
-                in_edge_channels=self.in_edge_channels,
-                attention=True,
-                heads=self.heads[2],
-            ), 'x, edge_index, edge_feature -> x'),
-            nn.ELU(),
-            (gnn.GeneralConv(
-                self.hidden_layer_size[2],
-                self.hidden_size,
-                in_edge_channels=self.in_edge_channels,
-                attention=True,
-                heads=self.heads[3],
-            ), 'x, edge_index -> x')
-        ])
-        
+
+        self.main = gnn.Sequential(
+            "x, edge_index, edge_feature",
+            [
+                (
+                    gnn.GeneralConv(
+                        -1,
+                        self.hidden_layer_size[0],
+                        in_edge_channels=self.in_edge_channels,
+                        attention=True,
+                        heads=self.heads[0],
+                    ),
+                    "x, edge_index, edge_feature -> x",
+                ),
+                nn.ELU(),
+                nn.Dropout(p=0.4),
+                (
+                    gnn.GeneralConv(
+                        self.hidden_layer_size[0],
+                        self.hidden_layer_size[1],
+                        in_edge_channels=self.in_edge_channels,
+                        attention=True,
+                        heads=self.heads[1],
+                    ),
+                    "x, edge_index, edge_feature -> x",
+                ),
+                nn.ELU(),
+                nn.Dropout(p=0.4),
+                (
+                    gnn.GeneralConv(
+                        self.hidden_layer_size[1],
+                        self.hidden_layer_size[2],
+                        in_edge_channels=self.in_edge_channels,
+                        attention=True,
+                        heads=self.heads[2],
+                    ),
+                    "x, edge_index, edge_feature -> x",
+                ),
+                nn.ELU(),
+                (
+                    gnn.GeneralConv(
+                        self.hidden_layer_size[2],
+                        self.hidden_size,
+                        in_edge_channels=self.in_edge_channels,
+                        attention=True,
+                        heads=self.heads[3],
+                    ),
+                    "x, edge_index -> x",
+                ),
+            ],
+        )
+
         self.node_embedding = nn.Embedding(num_node_descriptor, embedding_dim)
         self.edge_embedding = nn.Embedding(num_edge_descriptor, embedding_dim)
         self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
-        
+
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
         self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
-        
+
         self.train()
 
     def forward(self, data, rnn_hxs, masks):
         # Unwrap the given obs array
         data = batch_unflatten(self.obs_space, data)
-        
+
         # Reshape nodes so that each row is one node
         x = data["nodes"].reshape((-1, 1))
-        
+
         # Reshape and split edges into adjacent nodes' indices and edge attribute
         edge = data["edges"]
         edge_index = edge[:, :2].reshape((2, -1))
         edge_attr = edge[:, 2].reshape((-1, 1))
-        
+
         assignment = data["assignment"]
-        
+
         # Change descriptor numbering to embedding
         x = x.long()
         x = self.node_embedding(x)
@@ -349,7 +370,7 @@ class GNNBase(NNBase):
         edge_attr = self.edge_embedding(edge_attr)
         assignment = assignment.long()
         assignment = self.assignment_embedding(assignment)
-        
+
         # Append assignment index to node and edge embeddings
         if self.assignment_aggr == "add":
             x += assignment
@@ -359,11 +380,11 @@ class GNNBase(NNBase):
             edge_attr = torch.concat((edge_attr, assignment), dim=-1)
         else:
             raise NotImplementedError
-        
+
         # Pass through GNN & get info on current node
         x = self.main(x, edge_index, edge_attr)
-        
+
         ipdb.set_trace()
         x = x[data["cursor"]]
-        
+
         return self.critic_linear(x), x, rnn_hxs
