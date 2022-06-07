@@ -1,9 +1,10 @@
 import ctypes
 import random
-from typing import List
+from typing import Any, List, Tuple, TypedDict
 
 import gym
 import numpy as np
+import numpy.typing as npt
 
 max_num_nodes = 20
 num_actions = 80
@@ -15,6 +16,14 @@ max_num_vars = 10
 class State(ctypes.Structure):
     pass
 
+class StateDict(TypedDict):
+    nodes: npt.ArrayLike
+    edges: npt.ArrayLike
+    permitted_actions: npt.ArrayLike
+    cursor_position: int
+    vars_in_scope: npt.ArrayLike
+    assignment: int
+    
 
 class ASTEnv(gym.Env):
     def __init__(
@@ -83,7 +92,7 @@ class ASTEnv(gym.Env):
                 states.append(state)
             self.states.append(states)
 
-    def step(self, action):
+    def step(self, action : int) -> Tuple[StateDict, int, bool, Any]:
         self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
         reward = self.astclib.check_ast(ctypes.byref(self.state))
 
@@ -96,23 +105,23 @@ class ASTEnv(gym.Env):
 
         return state, reward, done, {}
 
-    def reset(self):
+    def reset(self) -> StateDict:
         assignment = self.observation_space.spaces["assignment"].sample()
         states = self.states[assignment]
         self.state = states[random.randint(0, len(states) - 1)]
 
         return self.get_state()
 
-    def render(self):
+    def render(self) -> None:
         print("Current state:")
         self.astclib.print_curr_state(ctypes.byref(self.state))
         print(self.get_state()["edges"])
 
-    def close(self):
+    def close(self) -> None:
         self.astclib.close_c()
 
     # Get Python dictionary for self.state
-    def get_state(self):
+    def get_state(self) -> StateDict:
         state = {
             "nodes": np.ctypeslib.as_array(self.state.nodes),
             "edges": np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
@@ -124,7 +133,7 @@ class ASTEnv(gym.Env):
 
         return self.pad_states(state)
 
-    def pad_states(self, state):
+    def pad_states(self, state: StateDict) -> StateDict:
         for i in range(self.state.num_nodes, self.max_num_nodes):
             state["nodes"][i] = -1
 
@@ -133,7 +142,7 @@ class ASTEnv(gym.Env):
 
         return state
 
-    def unpad_states(self, state):
+    def unpad_states(self, state: StateDict) -> StateDict:
         for i in range(self.max_num_nodes):
             if state["nodes"][i] == -1:
                 state["nodes"] = state["nodes"][:i]

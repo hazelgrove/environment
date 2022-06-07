@@ -75,3 +75,4 @@ def batch_unflatten(env: gym.Space, x: np.ndarray):
         unflattened_vecs.append(vec)
 
     return unflattened_vecs
+
