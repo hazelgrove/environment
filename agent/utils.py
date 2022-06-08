@@ -68,11 +68,10 @@ def cleanup_log_dir(log_dir):
             os.remove(f)
 
 
-def batch_unflatten(env: gym.Space, x: np.ndarray):
+def batch_unflatten(space: gym.Space, x: np.ndarray):
     unflattened_vecs = []
     for vec in x:
-        vec = unflatten(env, vec)
+        vec = unflatten(space, vec)
         unflattened_vecs.append(vec)
 
     return unflattened_vecs
-

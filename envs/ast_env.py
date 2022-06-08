@@ -16,6 +16,7 @@ max_num_vars = 10
 class State(ctypes.Structure):
     pass
 
+
 class StateDict(TypedDict):
     nodes: npt.ArrayLike
     edges: npt.ArrayLike
@@ -23,7 +24,7 @@ class StateDict(TypedDict):
     cursor_position: int
     vars_in_scope: npt.ArrayLike
     assignment: int
-    
+
 
 class ASTEnv(gym.Env):
     def __init__(
@@ -50,6 +51,7 @@ class ASTEnv(gym.Env):
             ("num_nodes", ctypes.c_int),
             ("num_edges", ctypes.c_int),
             ("num_tests", ctypes.c_int),
+            ("num_vars", ctypes.c_int),
             ("assignment", ctypes.c_int),
             ("code", ctypes.c_int),
         ]
@@ -60,8 +62,10 @@ class ASTEnv(gym.Env):
         self.num_actions = num_actions
         self.max_num_vars = max_num_vars
 
-        node_nvec = num_node_descriptor * np.ones(max_num_nodes)
-        edge_nvec = max_num_nodes * np.ones((max_num_nodes**2, 3))
+        # Plus one to account for -1
+        node_nvec = (num_node_descriptor + 1) * np.ones(max_num_nodes)
+        edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes**2, 3))
+        vars_nvec = (max_num_nodes + 1) * np.ones(max_num_vars)
 
         self.action_space = gym.spaces.Discrete(num_actions)
         self.observation_space = gym.spaces.Dict(
@@ -70,7 +74,7 @@ class ASTEnv(gym.Env):
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
                 "permitted_actions": gym.spaces.MultiBinary(num_actions),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
-                "vars_in_scope": gym.spaces.MultiDiscrete(max_num_vars),
+                "vars_in_scope": gym.spaces.MultiDiscrete(vars_nvec),
                 "assignment": gym.spaces.Discrete(num_assignments),
             }
         )
@@ -92,7 +96,7 @@ class ASTEnv(gym.Env):
                 states.append(state)
             self.states.append(states)
 
-    def step(self, action : int) -> Tuple[StateDict, int, bool, Any]:
+    def step(self, action: int) -> Tuple[StateDict, int, bool, Any]:
         self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
         reward = self.astclib.check_ast(ctypes.byref(self.state))
 
@@ -140,6 +144,9 @@ class ASTEnv(gym.Env):
         for i in range(self.state.num_edges, self.max_num_nodes**2):
             state["edges"][i][0] = -1
 
+        for i in range(self.state.num_vars, self.max_num_vars):
+            state["vars_in_scope"][i] = -1
+
         return state
 
     def unpad_states(self, state: StateDict) -> StateDict:
@@ -151,6 +158,11 @@ class ASTEnv(gym.Env):
         for i in range(self.max_num_nodes**2):
             if state["edges"][i][0] == -1:
                 state["edges"] = state["edges"][:i]
+                break
+
+        for i in range(self.max_num_vars):
+            if state["vars_in_scope"][i] == -1:
+                state["vars_in_scope"] = state["vars_in_scope"][:i]
                 break
 
         return state

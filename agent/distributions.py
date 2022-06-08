@@ -58,7 +58,7 @@ class FixedBernoulli(torch.distributions.Bernoulli):
 
 
 class Categorical(nn.Module):
-    def __init__(self, num_inputs, num_outputs, has_mask=False):
+    def __init__(self, num_inputs, num_outputs):
         super(Categorical, self).__init__()
 
         init_ = lambda m: init(
@@ -66,14 +66,21 @@ class Categorical(nn.Module):
         )
 
         self.linear = init_(nn.Linear(num_inputs, num_outputs))
-        self.has_mask = has_mask
 
-    def forward(self, x, mask=None):
+    def forward(self, x):
         x = self.linear(x)
 
-        if self.has_mask and mask is not None:
-            x = x * mask
-            x[x == 0] = -1e5
+        return FixedCategorical(logits=x)
+
+
+class CategoricalAction(Categorical):
+    def __init__(self, num_inputs: int, num_outputs: int):
+        super().__init__(num_inputs, num_outputs)
+
+    def forward(self, x, mask):
+        x = self.linear(x)
+        x = x * mask
+        x[x == 0] = 1e-5
 
         return FixedCategorical(logits=x)
 
@@ -114,27 +121,3 @@ class Bernoulli(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         return FixedBernoulli(logits=x)
-
-
-class CategoricalAction(nn.Module):
-    def __init__(self, num_inputs, num_outputs) -> None:
-        super(CategoricalAction, self).__init__()
-
-        init_ = lambda m: init(
-            m,
-            nn.init.orthogonal_,
-            lambda x: nn.init.constant_(x, 0),
-            gain=0.01,
-        )
-        self.linear = init_(nn.Linear(num_inputs, num_outputs))
-
-        self.neg_inf = -1e5
-
-    def forward(self, x, permitted_actions):
-        # TODO: Change to without for loop
-
-        x = self.linear(x)
-        for i in range(len(permitted_actions)):
-            if permitted_actions[i] == 0:
-                x[i] = self.neg_inf
-        return FixedCategorical(logits=x)

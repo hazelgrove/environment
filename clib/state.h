@@ -67,6 +67,11 @@ typedef struct
     int num_tests;
 
     /*
+    The number of variables in scope
+    */
+    int num_vars;
+
+    /*
     The index of the assignment
     */
     int assignment;

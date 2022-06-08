@@ -1,10 +1,11 @@
-import torch.nn as nn
-import torch
-import torch_geometric.nn as gnn
-import numpy as np
 from typing import List
+
 import ipdb
-from torch_geometric.data import Data, Batch
+import numpy as np
+import torch
+import torch.nn as nn
+import torch_geometric.nn as gnn
+from torch_geometric.data import Batch, Data
 
 from agent.utils import init
 
@@ -12,7 +13,7 @@ from agent.utils import init
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
-    
+
 
 class NNBase(nn.Module):
     def __init__(self, recurrent, recurrent_input_size, hidden_size):
@@ -269,18 +270,22 @@ class GNNBase(NNBase):
             batch_size = x.shape[0]
         else:
             batch_size = 1
-        
+
         # Convert inputs to long
         x = x.long()
         edge_index = edge_index.long()
         edge_attr = edge_attr.long()
         assignment = assignment.long()
-        
+
         # Change descriptor numbering to embedding
         x = self.node_embedding(x)
-        edge_attr = self.edge_embedding(edge_attr + 1) # Shift 1 to make the -1 edge type to 0
+        edge_attr = self.edge_embedding(
+            edge_attr + 1
+        )  # Shift 1 to make the -1 edge type to 0
         assignment = self.assignment_embedding(assignment)
-        assignment = assignment.reshape((-1, 1, self.embedding_dim)) # Reshape assignment for broadcasting
+        assignment = assignment.reshape(
+            (-1, 1, self.embedding_dim)
+        )  # Reshape assignment for broadcasting
 
         # Append assignment index to node and edge embeddings
         if self.assignment_aggr == "add":
@@ -291,16 +296,18 @@ class GNNBase(NNBase):
             edge_attr = torch.concat((edge_attr, assignment), dim=-1)
         else:
             raise NotImplementedError
-        
+
         data = None
         # If it comes in batches
         if batch_size != 1:
             data_list = []
             for i in range(batch_size):
-                data_list.append(Data(x=x[i], edge_index=edge_index[i], edge_attr=edge_attr[i]))
+                data_list.append(
+                    Data(x=x[i], edge_index=edge_index[i], edge_attr=edge_attr[i])
+                )
             data = Batch.from_data_list(data_list)
         else:
-            data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)     
+            data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
 
         # Pass through GNN & get info on current node
         data.x = self.main(data.x, data.edge_index, data.edge_attr)

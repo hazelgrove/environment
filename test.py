@@ -2,6 +2,7 @@ import numpy as np
 from gym.spaces import flatten, unflatten
 from gym.wrappers.flatten_observation import FlattenObservation
 import torch
+from agent.policy import GNNPolicy
 
 from envs.ast_env import ASTEnv
 from agent.base import GNNBase
@@ -19,22 +20,16 @@ def main():
     )
     obs = env.reset()
     
-    obs = env.unpad_states(obs)
+    obs["vars_in_scope"][0] = 1
+    flatten_obs = flatten(env.observation_space, obs)
+    flatten_obs = np.vstack((flatten_obs, flatten_obs))
+    policy = GNNPolicy(env=env)
     
-    x = obs["nodes"]
-    edge_index = obs["edges"][:, :2].reshape((2, -1))
-    edge_attr = obs["edges"][:, 2]
-    assignment = obs["assignment"]
-    cursor = obs["cursor_position"]
+    unflatten_obs = policy.unflatten_input(flatten_obs)
+    print(obs)
+    print(unflatten_obs)
     
-    x = torch.tensor([x, x])
-    edge_index = torch.tensor([edge_index, edge_index])
-    edge_attr = torch.tensor([edge_attr, edge_attr])
-    assignment = torch.tensor([assignment, assignment])
-    cursor = torch.tensor([cursor, cursor])
     
-    base = GNNBase()
-    base(x, edge_index, edge_attr, assignment, cursor)
 
 
 if __name__ == "__main__":

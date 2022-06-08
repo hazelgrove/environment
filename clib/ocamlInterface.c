@@ -162,6 +162,7 @@ CAMLprim value get_vars_in_scope(value bigarray)
 {
     int dim = Caml_ba_array_val(bigarray)->dim[0];
     copy_1d(Caml_ba_data_val(bigarray), dim, curr_state.vars_in_scope);
+    curr_state.num_vars = dim;
     for (int i = dim; i < MAX_VARS; i++)
         curr_state.vars_in_scope[i] = -1;
     return Val_unit;
@@ -174,7 +175,3 @@ void print_code()
         print_code_closure = caml_named_value("print_code");
     caml_callback(*print_code_closure, Val_int(0));
 }
-
-// CAMLprim value pass_permitted_actions(value unit){
-//     return caml_ba_alloc_dims(CAML_BA_INT64 | CAML_BA_C_LAYOUT, 1, curr_state.permitted_actions, NUM_ACTIONS);
-// }
