@@ -5,17 +5,19 @@ from cProfile import run
 
 import numpy as np
 import torch
+import ipdb
 
 from agent import algo, utils
 from agent.arguments import get_args
 from agent.envs import make_vec_envs
-from agent.policy import Policy
+from agent.policy import GNNPolicy
 from agent.storage import RolloutStorage
 from evaluation import evaluate
 from logger import get_logger
 
 
 def main():
+    ipdb.set_trace()
     args = get_args()
 
     # if args.log:
@@ -48,9 +50,8 @@ def main():
         False,
     )
 
-    actor_critic = Policy(
-        envs.observation_space,
-        envs.action_space,
+    actor_critic = GNNPolicy(
+        envs,
         base_kwargs={},
     )
     actor_critic.to(device)
@@ -90,11 +91,6 @@ def main():
             utils.update_linear_schedule(agent.optimizer, j, num_updates, args.lr)
 
         for step in range(args.num_steps):
-            if args.env_name == "pl":
-                policy_input = envs.unwrap(rollouts.obs[step])
-            else:
-                policy_input = rollouts.obs[step]
-
             # Sample actions
             with torch.no_grad():
                 (
@@ -103,7 +99,7 @@ def main():
                     action_log_prob,
                     recurrent_hidden_states,
                 ) = actor_critic.act(
-                    policy_input,
+                    rollouts.obs[step],
                     rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step],
                 )

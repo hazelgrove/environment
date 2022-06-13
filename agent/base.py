@@ -266,7 +266,7 @@ class GNNBase(NNBase):
         self.train()
 
     def forward(self, x, edge_index, edge_attr, assignment, cursor):
-        if x.dim() == 2:
+        if x.ndim == 2:
             batch_size = x.shape[0]
         else:
             batch_size = 1
