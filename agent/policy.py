@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import asdict, astuple
 from typing import List
 
 import gym
@@ -9,10 +10,21 @@ import torch.nn.functional as F
 import torch_geometric.nn as gnn
 from gym.spaces.utils import unflatten
 import copy
+from gym.spaces import Discrete, MultiDiscrete, MultiBinary
 
 from agent.base import CNNBase, GNNBase, MLPBase
 from agent.distributions import Bernoulli, Categorical, CategoricalAction, DiagGaussian
 from agent.utils import batch_unflatten, init
+from agent.wrapper import Obs
+
+
+def get_size(space):
+    if isinstance(space, Discrete):
+        return 1
+    elif isinstance(space, (MultiDiscrete, MultiBinary)):
+        return int(np.prod(space.shape))
+    else:
+        raise NotImplementedError
 
 
 class Policy(nn.Module):
@@ -85,7 +97,7 @@ class GNNPolicy(Policy):
     def __init__(self, obs_space, action_space, base_kwargs=None):
         super(Policy, self).__init__()
 
-        self.obs_space = obs_space
+        self.obs_space = Obs(**obs_space.spaces)
 
         if base_kwargs is None:
             base_kwargs = {}
@@ -94,64 +106,16 @@ class GNNPolicy(Policy):
         num_outputs = action_space.n
         self.dist = CategoricalAction(self.base.output_size, num_outputs)
         
-    def __unpad_states(self, state):
-        breakpoint()
-        for i in range(state["nodes"].shape[0]):
-            if state["nodes"][i] == -1:
-                state["nodes"] = state["nodes"][:i]
-                break
-
-        for i in range(state["edges"].shape[0]):
-            if state["edges"][i][0] == -1:
-                state["edges"] = state["edges"][:i]
-                break
-
-        for i in range(state["vars_in_scope"].shape[0]):
-            if state["vars_in_scope"][i] == -1:
-                state["vars_in_scope"] = state["vars_in_scope"][:i]
-                break
-
-        return state
-
-    def __unflatten_input(self, input):
-        input_dict = defaultdict(list)
-
-        for i in range(input.shape[0]):
-            datum = unflatten(self.obs_space, np.array(input[i]))
-            datum = self.__unpad_states(datum)
-
-            for key, value in datum.items():
-                input_dict[key].append(value)
-
-        for key in input_dict.keys():
-            input_dict[key] = torch.tensor(np.array(input_dict[key]))
-        
-        return input_dict
-    
-    def __batch_unflatten(self, inputs):
-        breakpoint()
-        if inputs.dim() == 2:
-            batch_size = inputs.shape[0]
-        else:
-            batch_size = 1
-        
-        if batch_size != 1:
-            inputs = self.__unflatten_input(inputs)
-            inputs["edge_index"], inputs["edge_attr"] = inputs["edges"][:, :, :2].transpose(1, 2), inputs["edges"][:, :, 2]
-        else:
-            inputs = unflatten(self.obs_space, inputs)
-            inputs["edge_index"], inputs["edge_attr"] = inputs["edges"][:, :2].reshape(2, -1), inputs["edges"][:, 2]
-        
-        return inputs
-        
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        inputs = self.__batch_unflatten(inputs)
-        breakpoint()
-        value, actor_features = self.base(x=inputs["nodes"], 
-                                                   edge_index=inputs["edge_index"], 
-                                                   edge_attr=inputs["edge_attr"], 
-                                                   assignment=inputs["assignment"], 
-                                                   cursor=inputs["cursor_position"])
+        inputs = Obs(
+            *torch.split(
+                inputs,
+                [get_size(space) for space in astuple(self.obs_space)],
+                dim=-1,
+            )
+        )
+        
+        value, actor_features = self.base(asdict(inputs))
         
         dist = self.dist(actor_features, inputs["permitted_actions"])
 

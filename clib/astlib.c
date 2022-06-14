@@ -35,7 +35,8 @@ int check_ast(State *ast)
 }
 
 /*
-Find the valid actions given the AST
+Find the valid actions given the AST 
+DEAD FUCNTION
 
 Input:
     - ast: struct representing the AST
@@ -44,7 +45,7 @@ Mutates:
     - ast->permitted_actions
 */
 void valid_actions(State *ast)
-{
+{   
     for (int i = 0; i < NUM_ACTIONS; i++)
         ast->permitted_actions[i] = 1;
 

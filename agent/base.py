@@ -265,20 +265,38 @@ class GNNBase(NNBase):
 
         self.train()
 
-    def forward(self, x, edge_index, edge_attr, assignment, cursor):
-        if x.ndim == 2:
-            batch_size = x.shape[0]
-        else:
-            batch_size = 1
-
+    def forward(self, inputs):
+        batch_size = inputs["nodes"].shape[0]
+        
+        # Get corresponding data from inputs
+        x = inputs["nodes"]
+        edges = inputs["edges"].reshape((batch_size, -1, 3))
+        edge_index = edges[:, :, :2]
+        edge_attr = edges[:, :, 2]
+        assignment = inputs["assignment"]
+        
+        # Find number of valid nodes
+        num_nodes = x[0].shape[0] * np.ones(batch_size, dtype=np.int64)
+        num_edges = edge_index[0].shape[0] * np.ones(batch_size, dtype=np.int64)
+        for i in range(batch_size):
+            for j in range(x[i].shape[0]):
+                if x[i, j] == -1:
+                    num_nodes[i] = j
+                    break
+            for j in range(edge_index[i].shape[0]):
+                if edge_index[i, j, 0] == -1:
+                    num_edges[i] = j
+                    break
+        edge_index = edge_index.transpose(1, 2)
+        
         # Convert inputs to long
         x = x.long()
         edge_index = edge_index.long()
         edge_attr = edge_attr.long()
         assignment = assignment.long()
-
-        # Change descriptor numbering to embedding
-        x = self.node_embedding(x)
+        
+        # Convert to embedding
+        x = self.node_embedding(x + 1)
         edge_attr = self.edge_embedding(
             edge_attr + 1
         )  # Shift 1 to make the -1 edge type to 0
@@ -286,7 +304,7 @@ class GNNBase(NNBase):
         assignment = assignment.reshape(
             (-1, 1, self.embedding_dim)
         )  # Reshape assignment for broadcasting
-
+        
         # Append assignment index to node and edge embeddings
         if self.assignment_aggr == "add":
             x += assignment
@@ -296,29 +314,21 @@ class GNNBase(NNBase):
             edge_attr = torch.concat((edge_attr, assignment), dim=-1)
         else:
             raise NotImplementedError
-
-        data = None
-        # If it comes in batches
-        if batch_size != 1:
-            data_list = []
-            for i in range(batch_size):
-                data_list.append(
-                    Data(x=x[i], edge_index=edge_index[i], edge_attr=edge_attr[i])
-                )
-            data = Batch.from_data_list(data_list)
-        else:
-            data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+        
+        data_list = []
+        for i in range(batch_size):
+            data_list.append(
+                Data(x=x[i, :num_nodes[i]], edge_index=edge_index[i, :, :num_edges[i]], edge_attr=edge_attr[i, :num_edges[i], :])
+            )
+        data = Batch.from_data_list(data_list)
 
         # Pass through GNN & get info on current node
         data.x = self.main(data.x, data.edge_index, data.edge_attr)
-
+        
         # Separate into individual points
         out = torch.zeros((batch_size, self.hidden_size))
-        if batch_size != 1:
-            data_list = data.to_data_list()
-            for i in range(batch_size):
-                out[i] = data_list[i].x[cursor[i]]
-        else:
-            out = data.x[cursor]
+        data_list = data.to_data_list()
+        for i in range(batch_size):
+            out[i] = data_list[i].x[int(inputs["cursor_position"][i])]
 
         return self.critic_linear(out), out

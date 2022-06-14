@@ -5,7 +5,6 @@ import numpy as np
 import torch
 from gym.spaces.box import Box
 from gym.wrappers.clip_action import ClipAction
-from gym.wrappers.flatten_observation import FlattenObservation
 from stable_baselines3.common.atari_wrappers import (
     ClipRewardEnv,
     EpisodicLifeEnv,
@@ -19,6 +18,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnvW
 from stable_baselines3.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
 from envs.ast_env import ASTEnv
+from agent.wrapper import FlattenObservation
+
 
 try:
     import dmc2gym
