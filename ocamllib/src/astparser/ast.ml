@@ -239,6 +239,65 @@ module Expr = struct
   type node = int
   type graph = node list * edge list
 
+  let unop_equal (u1:unop) (u2: unop) : bool = 
+    match u1,u2 with 
+    |OpNeg, OpNeg -> true 
+
+  let binop_equal (b1:binop) (b2: binop) : bool = 
+    match b1,b2 with 
+    | OpPlus, OpPlus | OpMinus,OpMinus | OpTimes,OpTimes
+    | OpDiv,OpDiv | OpLt, OpLt | OpLe,OpLe | OpGt,OpGt
+    | OpGe,OpGe | OpEq,OpEq | OpNe,OpNe | OpCon,OpCon
+    | OpAp,OpAp -> true 
+    |_ -> false 
+
+  let rec equal (t1: t) (t2: t) : bool =
+    match t1,t2 with 
+    | EVar (varn1), EVar (varn2) -> Var.equal varn1 varn2 
+    | EInt val1, EInt val2   -> val1 = val2 
+    | EBool val1, EBool val2 -> val1 = val2 
+    | EUnOp (u1,sub1), EUnOp (u2,sub2) 
+        -> (unop_equal u1 u2) && (equal sub1 sub2)
+    | EBinOp (subl1, b1, subr1),EBinOp (subl2, b2, subr2) 
+        -> (binop_equal b1 b2) && (equal subl1 subl2) && (equal subr1 subr2)
+    | ELet (var1, subl1, subr1), ELet (var2, subl2, subr2)
+        -> (Var.equal var1 var2) && (equal subl1 subl2) && (equal subr1 subr2)
+    | EIf (argl1, argc1, argr1), EIf (argl2, argc2, argr2) 
+        -> (equal argl1 argl2) && (equal argc1 argc2) && (equal argr1 argr2)
+    | EFun (var1,t1,sub1), EFun (var2,t2, sub2)  
+    | EFix (var1,t1,sub1), EFix (var2,t2, sub2)
+        -> (Var.equal var1 var2) &&(Typ.equal t1 t2) && (equal sub1 sub2)
+    | EPair (subl1, subr1), EPair (subl2, subr2) 
+        -> (equal subl1 subl2) && (equal subr1 subr2)
+    | EHole, EHole | ENil, ENil -> true 
+    |_ -> false 
+
+  let rec z_equal (t1: z_t) (t2: z_t) : bool = 
+    match t1,t2 with 
+    | Cursor (sub1), Cursor (sub2) -> equal sub1 sub2
+    | EUnOp_L (u1,sub1), EUnOp_L (u2,sub2) 
+      -> (unop_equal u1 u2) && (z_equal sub1 sub2)
+    | EBinOp_L (zsub1, b1, sub1), EBinOp_L (zsub2, b2, sub2) 
+    | EBinOp_R (sub1, b1, zsub1), EBinOp_R (sub2, b2, zsub2)
+      -> (binop_equal b1 b2) && (z_equal zsub1 zsub2) && (equal sub1 sub2)
+    | ELet_L  (var1, zsub1, sub1), ELet_L (var2, zsub2, sub2)
+    | ELet_R  (var1, sub1, zsub1), ELet_R (var2, sub2, zsub2)
+      -> (Var.equal var1 var2) && (z_equal zsub1 zsub2) && (equal sub1 sub2)
+    | EIf_L (zsub1, lsub1, rsub1), EIf_L (zsub2, lsub2, rsub2)
+    | EIf_C (lsub1, zsub1, rsub1), EIf_C (lsub2, zsub2, rsub2)
+    | EIf_R (lsub1, rsub1, zsub1), EIf_R (lsub2, rsub2, zsub2)
+      -> (z_equal zsub1 zsub2) && (equal lsub1 lsub2) && (equal rsub1 rsub2)
+    | EFun_L (varn1, typ1, sub1),EFun_L (varn2, typ2, sub2)
+    | EFix_L (varn1, typ1, sub1),EFix_L (varn2, typ2, sub2)
+      -> (Var.equal varn1 varn2) && (Typ.z_equal typ1 typ2) && (equal sub1 sub2)
+    | EFun_R (varn1, typ1, sub1),EFun_R (varn2, typ2, sub2)
+    | EFix_R (varn1, typ1, sub1),EFix_R (varn2, typ2, sub2)
+      -> (Var.equal varn1 varn2) && (Typ.equal typ1 typ2) && (z_equal sub1 sub2)
+    | EPair_L (zsub1, sub1), EPair_L (zsub2, sub2)
+    | EPair_R (sub1, zsub1), EPair_R (sub2, zsub2)
+      -> (equal sub1 sub2) && (z_equal zsub1 zsub2)
+    |_-> false 
+
   let rec unzip_ast (tree : z_t) : t =
     match tree with
     | Cursor arg -> arg

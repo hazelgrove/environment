@@ -1,4 +1,4 @@
-; (test
-;  (name test)
-;  (libraries astlib astutils ounit2)
-;  (modules test utils test_astlib test_astutil))
+(executable
+ (name test)
+ (libraries astlib astutils ounit2)
+ (modules test utils test_astlib test_astutil))
