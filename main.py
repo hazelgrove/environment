@@ -7,9 +7,10 @@ import numpy as np
 import torch
 import ipdb
 
-from agent import algo, utils
+from agent import utils
+from agent.ppo import PPO
 from agent.arguments import get_args
-from agent.envs import make_vec_envs
+from agent.envs import make_env, make_vec_envs
 from agent.policy import GNNPolicy
 from agent.storage import RolloutStorage
 from evaluation import evaluate
@@ -17,7 +18,6 @@ from logger import get_logger
 
 
 def main():
-    ipdb.set_trace()
     args = get_args()
 
     # if args.log:
@@ -51,12 +51,13 @@ def main():
     )
 
     actor_critic = GNNPolicy(
-        envs,
+        envs.get_attr("orig_obs_space")[0],
+        envs.get_attr("action_space")[0],
         base_kwargs={},
     )
     actor_critic.to(device)
 
-    agent = algo.PPO(
+    agent = PPO(
         actor_critic,
         args.clip_param,
         args.ppo_epoch,

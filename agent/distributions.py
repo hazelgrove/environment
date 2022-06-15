@@ -80,7 +80,7 @@ class CategoricalAction(Categorical):
     def forward(self, x, mask):
         x = self.linear(x)
         x = x * mask
-        x[x == 0] = 1e-5
+        x[x == 0] = -1e5
 
         return FixedCategorical(logits=x)
 

@@ -64,6 +64,63 @@ module Expr = struct
 
   type tag = int
 
+  (* Change tree representation to string to better interpret graph *)
+  let rec to_string (e : t) : string =
+    match e with
+    | EVar x -> "<VAR>" ^ x ^ " "
+    | EInt n -> string_of_int n ^ " "
+    | EBool b -> string_of_bool b ^ " "
+    | EUnOp (_, e) -> "(-" ^ to_string e ^ ") "
+    | EBinOp (e1, op, e2) ->
+        let op_string =
+          match op with
+          | OpPlus -> "+"
+          | OpMinus -> "-"
+          | OpTimes -> "*"
+          | OpDiv -> "/"
+          | OpLt -> "<"
+          | OpLe -> "<="
+          | OpGt -> ">"
+          | OpGe -> ">="
+          | OpEq -> "="
+          | OpNe -> "!="
+          | OpCon -> "::"
+          | OpAp -> " "
+        in
+        "(" ^ to_string e1 ^ " " ^ op_string ^ " " ^ to_string e2 ^ ") "
+    | EIf (cond, e1, e2) ->
+        "(if " ^ to_string cond ^ " then " ^ to_string e1 ^ " else "
+        ^ to_string e2 ^ ") "
+    | ELet (x, EFix (_, _, e1), EHole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
+    | ELet (x, EFix (_, _, e1), e2) ->
+        "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ to_string e2 ^ " "
+    | ELet (x, EFun (arg, ty, e1), EHole) ->
+        "let " ^ x ^ resolve_fun (EFun (arg, ty, e1)) ^ " "
+    | ELet (x, EFun (arg, ty, e1), e2) ->
+        "let " ^ x
+        ^ resolve_fun (EFun (arg, ty, e1))
+        ^ " in " ^ to_string e2 ^ " "
+    | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ to_string e1 ^ " "
+    | ELet (x, e1, e2) ->
+        "let " ^ x ^ " = " ^ to_string e1 ^ " in " ^ to_string e2 ^ " "
+    | EFix (_, _, _) -> raise (SyntaxError "Incorrect syntax with fix")
+    | EFun (x, ty, e) ->
+        if ty = Typ.THole
+        then "(fun " ^ x ^ " -> " ^ to_string e ^ ") "
+        else
+          "(fun (" ^ x ^ " : " ^ Typ.to_string ty ^ ") -> " ^ to_string e ^ ") "
+    | EPair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
+    | EHole -> "<HOLE> "
+    | ENil -> "[] "
+
+  and resolve_fun (e : t) : string =
+    match e with
+    | EFun (x, ty, e) ->
+        if ty = Typ.THole
+        then " " ^ x ^ resolve_fun e
+        else " (" ^ x ^ " : " ^ Typ.to_string ty ^ ") " ^ resolve_fun e
+    | _ -> " = " ^ to_string e ^ " "
+
   let node_to_tag (node : t) : tag =
     match node with
     | EUnOp (OpNeg, _) -> 0
@@ -98,7 +155,7 @@ module Expr = struct
     | EVar "y" -> 39
     | EVar "z" -> 40
     | ENil -> 41
-    | _ -> raise (Failure "Not supported yet")
+    | node -> raise (Failure ((to_string node) ^ "not supported yet"))
 
   let tag_to_node (tag : tag) : t =
     match tag with
@@ -132,7 +189,7 @@ module Expr = struct
     | 39 -> EVar "y"
     | 40 -> EVar "z"
     | 41 -> ENil
-    | _ -> raise (Failure "Not supported")
+    | _ -> raise (Failure "Node index not supported")
 
   (*
      Return the size of the AST
@@ -313,63 +370,6 @@ module Expr = struct
               THole,
               EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) )
     end)
-
-  (* Change tree representation to string to better interpret graph *)
-  let rec to_string (e : t) : string =
-    match e with
-    | EVar x -> x ^ " "
-    | EInt n -> string_of_int n ^ " "
-    | EBool b -> string_of_bool b ^ " "
-    | EUnOp (_, e) -> "(-" ^ to_string e ^ ") "
-    | EBinOp (e1, op, e2) ->
-        let op_string =
-          match op with
-          | OpPlus -> "+"
-          | OpMinus -> "-"
-          | OpTimes -> "*"
-          | OpDiv -> "/"
-          | OpLt -> "<"
-          | OpLe -> "<="
-          | OpGt -> ">"
-          | OpGe -> ">="
-          | OpEq -> "="
-          | OpNe -> "!="
-          | OpCon -> "::"
-          | OpAp -> " "
-        in
-        "(" ^ to_string e1 ^ " " ^ op_string ^ " " ^ to_string e2 ^ ") "
-    | EIf (cond, e1, e2) ->
-        "(if " ^ to_string cond ^ " then " ^ to_string e1 ^ " else "
-        ^ to_string e2 ^ ") "
-    | ELet (x, EFix (_, _, e1), EHole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
-    | ELet (x, EFix (_, _, e1), e2) ->
-        "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ to_string e2 ^ " "
-    | ELet (x, EFun (arg, ty, e1), EHole) ->
-        "let " ^ x ^ resolve_fun (EFun (arg, ty, e1)) ^ " "
-    | ELet (x, EFun (arg, ty, e1), e2) ->
-        "let " ^ x
-        ^ resolve_fun (EFun (arg, ty, e1))
-        ^ " in " ^ to_string e2 ^ " "
-    | ELet (x, e1, EHole) -> "let " ^ x ^ " = " ^ to_string e1 ^ " "
-    | ELet (x, e1, e2) ->
-        "let " ^ x ^ " = " ^ to_string e1 ^ " in " ^ to_string e2 ^ " "
-    | EFix (_, _, _) -> raise (SyntaxError "Incorrect syntax with fix")
-    | EFun (x, ty, e) ->
-        if ty = Typ.THole
-        then "(fun " ^ x ^ " -> " ^ to_string e ^ ") "
-        else
-          "(fun (" ^ x ^ " : " ^ Typ.to_string ty ^ ") -> " ^ to_string e ^ ") "
-    | EPair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
-    | EHole -> "<HOLE> "
-    | ENil -> "[] "
-
-  and resolve_fun (e : t) : string =
-    match e with
-    | EFun (x, ty, e) ->
-        if ty = Typ.THole
-        then " " ^ x ^ resolve_fun e
-        else " (" ^ x ^ " : " ^ Typ.to_string ty ^ ") " ^ resolve_fun e
-    | _ -> " = " ^ to_string e ^ " "
 end
 
 (* had issues refactoring this into a seperate file *)
@@ -557,7 +557,7 @@ module Action = struct
     | 69 -> Construct TypProd_R
     | 70 -> Construct TypList
     | 71 -> Construct TypHole
-    | _ -> raise (Failure "Not supported.")
+    | _ -> raise (Failure "Action index not supported.")
 
   (* TODO: Change number after finalize *)
   let action_to_tag (action : t) : int =
@@ -620,7 +620,7 @@ module Action = struct
     | Construct TypProd_R -> 69
     | Construct TypList -> 70
     | Construct TypHole -> 71
-    | _ -> raise (Failure "Not supported.")
+    | _ -> raise (Failure "Action not supported.")
 
   let to_list (action_list : t list) : bool list =
     let action_list = List.map action_to_tag action_list in

@@ -114,10 +114,9 @@ class GNNPolicy(Policy):
                 dim=-1,
             )
         )
-        
         value, actor_features = self.base(asdict(inputs))
         
-        dist = self.dist(actor_features, inputs["permitted_actions"])
+        dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
             action = dist.mode()
@@ -129,22 +128,27 @@ class GNNPolicy(Policy):
         return value, action, action_log_probs, rnn_hxs
     
     def get_value(self, inputs, rnn_hxs, masks):
-        inputs = self.__batch_unflatten(inputs)
-        value, _ = self.base(x=inputs["nodes"], 
-                                                   edge_index=inputs["edge_index"], 
-                                                   edge_attr=inputs["edge_attr"], 
-                                                   assignment=inputs["assignment"], 
-                                                   cursor=inputs["cursor_position"])        
+        inputs = Obs(
+            *torch.split(
+                inputs,
+                [get_size(space) for space in astuple(self.obs_space)],
+                dim=-1,
+            )
+        )
+        value, _ = self.base(asdict(inputs))    
+         
         return value
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        inputs = self.__batch_unflatten(inputs)
-        value, actor_features = self.base(x=inputs["nodes"], 
-                                                   edge_index=inputs["edge_index"], 
-                                                   edge_attr=inputs["edge_attr"], 
-                                                   assignment=inputs["assignment"], 
-                                                   cursor=inputs["cursor_position"])
-        dist = self.dist(actor_features)
+        inputs = Obs(
+            *torch.split(
+                inputs,
+                [get_size(space) for space in astuple(self.obs_space)],
+                dim=-1,
+            )
+        )
+        value, actor_features = self.base(asdict(inputs))
+        dist = self.dist(actor_features, inputs.permitted_actions)
 
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()

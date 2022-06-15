@@ -1,7 +1,8 @@
 import numpy as np
 from gym.spaces import flatten, unflatten
+from stable_baselines3.common.vec_env import DummyVecEnv
 import torch
-from agent.envs import VecPyTorch
+from agent.envs import VecPyTorch, make_env
 from agent.policy import GNNPolicy
 
 from envs.ast_env import ASTEnv
@@ -12,19 +13,16 @@ import ipdb
 
 
 def main():
-    ipdb.set_trace()
     args = get_args()
-    device = torch.device("cpu")
     
     env = ASTEnv(
         max_num_nodes=20,
         num_node_descriptor=50,
         num_assignments=1,
         code_per_assignment=[1],
-        num_actions=80,
+        num_actions=71,
     )
     obs = env.reset()
-    print(obs)
     env = FlattenObservation(env)
     
     policy = GNNPolicy(
