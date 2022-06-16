@@ -1,3 +1,4 @@
+import copy
 from collections import defaultdict
 from dataclasses import asdict, astuple
 from typing import List
@@ -8,9 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric.nn as gnn
+from gym.spaces import Discrete, MultiBinary, MultiDiscrete
 from gym.spaces.utils import unflatten
-import copy
-from gym.spaces import Discrete, MultiDiscrete, MultiBinary
 
 from agent.base import CNNBase, GNNBase, MLPBase
 from agent.distributions import Bernoulli, Categorical, CategoricalAction, DiagGaussian
@@ -105,7 +105,7 @@ class GNNPolicy(Policy):
 
         num_outputs = action_space.n
         self.dist = CategoricalAction(self.base.output_size, num_outputs)
-        
+
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         inputs = Obs(
             *torch.split(
@@ -115,7 +115,7 @@ class GNNPolicy(Policy):
             )
         )
         value, actor_features = self.base(asdict(inputs))
-        
+
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
@@ -126,7 +126,7 @@ class GNNPolicy(Policy):
         action_log_probs = dist.log_probs(action)
 
         return value, action, action_log_probs, rnn_hxs
-    
+
     def get_value(self, inputs, rnn_hxs, masks):
         inputs = Obs(
             *torch.split(
@@ -135,8 +135,8 @@ class GNNPolicy(Policy):
                 dim=-1,
             )
         )
-        value, _ = self.base(asdict(inputs))    
-         
+        value, _ = self.base(asdict(inputs))
+
         return value
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):

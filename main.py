@@ -3,15 +3,15 @@ import time
 from collections import deque
 from cProfile import run
 
+import ipdb
 import numpy as np
 import torch
-import ipdb
 
 from agent import utils
-from agent.ppo import PPO
 from agent.arguments import get_args
 from agent.envs import make_env, make_vec_envs
 from agent.policy import GNNPolicy
+from agent.ppo import PPO
 from agent.storage import RolloutStorage
 from evaluation import evaluate
 from logger import get_logger

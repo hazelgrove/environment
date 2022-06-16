@@ -44,5 +44,3 @@ static char * names_of_instructions [] = {
   "RERAISE", "RAISE_NOTRACE",
   "GETSTRINGCHAR",
 "FIRST_UNIMPLEMENTED_OP"};
-
-

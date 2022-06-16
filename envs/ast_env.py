@@ -1,6 +1,6 @@
 import ctypes
 import random
-from typing import Any, List, Tuple, TypeVar, TypedDict
+from typing import Any, List, Tuple, TypedDict, TypeVar
 
 import gym
 import numpy as np
