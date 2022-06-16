@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from gym.spaces.box import Box
 from gym.wrappers.clip_action import ClipAction
+from gym.wrappers.time_limit import TimeLimit
 from stable_baselines3.common.atari_wrappers import (
     ClipRewardEnv,
     EpisodicLifeEnv,
@@ -47,6 +48,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
                 num_actions=71,
             )
             env = FlattenObservation(env)
+            env = TimeLimit(env, max_episode_steps=1000)
             return env
 
         if env_id.startswith("dm"):

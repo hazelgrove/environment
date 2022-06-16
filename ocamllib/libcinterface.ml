@@ -124,7 +124,7 @@ let change_zast_c (ser_zast : string) (action : int) : string =
   let zast = change_ast zast action in
   serialize zast
 
-(* Update the observation space for the given ast *)
+(* Update the observation for the given zast *)
 let get_ast_c (ser_zast : string) : unit =
   let zast = deserialize ser_zast in
   let (nodes, edges), _ = expr_to_list zast in

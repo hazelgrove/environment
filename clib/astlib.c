@@ -35,41 +35,23 @@ int check_ast(State *ast)
 }
 
 /*
-Find the valid actions given the AST 
-DEAD FUCNTION
-
-Input:
-    - ast: struct representing the AST
-
-Mutates:
-    - ast->permitted_actions
-*/
-void valid_actions(State *ast)
-{   
-    for (int i = 0; i < NUM_ACTIONS; i++)
-        ast->permitted_actions[i] = 1;
-
-    curr_state = *ast;
-}
-
-/*
 Get the original ast of the code
 
 Input:
     - ast: struct representing the AST
-    - index: index of code submission
+    - code: index of code submission
 
 Mutates:
     - ast
 */
-void init_assignment(State *ast, int assignment, int index)
+void init_assignment(State *ast, int assignment, int code)
 {
-    load_starter_code(assignment, index);
+    load_starter_code(assignment, code);
     get_ast();
     load_tests(assignment);
 
     curr_state.assignment = assignment;
-    curr_state.code = index;
+    curr_state.code = code;
 
     get_cursor_info();
 

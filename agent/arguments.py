@@ -6,26 +6,6 @@ import torch
 def get_args():
     parser = argparse.ArgumentParser(description="RL")
     parser.add_argument(
-        "--gail",
-        action="store_true",
-        default=False,
-        help="do imitation learning with gail",
-    )
-    parser.add_argument(
-        "--gail-experts-dir",
-        default="./gail_experts",
-        help="directory that contains expert demonstrations for gail",
-    )
-    parser.add_argument(
-        "--gail-batch-size",
-        type=int,
-        default=128,
-        help="gail batch size (default: 128)",
-    )
-    parser.add_argument(
-        "--gail-epoch", type=int, default=5, help="gail epochs (default: 5)"
-    )
-    parser.add_argument(
         "--lr", type=float, default=7e-4, help="learning rate (default: 7e-4)"
     )
     parser.add_argument(

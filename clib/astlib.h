@@ -40,17 +40,6 @@ Output:
 int check_ast();
 
 /*
-Find the valid actions given the AST
-
-Input:
-    - ast: struct representing the AST
-
-Mutates:
-    - ast->permitted_actions
-*/
-void valid_actions(State *ast);
-
-/*
 Get the original ast of the code
 
 Input:

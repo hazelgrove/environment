@@ -1,36 +1,21 @@
-# Code Overview
+# Program Synthesis with Reinforcement Learning of Structured Edits
 
-## Python Side
-The file `test.py` includes the `main` function of the project. This file is used to test various types of functionalities written.
+## Overview
+This project focuses on using reinforcement learning to mutate a partially-correct/complete piece of coding homework to a complete and highly scored (e.g. test inputs all give correct output) homework submission. Our domain uses code written in the functional programming language, OCaml. This project extracts and preprocesses data from a large database of homework submission, transforming them into an abstract syntax tree (AST) and passing the through a graph neural network (GNN). 
 
-The directory `gym_basic/` contains the code for the environment of our reinforcement learning model. The subdirectory envs include the specific definitions of various environments. `ast_env.py` has the class `ASTEnv`, which is the one which we will use in our project. This environment is registered as `gym_basic:ast-v0`. `test_env.py` has the class `TestEnv`, which is used for any testing you want to do with the environment prior to implementing it in our project. This environment is registered as `gym_basic:test-v0`.
-
-The code for the agent and learning is adapted from [this GitHub repository](https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail).
-
-## C Side
-All the C code are in the directory `clib/`. `State.h` defines the state/observations of our project in C-style. `astlib.h` defines the functions used for linking between the C code and Python code. `ocamlInterface.c` defines the functions used for linking between the C code and OCaml code. `test.c` may be used for your own purposes for testing anything before implementing it in our project. The subdirectory `caml/` includes various linking files used to communicate with OCaml. Please DO NOT modify anything in this directory.
-
-## OCaml Side
-All the OCaml code are in the directory `ocamllib/`. `astlib.ml` includes functions for communication with c. The subdirectory `astparser/` includes a parser to turn OCaml source code into an AST defined in `ast.ml`. 
-
-# C Library Build
-To complie `astlib.c`, use the following command:
+## Build instructions
+This project uses Docker for building. You can build the project by running the following commands in the terminal :
 ```
-make astclib
+$ docker build -t <image-name> .
+$ docker run --rm -it <image-name>
 ```
 
-# OCaml Build System
-[Dune](https://dune.build/)
-
-# Python Dependency Manager
-[Poetry](https://python-poetry.org/)
-
-# Run OCaml Side
-To run the OCaml AST side independently, you can use
-```
-dune utop
-```
-The utop has the modules included automatically.
+## Code Overview
+The following directories each have the following functions:
+* `agent/`: This directory includes the code for our reinforcement learning agent
+* `clib/`: This directory includes the C code for our project. The C code is used for communicating between our Python and OCaml code.
+* `envs/`: This directory includes the Python code for our environment. The environment that we are using is in `envs/ast_env.py`. 
+* `ocamllib/`: This directory includes the OCaml code for our environment. 
 
 ## Bug Fix Notes
-1. If there is a sudden error of not finding a child or something like that, check if num_nodes is sufficient for problem.
+1. If there is a sudden error of not finding a child or something like that, check if `max_num_nodes` is sufficient for problem.
