@@ -6,12 +6,6 @@ import gym
 import numpy as np
 import numpy.typing as npt
 
-max_num_nodes = 20
-num_actions = 80
-max_num_tests = 10
-max_tree_length = 10000
-max_num_vars = 10
-
 
 class State(ctypes.Structure):
     pass
@@ -32,7 +26,7 @@ class ASTEnv(gym.Env):
         super(ASTEnv, self).__init__()
 
         State._fields_ = [
-            ("edges", (ctypes.c_int * (max_num_nodes**2)) * 3),
+            ("edges", (ctypes.c_int * (max_num_nodes * 3)) * 3),
             ("tests", (ctypes.c_int * max_num_tests) * 2),
             ("nodes", ctypes.c_int * max_num_nodes),
             ("permitted_actions", ctypes.c_int * num_actions),
@@ -55,7 +49,7 @@ class ASTEnv(gym.Env):
 
         # Plus one to account for -1
         node_nvec = (num_node_descriptor + 1) * np.ones(max_num_nodes)
-        edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes**2, 3))
+        edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes * 3, 3))
         vars_nvec = (max_num_nodes + 1) * np.ones(max_num_vars)
 
         self.action_space = gym.spaces.Discrete(num_actions)
@@ -132,7 +126,7 @@ class ASTEnv(gym.Env):
         for i in range(self.state.num_nodes, self.max_num_nodes):
             state["nodes"][i] = -1
 
-        for i in range(self.state.num_edges, self.max_num_nodes**2):
+        for i in range(self.state.num_edges, self.max_num_nodes * 3):
             state["edges"][i][0] = -1
 
         for i in range(self.state.num_vars, self.max_num_vars):
@@ -146,7 +140,7 @@ class ASTEnv(gym.Env):
                 state["nodes"] = state["nodes"][:i]
                 break
 
-        for i in range(self.max_num_nodes**2):
+        for i in range(self.max_num_nodes * 3):
             if state["edges"][i][0] == -1:
                 state["edges"] = state["edges"][:i]
                 break

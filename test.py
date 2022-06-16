@@ -23,19 +23,7 @@ def main():
         num_actions=71,
     )
     obs = env.reset()
-    env = FlattenObservation(env)
-    
-    policy = GNNPolicy(
-        env.orig_obs_space,
-        env.action_space,
-        base_kwargs={},
-    )
-
-    obs = env.reset()
-    obs = np.array([obs, obs])
-    obs = torch.from_numpy(obs).float()
-
-    policy.act(obs, None, None)
+    env.step(56)
     
 
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/
   redis \
   cmake \
   python3-opencv \
+  gcc \
   && apt-get clean
 
 FROM base AS deps
@@ -32,7 +33,6 @@ RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
   apt-get install -yq \
     python3-pip \
-    gcc \
     cmake \
   && apt-get clean
 WORKDIR "/deps"
@@ -47,7 +47,6 @@ RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
   apt-get install -yq \
   opam \
-  gcc \
   && apt-get clean
 COPY opam.export .
 RUN opam init --yes --disable-sandboxing \

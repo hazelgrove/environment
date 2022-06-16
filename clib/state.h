@@ -1,7 +1,7 @@
 #ifndef __STATE_H
 #define __STATE_H
 
-#define MAX_NUM_NODES 20
+#define MAX_NUM_NODES 50
 #define MAX_NUM_TESTS 10
 #define NUM_ACTIONS 71
 #define MAX_TREE_LENGTH 10000
@@ -19,7 +19,7 @@ typedef struct
     For non-negative descriptors, the number representes that the edge connects to the n-th child of the parent.
     For descriptor == -1, the edge shows the binding of a variable.
     */
-    int edges[MAX_NUM_NODES * MAX_NUM_NODES][3];
+    int edges[MAX_NUM_NODES * 3][3];
 
     /*
     Node descriptor of each node.

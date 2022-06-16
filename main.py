@@ -105,6 +105,7 @@ def main():
                     rollouts.masks[step],
                 )
 
+            print(action)
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
 

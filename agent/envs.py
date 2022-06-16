@@ -41,7 +41,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
     def _thunk():
         if env_id == "pl":
             env = ASTEnv(
-                max_num_nodes=20,
+                max_num_nodes=50,
                 num_node_descriptor=50,
                 num_assignments=1,
                 code_per_assignment=[1],
@@ -120,11 +120,11 @@ def make_vec_envs(
     else:
         envs = DummyVecEnv(envs)
 
-    # if len(envs.observation_space.shape) == 1:
-    #     if gamma is None:
-    #         envs = VecNormalize(envs, norm_reward=False)
-    #     else:
-    #         envs = VecNormalize(envs, gamma=gamma)
+    if env_name != "pl" and len(envs.observation_space.shape) == 1:
+        if gamma is None:
+            envs = VecNormalize(envs, norm_reward=False)
+        else:
+            envs = VecNormalize(envs, gamma=gamma)
 
     envs = VecPyTorch(envs, device)
 

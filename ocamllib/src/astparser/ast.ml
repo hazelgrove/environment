@@ -155,6 +155,7 @@ module Expr = struct
     | EVar "y" -> 39
     | EVar "z" -> 40
     | ENil -> 41
+    | EVar "" -> 42
     | node -> raise (Failure ((to_string node) ^ "not supported yet"))
 
   let tag_to_node (tag : tag) : t =
@@ -189,6 +190,7 @@ module Expr = struct
     | 39 -> EVar "y"
     | 40 -> EVar "z"
     | 41 -> ENil
+    | 42 -> EVar ""
     | _ -> raise (Failure "Node index not supported")
 
   (*

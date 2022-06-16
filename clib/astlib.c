@@ -123,7 +123,7 @@ void init_c()
     }
 
     curr_state.num_edges = 0;
-    for (int i = 0; i < MAX_NUM_NODES * MAX_NUM_NODES; i++)
+    for (int i = 0; i < MAX_NUM_NODES * 3; i++)
     {
         curr_state.edges[i][0] = -1;
         curr_state.edges[i][1] = -1;
@@ -178,7 +178,7 @@ void copy_ast(State *astdst, const State *astsrc)
     {
         astdst->nodes[i] = astsrc->nodes[i];
     }
-    for (int i = 0; i < MAX_NUM_NODES * MAX_NUM_NODES; i++)
+    for (int i = 0; i < MAX_NUM_NODES * 3; i++)
     {
         astdst->edges[i][0] = astsrc->edges[i][0];
         astdst->edges[i][1] = astsrc->edges[i][1];
