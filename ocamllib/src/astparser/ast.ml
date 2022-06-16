@@ -17,7 +17,7 @@ module Expr = struct
     | OpGe
     | OpEq
     | OpNe
-    | OpCon
+    | OpCons
     | OpAp
   [@@deriving sexp]
 
@@ -84,7 +84,7 @@ module Expr = struct
           | OpGe -> ">="
           | OpEq -> "="
           | OpNe -> "!="
-          | OpCon -> "::"
+          | OpCons -> "::"
           | OpAp -> " "
         in
         "(" ^ to_string e1 ^ " " ^ op_string ^ " " ^ to_string e2 ^ ") "
@@ -136,7 +136,7 @@ module Expr = struct
         | OpGe -> 8
         | OpEq -> 9
         | OpNe -> 10
-        | OpCon -> 11
+        | OpCons -> 11
         | OpAp -> 12)
     | ELet (_, _, _) -> 13
     | EIf (_, _, _) -> 14
@@ -171,7 +171,7 @@ module Expr = struct
     | 8 -> EBinOp (EHole, OpGe, EHole)
     | 9 -> EBinOp (EHole, OpEq, EHole)
     | 10 -> EBinOp (EHole, OpNe, EHole)
-    | 11 -> EBinOp (EHole, OpCon, EHole)
+    | 11 -> EBinOp (EHole, OpCons, EHole)
     | 12 -> EBinOp (EHole, OpAp, EHole)
     | 13 -> ELet ("", EHole, EHole)
     | 14 -> EIf (EHole, EHole, EHole)
@@ -249,7 +249,7 @@ module Expr = struct
     match b1,b2 with 
     | OpPlus, OpPlus | OpMinus,OpMinus | OpTimes,OpTimes
     | OpDiv,OpDiv | OpLt, OpLt | OpLe,OpLe | OpGt,OpGt
-    | OpGe,OpGe | OpEq,OpEq | OpNe,OpNe | OpCon,OpCon
+    | OpGe,OpGe | OpEq,OpEq | OpNe,OpNe | OpCons,OpCons
     | OpAp,OpAp -> true 
     |_ -> false 
 
@@ -588,7 +588,7 @@ module Action = struct
     | 31 -> Construct (BinOp_L OpEq)
     | 32 -> Construct (BinOp_L OpNe)
     | 33 -> Construct (BinOp_L OpAp)
-    | 34 -> Construct (BinOp_L OpCon)
+    | 34 -> Construct (BinOp_L OpCons)
     | 35 -> Construct (BinOp_R OpPlus)
     | 36 -> Construct (BinOp_R OpMinus)
     | 37 -> Construct (BinOp_R OpTimes)
@@ -600,7 +600,7 @@ module Action = struct
     | 43 -> Construct (BinOp_R OpEq)
     | 44 -> Construct (BinOp_R OpNe)
     | 45 -> Construct (BinOp_R OpAp)
-    | 46 -> Construct (BinOp_R OpCon)
+    | 46 -> Construct (BinOp_R OpCons)
     | 47 -> Construct (Let_L Var.undef_var)
     | 50 -> Construct (Let_R Var.undef_var)
     | 53 -> Construct If_L
@@ -651,7 +651,7 @@ module Action = struct
     | Construct (BinOp_L OpEq) -> 31
     | Construct (BinOp_L OpNe) -> 32
     | Construct (BinOp_L OpAp) -> 33
-    | Construct (BinOp_L OpCon) -> 34
+    | Construct (BinOp_L OpCons) -> 34
     | Construct (BinOp_R OpPlus) -> 35
     | Construct (BinOp_R OpMinus) -> 36
     | Construct (BinOp_R OpTimes) -> 37
@@ -663,7 +663,7 @@ module Action = struct
     | Construct (BinOp_R OpEq) -> 43
     | Construct (BinOp_R OpNe) -> 44
     | Construct (BinOp_R OpAp) -> 45
-    | Construct (BinOp_R OpCon) -> 46
+    | Construct (BinOp_R OpCons) -> 46
     | Construct (Let_L "") -> 47
     | Construct (Let_R "") -> 50
     | Construct If_L -> 53

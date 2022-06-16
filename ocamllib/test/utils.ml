@@ -3,8 +3,7 @@ open OUnit2
 let rec test_set (tests : ('a * 'a) list) (cmp : 'a -> 'a -> bool) =
   match tests with
   | [] -> ()
-  | hd :: tl ->
-      let a, b = hd in
+  | (a, b) :: tl ->
       assert_equal ~cmp a b;
       test_set tl cmp
 

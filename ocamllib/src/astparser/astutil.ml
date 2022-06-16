@@ -199,7 +199,7 @@ let rec eval (e : Expr.t) (stack : int) : Expr.value =
               | _ -> ( = )
             in
             VBool (f (expecting_int v1) (expecting_int v2))
-        | OpCon -> raise NotImplemented)
+        | OpCons -> raise NotImplemented)
     | EIf (e_cond, e_then, e_else) ->
         let b = expecting_bool (eval e_cond stack) in
         if b then eval e_then stack else eval e_else stack

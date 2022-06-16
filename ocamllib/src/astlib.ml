@@ -15,15 +15,13 @@ type testType = int * int
 (*
      Given an zippered AST, apply the action
      Input:
-       - e : an AST with cursor (TODO: implement zast)
+       - e : an AST with cursor
        - action : action applied to e
      Output:
        the modified AST
 *)
 let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
-  (*handles actions on type subtrees:  
-      > uses three subfunctions to handle Move parent Move child and Construct
-      actions, respectively*)
+  (* Handles actions on type subtrees *)
   let rec act_on_type (type_tree : Typ.z_t) : Typ.z_t =
     
     let build_type (subtr : Typ.t) (shape : Action.shape) : Typ.z_t =
@@ -257,7 +255,7 @@ let rec run_unit_tests (test_set : testType list) (code : Expr.t) : bool =
     match code with
     | Expr.ELet (id, f, Expr.EHole) -> (
         match f with
-        | EFun (_, _, _) | EFix (_, _, _) -> (
+        | EFun _ | EFix _ -> (
             let test_input, test_output = test in
             let output =
               try
@@ -316,9 +314,8 @@ let rec synthesis (context : Assumptions.t) (e : Expr.t) : Typ.t option =
   | EVar x -> Assumptions.lookup context x
   | EInt _ -> Some TInt
   | EBool _ -> Some TBool
-  | EUnOp (OpNeg, arg) -> (* negation: if child is bool or int, expr has same type*)
-      if analysis context arg Typ.TInt then Some TInt else 
-      if analysis context arg Typ.TBool then Some TBool else None
+  | EUnOp (OpNeg, arg) -> (* negation: if child is int, expr has same type*)
+      if analysis context arg Typ.TInt then Some TInt else None
   | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) -> 
     (*arithmetic operations: if we see an int, return an int *)
       if analysis context argl TInt && analysis context argr TInt
@@ -339,7 +336,7 @@ let rec synthesis (context : Assumptions.t) (e : Expr.t) : Typ.t option =
       | Some (TArrow (in_t, out_t)) ->
           if analysis context arg in_t then Some out_t else None
       | _ -> None)
-  | EBinOp (hd, OpCon, tl) -> (
+  | EBinOp (hd, OpCons, tl) -> (
       match synthesis context tl with
       | Some (TList list_t) ->
           if analysis context hd list_t then Some (TList list_t) else None
@@ -385,9 +382,9 @@ and analysis (context : Assumptions.t) (e : Expr.t) (targ : Typ.t) : bool =
   match e with
   | EFun (varn, vart, expr) -> (
       match synthesis (Assumptions.extend context (varn, vart)) expr with
-      | Some etyp -> Typ.lax_equal etyp targ
+      | Some etyp -> Typ.consistent etyp targ
       | None -> false)
-  | EFix (varn, vart, arg) -> Typ.lax_equal vart targ && analysis context arg targ
+  | EFix (varn, vart, arg) -> Typ.consistent vart targ && analysis context arg targ
   | EPair (lpair, rpair) -> (
       match targ with
       | TProd (l_t, r_t) ->
@@ -408,7 +405,7 @@ and analysis (context : Assumptions.t) (e : Expr.t) (targ : Typ.t) : bool =
   | _ -> (
       match synthesis context e with
       | None -> false
-      | Some expt -> Typ.lax_equal expt targ) (* this handles all the other cases*)
+      | Some expt -> Typ.consistent expt targ) (* this handles all the other cases*)
 
 (* Given an assignment number, load the unit test
    Input:
@@ -421,8 +418,8 @@ let load_tests (directory : string) (assignment : int) : testType list =
   let tests_cons = parse_file filename in
   let rec combine_tests (tests_cons : Expr.t) : testType list =
     match tests_cons with
-    | EBinOp (EPair (EInt a, EInt b), OpCon, ENil) -> [ (a, b) ]
-    | EBinOp (EPair (EInt a, EInt b), OpCon, tl) -> (a, b) :: combine_tests tl
+    | EBinOp (EPair (EInt a, EInt b), OpCons, ENil) -> [ (a, b) ]
+    | EBinOp (EPair (EInt a, EInt b), OpCons, tl) -> (a, b) :: combine_tests tl
     | _ -> raise (IOError "Test file in incorrect format.")
   in
   combine_tests tests_cons
@@ -446,7 +443,6 @@ let get_cursor_info (e : SyntaxTree.z_t) : CursorInfo.t =
       (def_cont : (Var.t * int) list) (typ_cont : Assumptions.t)
       (pred_type : Typ.t option) (ind : int) :
       CursorInfo.t
-      (*((SyntaxTree.t option)*((Var.t * int) list)*(Typ.t option)*(Typ.t option)*SyntaxTree.t)*)
       =
     let current : SyntaxTree.t =
       match node with
@@ -491,7 +487,7 @@ let get_cursor_info (e : SyntaxTree.z_t) : CursorInfo.t =
           match pred_type with Some TBool | Some TInt -> pred_type | _ -> None
         in
         recurse (ZENode argr) (Some current) def_cont typ_cont exp_typ ind
-    | ZENode (EBinOp_L (argl, OpCon, arr)) ->
+    | ZENode (EBinOp_L (argl, OpCons, arr)) ->
         let exp_typ =
           match (pred_type, synthesis typ_cont arr) with
           | Some (TList ltype), _ -> Some ltype
@@ -499,7 +495,7 @@ let get_cursor_info (e : SyntaxTree.z_t) : CursorInfo.t =
           | _ -> None
         in
         recurse (ZENode argl) (Some current) def_cont typ_cont exp_typ ind
-    | ZENode (EBinOp_R (argl, OpCon, arr)) ->
+    | ZENode (EBinOp_R (argl, OpCons, arr)) ->
         let exp_typ =
           match (pred_type, synthesis typ_cont argl) with
           | Some (TList ltype), _ -> Some ltype
@@ -595,7 +591,7 @@ let get_cursor_info (e : SyntaxTree.z_t) : CursorInfo.t =
   in
   recurse e None [] [] None 0
 
-let cursor_info_to_list (info : CursorInfo.t) : Action.t list =
+let cursor_info_to_actions (info : CursorInfo.t) : Action.t list =
   let handle_root (ci : CursorInfo.t) (currlist : Action.t list) : Action.t list
       =
     match ci.parent_term with
@@ -649,17 +645,17 @@ let cursor_info_to_list (info : CursorInfo.t) : Action.t list =
     match (info.expected_ty, info.actual_ty) with
     | Some (TList a), Some (TList b) ->
         if Typ.equal b THole
-        then Construct (BinOp_R OpCon) :: currlist
+        then Construct (BinOp_R OpCons) :: currlist
         else if Typ.equal a b
-        then Construct (BinOp_R OpCon) :: Construct (BinOp_L OpCon) :: currlist
+        then Construct (BinOp_R OpCons) :: Construct (BinOp_L OpCons) :: currlist
         else currlist
     | Some (TList a), Some b ->
         if Typ.equal a b
-        then Construct (BinOp_L OpCon) :: currlist
+        then Construct (BinOp_L OpCons) :: currlist
         else currlist
     | None, Some (TList _) ->
-        Construct (BinOp_R OpCon) :: Construct (BinOp_L OpCon) :: currlist
-    | None, Some _ -> Construct (BinOp_L OpCon) :: currlist
+        Construct (BinOp_R OpCons) :: Construct (BinOp_L OpCons) :: currlist
+    | None, Some _ -> Construct (BinOp_L OpCons) :: currlist
     | _ -> currlist
   in
   let handle_ap_binop (currlist : Action.t list) : Action.t list =

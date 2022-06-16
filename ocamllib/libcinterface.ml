@@ -80,9 +80,9 @@ let list_to_edge (l : (int * int * int) list) :
     match l with
     | [] -> ()
     | (start, stop, index) :: tl ->
-        let _ = arr.{count, 0} <- of_int start in
-        let _ = arr.{count, 1} <- of_int stop in
-        let _ = arr.{count, 2} <- of_int index in
+        arr.{count, 0} <- of_int start;
+        arr.{count, 1} <- of_int stop;
+        arr.{count, 2} <- of_int index;
         list_to_edge_aux tl arr (count + 1)
   in
   let _ = list_to_edge_aux l edges 0 in
@@ -135,9 +135,7 @@ let get_ast_c (ser_zast : string) : unit =
 let get_cursor_info_c (ser_zast : string) : int =
   let zast = deserialize ser_zast in
   let (nodes, edges), cursorInfo = expr_to_list zast in
-  let actions = cursor_info_to_list cursorInfo in
-  let actions = Action.to_list actions in
-  let actions = List.map (fun b -> if b then 1 else 0) actions in
+  let actions = cursorInfo |> cursor_info_to_actions |> Action.to_list |> (List.map (fun b -> if b then 1 else 0)) in
   let vars_in_scope =
     List.map (fun (var, _) -> Expr.node_to_tag (EVar var)) cursorInfo.ctx
   in

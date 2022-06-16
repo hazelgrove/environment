@@ -4,7 +4,7 @@
 This project focuses on using reinforcement learning to mutate a partially-correct/complete piece of coding homework to a complete and highly scored (e.g. test inputs all give correct output) homework submission. Our domain uses code written in the functional programming language, OCaml. This project extracts and preprocesses data from a large database of homework submission, transforming them into an abstract syntax tree (AST) and passing the through a graph neural network (GNN). 
 
 ## Build instructions
-This project uses Docker for building. You can build the project by running the following commands in the terminal :
+This project uses Docker for building. You can build the project by running the following commands in the terminal:
 ```
 $ docker build -t <image-name> .
 $ docker run --rm -it <image-name>

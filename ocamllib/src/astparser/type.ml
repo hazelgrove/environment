@@ -46,16 +46,17 @@ module Typ = struct
     | List_L t1, List_L t2 -> (z_equal t1 t2)
     |_-> false 
    
-  let lax_equal (ty : t) (ty' : t) : bool =
+  let consistent (ty : t) (ty' : t) : bool =
     (* like Type.equal, but we want hole types 
        to act like wildcards (i.e. 'equal' all other types)*)
-  match (ty, ty') with
-  | _, THole | THole, _ -> true 
-  | TInt, TInt | TBool, TBool ->  true
-  | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
-      equal tin1 tin2 && equal tout1 tout2
-  | TList t_1, TList t_2 -> equal t_1 t_2
-  | _ -> false
+    match (ty, ty') with
+    | _, THole | THole, _ -> true 
+    | TInt, TInt | TBool, TBool ->  true
+    | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
+        equal tin1 tin2 && equal tout1 tout2
+    | TList t_1, TList t_2 -> equal t_1 t_2
+    | _ -> false
+    
   (*
      Return the size of the Type Tree
      Input :
