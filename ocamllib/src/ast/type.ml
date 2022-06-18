@@ -26,8 +26,8 @@ type z_t =
 let rec equal (ty : t) (ty' : t) : bool =
   match (ty, ty') with
   | TInt, TInt | TBool, TBool | THole, THole -> true
-  | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
-      equal tin1 tin2 && equal tout1 tout2
+  | TArrow (t1, t2), TArrow (t1', t2') | TProd (t1, t2), TProd (t1', t2') ->
+      equal t1 t1' && equal t2 t2'
   | TList t_1, TList t_2 -> equal t_1 t_2
   | _ -> false
 
