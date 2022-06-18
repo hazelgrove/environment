@@ -48,10 +48,17 @@ let get_ast_c (ser_zast : string) : unit =
   ()
 
 let get_cursor_info_c (ser_zast : string) : int =
+<<<<<<< HEAD
   let zast = Utils.deserialize ser_zast in
   let (nodes, edges), cursorInfo = ExprConv.to_list zast in
   let actions =
     cursorInfo |> CursorInfo.cursor_info_to_actions |> ActionConv.to_list
+=======
+  let zast = deserialize ser_zast in
+  let (nodes, edges), cursorInfo = expr_to_list zast in
+  let actions =
+    cursorInfo |> cursor_info_to_actions |> Action.to_list
+>>>>>>> 5bcdb35647064a2250b98a2a3f9a3ac2b3441df2
     |> List.map (fun b -> if b then 1 else 0)
   in
   let vars_in_scope =
