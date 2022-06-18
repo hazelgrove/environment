@@ -135,7 +135,10 @@ let get_ast_c (ser_zast : string) : unit =
 let get_cursor_info_c (ser_zast : string) : int =
   let zast = deserialize ser_zast in
   let (nodes, edges), cursorInfo = expr_to_list zast in
-  let actions = cursorInfo |> cursor_info_to_actions |> Action.to_list |> (List.map (fun b -> if b then 1 else 0)) in
+  let actions =
+    cursorInfo |> cursor_info_to_actions |> Action.to_list
+    |> List.map (fun b -> if b then 1 else 0)
+  in
   let vars_in_scope =
     List.map (fun (var, _) -> Expr.node_to_tag (EVar var)) cursorInfo.ctx
   in

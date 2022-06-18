@@ -12,10 +12,10 @@
 %token EOF
 
 %{ 
-    open Ast
+    open Expr
     open Type
 %}
-%start <Ast.Expr.t> main
+%start <Expr.t> main
 
 %%
 
@@ -30,55 +30,55 @@ expr:
     { 
     let ebody = 
         match e2 with
-        | None -> Expr.EHole
+        | None -> EHole
         | Some e -> e
     in
-    Expr.ELet (x, e1, ebody)
+    ELet (x, e1, ebody)
     }
 | LET x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
             | [] -> raise (Failure "Incorrect syntax")
-            | [(a, ty)] -> Expr.EFun(a, ty, e)
-            | (a, ty) :: tl -> Expr.EFun(a, ty, resolve_fun tl e)
+            | [(a, ty)] -> EFun(a, ty, e)
+            | (a, ty) :: tl -> EFun(a, ty, resolve_fun tl e)
     in
     let ebody = 
         match e2 with
-        | None -> Expr.EHole
+        | None -> EHole
         | Some e -> e
     in
-    Expr.ELet (x, resolve_fun args e1, ebody)
+    ELet (x, resolve_fun args e1, ebody)
     }
 | LET REC x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
             | [] -> raise (Failure "Incorrect syntax")
-            | [(a, ty)] -> Expr.EFun(a, ty, e)
-            | (a, ty) :: tl -> Expr.EFun(a, ty, resolve_fun tl e)
+            | [(a, ty)] -> EFun(a, ty, e)
+            | (a, ty) :: tl -> EFun(a, ty, resolve_fun tl e)
     in
     let ebody = 
         match e2 with
         | None -> Expr.EHole
         | Some e -> e
     in
-    Expr.ELet (x, EFix (x, THole, resolve_fun args e1), ebody)
+    ELet (x, EFix (x, THole, resolve_fun args e1), ebody)
     }
 | IF econd = expr THEN ethen = expr ELSE eelse = expr 
     {
-    Expr.EIf (econd, ethen, eelse)
+    EIf (econd, ethen, eelse)
     }   
 | FUN x = arg RIGHTARROW e = expr
     {
     let (a, ty) = x in
-    Expr.EFun (a, ty, e)
+    EFun (a, ty, e)
     }
 | LBRAC es = separated_list(SEMI, expr) RBRAC
     { let rec resolve_list es =
         match es with
-            | hd :: [] -> Expr.EBinOp(hd, OpCons, Expr.ENil)
-            | hd :: tl -> Expr.EBinOp(hd, OpCons, resolve_list tl)
+            | hd :: [] -> EBinOp(hd, OpCons, ENil)
+            | hd :: tl -> EBinOp(hd, OpCons, resolve_list tl)
             | _ -> raise (Failure "Incorrect syntax")
     in
     resolve_list es 
@@ -88,71 +88,71 @@ boolean:
 | e = lst 
     { e }
 | e1 = lst LT e2 = lst
-    { Expr.EBinOp (e1, Expr.OpLt, e2) }
+    { EBinOp (e1, OpLt, e2) }
 | e1 = lst LE e2 = lst
-    { Expr.EBinOp (e1, Expr.OpLe, e2) }
+    { EBinOp (e1, OpLe, e2) }
 | e1 = lst GT e2 = lst
-    { Expr.EBinOp (e1, Expr.OpGt, e2) }
+    { EBinOp (e1, OpGt, e2) }
 | e1 = lst GE e2 = lst
-    { Expr.EBinOp (e1, Expr.OpGe, e2) }
+    { EBinOp (e1, OpGe, e2) }
 | e1 = lst EQ e2 = lst
-    { Expr.EBinOp (e1, Expr.OpEq, e2) }
+    { EBinOp (e1, OpEq, e2) }
 | e1 = lst NE e2 = lst
-    { Expr.EBinOp (e1, Expr.OpNe, e2) }
+    { EBinOp (e1, OpNe, e2) }
 
 lst:
 | e = arith
     { e }
 | e1 = arith CON e2 = lst
-    { Expr.EBinOp (e1, Expr.OpCons, e2) }
+    { EBinOp (e1, OpCons, e2) }
 
 arith:
 | e = factor
     { e }
 | e1 = arith PLUS e2 = factor
-    { Expr.EBinOp (e1, Expr.OpPlus, e2) }
+    { EBinOp (e1, OpPlus, e2) }
 | e1 = arith MINUS e2 = factor
-    { Expr.EBinOp (e1, Expr.OpMinus, e2) }
+    { EBinOp (e1, OpMinus, e2) }
 
 factor:
 | e = app
     { e }
 | e1 = factor TIMES e2 = app
-    { Expr.EBinOp (e1, Expr.OpTimes, e2) }
+    { EBinOp (e1, OpTimes, e2) }
 | e1 = factor DIV e2 = app
-    { Expr.EBinOp (e1, Expr.OpDiv, e2) }
+    { EBinOp (e1, OpDiv, e2) }
 
 app:
 | e = simple
     { e }
 | e1 = app e2 = simple
-    { Expr.EBinOp (e1, Expr.OpAp, e2)}
+    { EBinOp (e1, OpAp, e2)}
 | MINUS e = simple
-    { Expr.EUnOp (Expr.OpNeg, e) }
+    { EUnOp (OpNeg, e) }
 
 simple: 
 | x = ID
-    { Expr.EVar x }
+    { EVar x }
 | TRUE
-    { Expr.EBool true }
+    { EBool true }
 | FALSE
-    { Expr.EBool false }
+    { EBool false }
 | n = INT
-    { Expr.EInt n }
+    { EInt n }
 | LBRAC RBRAC
-    { Expr.ENil }
+    { ENil }
 | LPAREN e = expr RPAREN
     { e }
 | LPAREN e1 = expr COMMA e2 = expr RPAREN
-    { Expr.EPair (e1, e2) }
+    { EPair (e1, e2) }
 
 arg: 
 | x = ID
-    { (x, Typ.THole) }
+    { (x, THole) }
 | LPAREN x = ID t = tyann RPAREN
     { (x, t) }
 | LPAREN x = ID RPAREN
-    { (x, Typ.THole) }
+    { (x, THole) }
 
 tyann: 
 | OFTYPE t = ty 
@@ -162,19 +162,19 @@ ty:
 | t = ty_prod
     { t }
 | t1 = ty_prod RIGHTARROW t2 = ty
-    { Typ.TArrow (t1, t2) }
+    { TArrow (t1, t2) }
 
 ty_prod:
 | t = base_ty
     { t }
 | t1 = base_ty TIMES t2 = ty_prod
-    { Typ.TProd (t1, t2) }
+    { TProd (t1, t2) }
 
 base_ty:
 | TINT
-    { Typ.TInt }
+    { TInt }
 | TBOOL
-    { Typ.TBool }
+    { TBool }
 | LPAREN t = ty RPAREN
     { t }
 
