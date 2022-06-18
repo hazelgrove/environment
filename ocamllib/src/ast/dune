@@ -1,10 +1,5 @@
-(menhir
- (modules parser))
-
-(ocamllex lexer)
-
 (library
- (name astutils)
+ (name ast)
  (inline_tests)
  (wrapped false)
  (libraries core sexplib)

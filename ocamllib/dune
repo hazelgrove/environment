@@ -5,6 +5,6 @@
 
 (executable
  (name libcinterface)
- (libraries astutils astlib)
+ (libraries environment)
  (modes
   (native shared_object)))

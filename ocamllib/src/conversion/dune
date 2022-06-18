@@ -1,12 +1,7 @@
-(menhir
- (modules parser))
-
-(ocamllex lexer)
-
 (library
- (name parser)
+ (name conversion)
  (inline_tests)
  (wrapped false)
- (libraries ast)
+ (libraries ast action cursorInfo)
  (preprocess
   (pps ppx_inline_test)))
