@@ -1,0 +1,10 @@
+#load "astlib.cmo";;
+#load "ast.cmo";;
+#load "astutil.cmo";;
+open Astlib;;
+open Astutil;;
+open Ast;;
+
+let e_correct = parse "let f x = x + 1";;
+let e_incorrect = parse "let f x = 2 * x";;
+let plusone_tests = [(1, 2); (2, 3); (-2, -1)];;

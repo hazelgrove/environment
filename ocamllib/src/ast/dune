@@ -1,0 +1,7 @@
+(library
+ (name ast)
+ (inline_tests)
+ (wrapped false)
+ (libraries core sexplib)
+ (preprocess
+  (pps ppx_sexp_conv ppx_inline_test)))

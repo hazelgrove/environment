@@ -1,0 +1,10 @@
+(env
+ (dev
+  (flags
+   (:standard -w -27))))
+
+(executable
+ (name libcinterface)
+ (libraries environment)
+ (modes
+  (native shared_object)))

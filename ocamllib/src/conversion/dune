@@ -1,0 +1,7 @@
+(library
+ (name conversion)
+ (inline_tests)
+ (wrapped false)
+ (libraries ast action cursorInfo)
+ (preprocess
+  (pps ppx_inline_test)))
