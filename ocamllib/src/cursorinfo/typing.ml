@@ -55,16 +55,10 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.t option =
       match synthesis context dec with
       | Some var_t -> synthesis (Context.extend context (varn, var_t)) body
       | _ -> None)
-  (* | ELet (varn, Some vart, dec, body) -> if analysis context dec vart
-     then synthesis (Context.extend context (varn,var_t)) body
-     else None *)
   | EFun (varn, vart, body) -> (
       match synthesis (Context.extend context (varn, vart)) body with
       | Some outtype -> Some (TArrow (vart, outtype))
       | _ -> None)
-  (* | EFun (varn, vart, Some outtype, body) ->
-     if analysis (Context.extend context (varn,vart)) body outtype
-       then Some Arrow (vart,outtype) else None *)
   | EFix (varn, vart, body) ->
       if analysis (Context.extend context (varn, vart)) body vart
       then Some vart
