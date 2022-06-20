@@ -100,7 +100,7 @@ let get_action : unit -> Action.t option =
       None
 
 let rec interactive_loop (ast : Expr.z_t) (action : Action.t option) : unit =
-  let ast = match action with Some act -> change_ast ast act | None -> ast in
+  let ast = match action with Some act -> perform_action ast act | None -> ast in
   print_zast ast 0;
   let next_action = get_action () in
   interactive_loop ast next_action

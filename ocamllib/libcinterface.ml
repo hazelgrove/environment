@@ -36,7 +36,7 @@ external pass_actions : (int32, int32_elt, c_layout) Array1.t -> unit
 let change_zast_c (ser_zast : string) (action : int) : string =
   let zast = Utils.deserialize ser_zast in
   let action = ActionConv.tag_to_action action in
-  let zast = Agent.change_ast zast action in
+  let zast = Agent.perform_action zast action in
   Utils.serialize zast
 
 (* Update the observation for the given zast *)

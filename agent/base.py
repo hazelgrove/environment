@@ -288,6 +288,7 @@ class GNNBase(NNBase):
                     num_edges[i] = j
                     break
         edge_index = edge_index.transpose(1, 2)
+        print(f"Num Nodes: {num_nodes}")
 
         # Convert inputs to long
         x = x.long()

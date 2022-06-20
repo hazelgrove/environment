@@ -9,7 +9,7 @@ exception InvalidAction of int
      Output:
        the modified AST
 *)
-let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
+let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   (* Handles actions on type subtrees *)
   let rec act_on_type (type_tree : Type.z_t) : Type.z_t =
     let build_type (subtr : Type.t) (shape : Action.shape) : Type.z_t =
@@ -228,42 +228,42 @@ let change_ast (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   in
   act_on tree
 
-let%test_module "Test change_ast" =
+let%test_module "Test perform_action" =
   (module struct
     let%test _ =
       Expr.z_equal
         (Cursor (EBinOp (EInt 2, OpPlus, EInt 3)))
-        (change_ast (EBinOp_L (Cursor (EInt 2), OpPlus, EInt 3)) (Move Parent))
+        (perform_action (EBinOp_L (Cursor (EInt 2), OpPlus, EInt 3)) (Move Parent))
       = true
 
     let%test _ =
       Expr.z_equal
         (Cursor (EBinOp (EInt 2, OpDiv, EInt 3)))
-        (change_ast (EBinOp_R (EInt 2, OpDiv, Cursor (EInt 3))) (Move Parent))
+        (perform_action (EBinOp_R (EInt 2, OpDiv, Cursor (EInt 3))) (Move Parent))
       = true
 
     let%test _ =
       Expr.z_equal
         (Cursor (EUnOp (OpNeg, EBool false)))
-        (change_ast (EUnOp_L (OpNeg, Cursor (EBool false))) (Move Parent))
+        (perform_action (EUnOp_L (OpNeg, Cursor (EBool false))) (Move Parent))
       = true
 
     let%test _ =
       Expr.z_equal
         (Cursor (ELet ("var", EInt 2, EHole)))
-        (change_ast (ELet_L ("var", Cursor (EInt 2), EHole)) (Move Parent))
+        (perform_action (ELet_L ("var", Cursor (EInt 2), EHole)) (Move Parent))
       = true
 
     let%test _ =
       Expr.z_equal
         (Cursor (ELet ("var", EInt 2, EHole)))
-        (change_ast (ELet_R ("var", EInt 2, Cursor EHole)) (Move Parent))
+        (perform_action (ELet_R ("var", EInt 2, Cursor EHole)) (Move Parent))
       = true
 
     let%test _ =
       Expr.z_equal
         (Cursor (EIf (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), EInt 3)))
-        (change_ast
+        (perform_action
            (EIf_L (Cursor (EBool false), EBinOp (EInt 3, OpPlus, EInt 2), EInt 3))
            (Move Parent))
       = true
@@ -271,7 +271,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EIf (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), EInt 3)))
-        (change_ast
+        (perform_action
            (EIf_C (EBool false, Cursor (EBinOp (EInt 3, OpPlus, EInt 2)), EInt 3))
            (Move Parent))
       = true
@@ -279,7 +279,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EIf (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), EInt 3)))
-        (change_ast
+        (perform_action
            (EIf_R (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), Cursor (EInt 3)))
            (Move Parent))
       = true
@@ -287,7 +287,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EFun ("var", TBool, EUnOp (OpNeg, EVar "var"))))
-        (change_ast
+        (perform_action
            (EFun_L ("var", Cursor TBool, EUnOp (OpNeg, EVar "var")))
            (Move Parent))
       = true
@@ -295,7 +295,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EFun ("var", TBool, EUnOp (OpNeg, EVar "var"))))
-        (change_ast
+        (perform_action
            (EFun_R ("var", TBool, Cursor (EUnOp (OpNeg, EVar "var"))))
            (Move Parent))
       = true
@@ -303,7 +303,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EFix ("var", TBool, EUnOp (OpNeg, EVar "var"))))
-        (change_ast
+        (perform_action
            (EFix_L ("var", Cursor TBool, EUnOp (OpNeg, EVar "var")))
            (Move Parent))
       = true
@@ -311,7 +311,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EFix ("var", TBool, EUnOp (OpNeg, EVar "var"))))
-        (change_ast
+        (perform_action
            (EFix_R ("var", TBool, Cursor (EUnOp (OpNeg, EVar "var"))))
            (Move Parent))
       = true
@@ -319,20 +319,20 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EPair (EBool false, EInt 3)))
-        (change_ast (EPair_L (Cursor (EBool false), EInt 3)) (Move Parent))
+        (perform_action (EPair_L (Cursor (EBool false), EInt 3)) (Move Parent))
       = true
 
     let%test _ =
       Expr.z_equal
         (Cursor (EPair (EBool false, EInt 3)))
-        (change_ast (EPair_R (EBool false, Cursor (EInt 3))) (Move Parent))
+        (perform_action (EPair_R (EBool false, Cursor (EInt 3))) (Move Parent))
       = true
 
     (* test ability to 'recurse through' each type *)
     let%test _ =
       Expr.z_equal
         (EUnOp_L (OpNeg, Cursor (EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (EUnOp_L (OpNeg, EUnOp_L (OpNeg, Cursor EHole)))
            (Move Parent))
       = true
@@ -340,7 +340,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EBinOp_L (Cursor (EUnOp (OpNeg, EHole)), OpLe, EHole))
-        (change_ast
+        (perform_action
            (EBinOp_L (EUnOp_L (OpNeg, Cursor EHole), OpLe, EHole))
            (Move Parent))
       = true
@@ -348,7 +348,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EBinOp_R (EHole, OpGt, Cursor (EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (EBinOp_R (EHole, OpGt, EUnOp_L (OpNeg, Cursor EHole)))
            (Move Parent))
       = true
@@ -356,7 +356,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (ELet_L ("name", Cursor (EUnOp (OpNeg, EHole)), EHole))
-        (change_ast
+        (perform_action
            (ELet_L ("name", EUnOp_L (OpNeg, Cursor EHole), EHole))
            (Move Parent))
       = true
@@ -364,7 +364,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (ELet_R ("name", EHole, Cursor (EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (ELet_R ("name", EHole, EUnOp_L (OpNeg, Cursor EHole)))
            (Move Parent))
       = true
@@ -372,7 +372,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_L (Cursor (EUnOp (OpNeg, EHole)), EHole, ENil))
-        (change_ast
+        (perform_action
            (EIf_L (EUnOp_L (OpNeg, Cursor EHole), EHole, ENil))
            (Move Parent))
       = true
@@ -380,7 +380,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_C (EBool false, Cursor (EUnOp (OpNeg, EHole)), EHole))
-        (change_ast
+        (perform_action
            (EIf_C (EBool false, EUnOp_L (OpNeg, Cursor EHole), EHole))
            (Move Parent))
       = true
@@ -388,7 +388,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_R (EBool false, EHole, Cursor (EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (EIf_R (EBool false, EHole, EUnOp_L (OpNeg, Cursor EHole)))
            (Move Parent))
       = true
@@ -396,7 +396,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFun_R ("var", TBool, Cursor (EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (EFun_R ("var", TBool, EUnOp_L (OpNeg, Cursor EHole)))
            (Move Parent))
       = true
@@ -404,7 +404,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EFun ("var", TList TBool, EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (EFun_L ("var", Cursor (TList TBool), EUnOp (OpNeg, EHole)))
            (Move Parent))
       = true
@@ -412,7 +412,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFix_R ("var", TBool, Cursor (EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (EFix_R ("var", TBool, EUnOp_L (OpNeg, Cursor EHole)))
            (Move Parent))
       = true
@@ -420,7 +420,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (Cursor (EFix ("var", TList TBool, EUnOp (OpNeg, EHole))))
-        (change_ast
+        (perform_action
            (EFix_L ("var", Cursor (TList TBool), EUnOp (OpNeg, EHole)))
            (Move Parent))
       = true
@@ -428,7 +428,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EPair_L (Cursor (EUnOp (OpNeg, EHole)), ENil))
-        (change_ast
+        (perform_action
            (EPair_L (EUnOp_L (OpNeg, Cursor EHole), ENil))
            (Move Parent))
       = true
@@ -436,37 +436,37 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EBinOp_L (Cursor (EInt 2), OpPlus, EInt 3))
-        (change_ast (Cursor (EBinOp (EInt 2, OpPlus, EInt 3))) (Move (Child 0)))
+        (perform_action (Cursor (EBinOp (EInt 2, OpPlus, EInt 3))) (Move (Child 0)))
       = true
 
     let%test _ =
       Expr.z_equal
         (EBinOp_R (EInt 2, OpDiv, Cursor (EInt 3)))
-        (change_ast (Cursor (EBinOp (EInt 2, OpDiv, EInt 3))) (Move (Child 1)))
+        (perform_action (Cursor (EBinOp (EInt 2, OpDiv, EInt 3))) (Move (Child 1)))
       = true
 
     let%test _ =
       Expr.z_equal
         (EUnOp_L (OpNeg, Cursor (EBool false)))
-        (change_ast (Cursor (EUnOp (OpNeg, EBool false))) (Move (Child 0)))
+        (perform_action (Cursor (EUnOp (OpNeg, EBool false))) (Move (Child 0)))
       = true
 
     let%test _ =
       Expr.z_equal
         (ELet_L ("var", Cursor (EInt 2), EHole))
-        (change_ast (Cursor (ELet ("var", EInt 2, EHole))) (Move (Child 0)))
+        (perform_action (Cursor (ELet ("var", EInt 2, EHole))) (Move (Child 0)))
       = true
 
     let%test _ =
       Expr.z_equal
         (ELet_R ("var", EInt 2, Cursor EHole))
-        (change_ast (Cursor (ELet ("var", EInt 2, EHole))) (Move (Child 1)))
+        (perform_action (Cursor (ELet ("var", EInt 2, EHole))) (Move (Child 1)))
       = true
 
     let%test _ =
       Expr.z_equal
         (EIf_L (Cursor (EBool false), EBinOp (EInt 3, OpPlus, EInt 2), EInt 3))
-        (change_ast
+        (perform_action
            (Cursor (EIf (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), EInt 3)))
            (Move (Child 0)))
       = true
@@ -474,7 +474,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_C (EBool false, Cursor (EBinOp (EInt 3, OpPlus, EInt 2)), EInt 3))
-        (change_ast
+        (perform_action
            (Cursor (EIf (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), EInt 3)))
            (Move (Child 1)))
       = true
@@ -482,7 +482,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_R (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), Cursor (EInt 3)))
-        (change_ast
+        (perform_action
            (Cursor (EIf (EBool false, EBinOp (EInt 3, OpPlus, EInt 2), EInt 3)))
            (Move (Child 2)))
       = true
@@ -490,7 +490,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFun_L ("var", Cursor TBool, EUnOp (OpNeg, EVar "var")))
-        (change_ast
+        (perform_action
            (Cursor (EFun ("var", TBool, EUnOp (OpNeg, EVar "var"))))
            (Move (Child 0)))
       = true
@@ -498,7 +498,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFun_R ("var", TBool, Cursor (EUnOp (OpNeg, EVar "var"))))
-        (change_ast
+        (perform_action
            (Cursor (EFun ("var", TBool, EUnOp (OpNeg, EVar "var"))))
            (Move (Child 1)))
       = true
@@ -506,7 +506,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFix_L ("var", Cursor TBool, EUnOp (OpNeg, EVar "var")))
-        (change_ast
+        (perform_action
            (Cursor (EFix ("var", TBool, EUnOp (OpNeg, EVar "var"))))
            (Move (Child 0)))
       = true
@@ -514,7 +514,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFix_R ("var", TBool, Cursor (EUnOp (OpNeg, EVar "var"))))
-        (change_ast
+        (perform_action
            (Cursor (EFix ("var", TBool, EUnOp (OpNeg, EVar "var"))))
            (Move (Child 1)))
       = true
@@ -522,20 +522,20 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EPair_L (Cursor (EBool false), EInt 3))
-        (change_ast (Cursor (EPair (EBool false, EInt 3))) (Move (Child 0)))
+        (perform_action (Cursor (EPair (EBool false, EInt 3))) (Move (Child 0)))
       = true
 
     let%test _ =
       Expr.z_equal
         (EPair_R (EBool false, Cursor (EInt 3)))
-        (change_ast (Cursor (EPair (EBool false, EInt 3))) (Move (Child 1)))
+        (perform_action (Cursor (EPair (EBool false, EInt 3))) (Move (Child 1)))
       = true
 
     (* test ability to 'recurse through' each type *)
     let%test _ =
       Expr.z_equal
         (EUnOp_L (OpNeg, EUnOp_L (OpNeg, Cursor EHole)))
-        (change_ast
+        (perform_action
            (EUnOp_L (OpNeg, Cursor (EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -543,7 +543,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EBinOp_L (EUnOp_L (OpNeg, Cursor EHole), OpLe, EHole))
-        (change_ast
+        (perform_action
            (EBinOp_L (Cursor (EUnOp (OpNeg, EHole)), OpLe, EHole))
            (Move (Child 0)))
       = true
@@ -551,7 +551,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EBinOp_R (EHole, OpGt, EUnOp_L (OpNeg, Cursor EHole)))
-        (change_ast
+        (perform_action
            (EBinOp_R (EHole, OpGt, Cursor (EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -559,7 +559,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (ELet_L ("name", EUnOp_L (OpNeg, Cursor EHole), EHole))
-        (change_ast
+        (perform_action
            (ELet_L ("name", Cursor (EUnOp (OpNeg, EHole)), EHole))
            (Move (Child 0)))
       = true
@@ -567,7 +567,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (ELet_R ("name", EHole, EUnOp_L (OpNeg, Cursor EHole)))
-        (change_ast
+        (perform_action
            (ELet_R ("name", EHole, Cursor (EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -575,7 +575,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_L (EUnOp_L (OpNeg, Cursor EHole), EHole, ENil))
-        (change_ast
+        (perform_action
            (EIf_L (Cursor (EUnOp (OpNeg, EHole)), EHole, ENil))
            (Move (Child 0)))
       = true
@@ -583,7 +583,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_C (EBool false, EUnOp_L (OpNeg, Cursor EHole), EHole))
-        (change_ast
+        (perform_action
            (EIf_C (EBool false, Cursor (EUnOp (OpNeg, EHole)), EHole))
            (Move (Child 0)))
       = true
@@ -591,7 +591,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EIf_R (EBool false, EHole, EUnOp_L (OpNeg, Cursor EHole)))
-        (change_ast
+        (perform_action
            (EIf_R (EBool false, EHole, Cursor (EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -599,7 +599,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFun_R ("var", TBool, EUnOp_L (OpNeg, Cursor EHole)))
-        (change_ast
+        (perform_action
            (EFun_R ("var", TBool, Cursor (EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -607,7 +607,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFun_L ("var", List_L (Cursor TBool), EUnOp (OpNeg, EHole)))
-        (change_ast
+        (perform_action
            (EFun_L ("var", Cursor (TList TBool), EUnOp (OpNeg, EHole)))
            (Move (Child 0)))
       = true
@@ -615,7 +615,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFun_L ("var", Cursor (TList TBool), EUnOp (OpNeg, EHole)))
-        (change_ast
+        (perform_action
            (Cursor (EFun ("var", TList TBool, EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -623,7 +623,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFix_R ("var", TBool, EUnOp_L (OpNeg, Cursor EHole)))
-        (change_ast
+        (perform_action
            (EFix_R ("var", TBool, Cursor (EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -631,7 +631,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFix_L ("var", List_L (Cursor TBool), EUnOp (OpNeg, EHole)))
-        (change_ast
+        (perform_action
            (EFix_L ("var", Cursor (TList TBool), EUnOp (OpNeg, EHole)))
            (Move (Child 0)))
       = true
@@ -639,7 +639,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EFix_L ("var", Cursor (TList TBool), EUnOp (OpNeg, EHole)))
-        (change_ast
+        (perform_action
            (Cursor (EFix ("var", TList TBool, EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
@@ -647,7 +647,7 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EPair_L (EUnOp_L (OpNeg, Cursor EHole), ENil))
-        (change_ast
+        (perform_action
            (EPair_L (Cursor (EUnOp (OpNeg, EHole)), ENil))
            (Move (Child 0)))
       = true
@@ -655,44 +655,44 @@ let%test_module "Test change_ast" =
     let%test _ =
       Expr.z_equal
         (EPair_R (EHole, EUnOp_L (OpNeg, Cursor EHole)))
-        (change_ast
+        (perform_action
            (EPair_R (EHole, Cursor (EUnOp (OpNeg, EHole))))
            (Move (Child 0)))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast (Cursor EHole) (Construct (Var "x")))
+        (perform_action (Cursor EHole) (Construct (Var "x")))
         (Cursor (EVar "x"))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast (Cursor EHole) (Construct (Var "y")))
+        (perform_action (Cursor EHole) (Construct (Var "y")))
         (Cursor (EVar "y"))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast (EUnOp_L (OpNeg, Cursor ENil)) (Construct Hole))
+        (perform_action (EUnOp_L (OpNeg, Cursor ENil)) (Construct Hole))
         (EUnOp_L (OpNeg, Cursor EHole))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast (EBinOp_R (EInt 2, OpGt, Cursor EHole)) (Construct Nil))
+        (perform_action (EBinOp_R (EInt 2, OpGt, Cursor EHole)) (Construct Nil))
         (EBinOp_R (EInt 2, OpGt, Cursor ENil))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast (EBinOp_L (Cursor EHole, OpEq, EInt 2)) (Construct (Int 4)))
+        (perform_action (EBinOp_L (Cursor EHole, OpEq, EInt 2)) (Construct (Int 4)))
         (EBinOp_L (Cursor (EInt 4), OpEq, EInt 2))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (ELet_L ("varname", Cursor EHole, EInt 2))
            (Construct (Bool false)))
         (ELet_L ("varname", Cursor (EBool false), EInt 2))
@@ -700,7 +700,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (ELet_R ("varname", EInt 2, Cursor (EVar "myvar")))
            (Construct (UnOp OpNeg)))
         (ELet_R ("varname", EInt 2, Cursor (EUnOp (OpNeg, EVar "myvar"))))
@@ -708,7 +708,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EIf_L (Cursor (EVar "myvar"), EInt 2, EInt 3))
            (Construct (BinOp_L OpNe)))
         (EIf_L (Cursor (EBinOp (EVar "myvar", OpNe, EHole)), EInt 2, EInt 3))
@@ -716,7 +716,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EIf_C (EBool false, Cursor (EVar "myvar1"), EInt 3))
            (Construct (BinOp_R OpEq)))
         (EIf_C
@@ -725,7 +725,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EIf_R (EBool false, EInt 2, Cursor (EVar "myvar")))
            (Construct (Let_L "newvar")))
         (EIf_R
@@ -734,7 +734,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFun_R ("fvar", TBool, Cursor (EVar "myvar")))
            (Construct (Let_R "newvar")))
         (EFun_R ("fvar", TBool, Cursor (ELet ("newvar", EHole, EVar "myvar"))))
@@ -742,7 +742,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFix_R ("fvar", TBool, Cursor (EVar "myvar")))
            (Construct If_L))
         (EFix_R ("fvar", TBool, Cursor (EIf (EVar "myvar", EHole, EHole))))
@@ -750,19 +750,19 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast (EPair_R (EInt 0, Cursor (EVar "myvar"))) (Construct If_C))
+        (perform_action (EPair_R (EInt 0, Cursor (EVar "myvar"))) (Construct If_C))
         (EPair_R (EInt 0, Cursor (EIf (EHole, EVar "myvar", EHole))))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast (EPair_L (Cursor (EVar "myvar"), EInt 0)) (Construct If_R))
+        (perform_action (EPair_L (Cursor (EVar "myvar"), EInt 0)) (Construct If_R))
         (EPair_L (Cursor (EIf (EHole, EHole, EVar "myvar")), EInt 0))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EPair_L (Cursor (EVar "myvar"), EInt 0))
            (Construct (Fun "newvar")))
         (EPair_L (Cursor (EFun ("newvar", THole, EVar "myvar")), EInt 0))
@@ -770,7 +770,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EPair_L (Cursor (EVar "myvar"), EInt 0))
            (Construct (Fix "newvar")))
         (EPair_L (Cursor (EFix ("newvar", THole, EVar "myvar")), EInt 0))
@@ -778,7 +778,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EPair_L (Cursor (EVar "myvar"), EInt 0))
            (Construct Pair_L))
         (EPair_L (Cursor (EPair (EVar "myvar", EHole)), EInt 0))
@@ -786,7 +786,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EPair_L (Cursor (EVar "myvar"), EInt 0))
            (Construct Pair_R))
         (EPair_L (Cursor (EPair (EHole, EVar "myvar")), EInt 0))
@@ -794,19 +794,19 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast (EFun_L ("newvar", Cursor TBool, EHole)) (Construct TypInt))
+        (perform_action (EFun_L ("newvar", Cursor TBool, EHole)) (Construct TypInt))
         (EFun_L ("newvar", Cursor TInt, EHole))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast (EFun_L ("newvar", Cursor TInt, EHole)) (Construct TypInt))
+        (perform_action (EFun_L ("newvar", Cursor TInt, EHole)) (Construct TypInt))
         (EFun_L ("newvar", Cursor TInt, EHole))
       = true
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFun_L ("newvar", Cursor TBool, EHole))
            (Construct TypArrow_L))
         (EFun_L ("newvar", Cursor (TArrow (TBool, THole)), EHole))
@@ -814,7 +814,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFun_L ("newvar", Cursor TInt, EHole))
            (Construct TypArrow_R))
         (EFun_L ("newvar", Cursor (TArrow (THole, TInt)), EHole))
@@ -822,7 +822,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFix_L ("newvar", Cursor TBool, EHole))
            (Construct TypProd_L))
         (EFix_L ("newvar", Cursor (TProd (TBool, THole)), EHole))
@@ -830,7 +830,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFix_L ("newvar", Type.Cursor TInt, EHole))
            (Construct TypProd_R))
         (EFix_L ("newvar", Type.Cursor (TProd (THole, TInt)), EHole))
@@ -838,7 +838,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFun_L ("newvar", Cursor TBool, EVar "hey"))
            (Construct TypList))
         (EFun_L ("newvar", Cursor (TList TBool), EVar "hey"))
@@ -846,7 +846,7 @@ let%test_module "Test change_ast" =
 
     let%test _ =
       Expr.z_equal
-        (change_ast
+        (perform_action
            (EFun_L ("newvar", Cursor TBool, EVar "hey"))
            (Construct TypHole))
         (EFun_L ("newvar", Cursor THole, EVar "hey"))

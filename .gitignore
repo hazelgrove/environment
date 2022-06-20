@@ -9,3 +9,4 @@ _opam/
 *.so
 .env
 data/
+*.pyc

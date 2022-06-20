@@ -1,7 +1,6 @@
 (* Sum type combining the expressions and types *)
 
 type t =
-  (* mixed type-zippers and expr-zippers*)
   | ENode of Expr.t
   | TNode of Type.t
 [@@deriving sexp]
