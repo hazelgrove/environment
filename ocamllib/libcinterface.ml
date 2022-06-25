@@ -66,7 +66,7 @@ let run_unit_tests_c (root : int) : bool =
   let tests = tests_to_list (get_unit_tests ()) in
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
-  let e = ExprConv.from_list nodes edges root in
+  let e = ExprConv.from_list ~nodes ~edges ~root in
   Evaluator.run_unit_tests tests e
 
 (* load_assignment function that will be called by C *)
@@ -84,7 +84,7 @@ let load_starter_code_c (assignment : int) (index : int) : string =
 let print_code_c (root : int) : unit =
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
-  let e = ExprConv.from_list nodes edges root in
+  let e = ExprConv.from_list ~nodes ~edges ~root in
   let s = ExprConv.to_string e in
   let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl") in
   ()

@@ -142,7 +142,7 @@ type node = int
 type graph = node list * edge list
 type varlist = (Var.t * int) list
 
-let rec from_list (nodes : node list) (edges : edge list) (root : int) : t =
+let rec from_list ~(nodes : node list) ~(edges : edge list) ~(root : int) : t =
   let get_adj_nodes (edges : edge list) (start_node : int) : edge list =
     List.filter (fun (start, _, _) -> start = start_node) edges
   in
@@ -161,78 +161,79 @@ let rec from_list (nodes : node list) (edges : edge list) (root : int) : t =
   | EVar x -> EVar x
   | EUnOp (op, _) ->
       let adj_nodes = get_adj_nodes edges root in
-      EUnOp (op, from_list nodes edges (get_nth_child adj_nodes 1))
+      EUnOp (op, from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1))
   | EBinOp (_, op, _) ->
       let adj_nodes = get_adj_nodes edges root in
       EBinOp
-        ( from_list nodes edges (get_nth_child adj_nodes 1),
+        ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
           op,
-          from_list nodes edges (get_nth_child adj_nodes 2) )
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
   | ELet (_, _, _) ->
       let adj_nodes = get_adj_nodes edges root in
       let varname =
-        match from_list nodes edges (get_nth_child adj_nodes 1) with
+        match from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) with
         | EVar x -> x
         | _ -> raise (SyntaxError "Expression in variable name")
       in
       ELet
         ( varname,
-          from_list nodes edges (get_nth_child adj_nodes 2),
-          from_list nodes edges (get_nth_child adj_nodes 3) )
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
   | EIf (_, _, _) ->
       let adj_nodes = get_adj_nodes edges root in
       EIf
-        ( from_list nodes edges (get_nth_child adj_nodes 1),
-          from_list nodes edges (get_nth_child adj_nodes 2),
-          from_list nodes edges (get_nth_child adj_nodes 3) )
+        ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
   | EFun (_, _, _) ->
       let adj_nodes = get_adj_nodes edges root in
       let varname =
-        match from_list nodes edges (get_nth_child adj_nodes 1) with
+        match from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) with
         | EVar x -> x
         | _ -> raise (SyntaxError "Expression in variable name")
       in
       EFun
         ( varname,
-          TypeConv.from_list nodes edges (get_nth_child adj_nodes 2),
-          from_list nodes edges (get_nth_child adj_nodes 3) )
+          TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
   | EFix (_, _, _) ->
       let adj_nodes = get_adj_nodes edges root in
       let varname =
-        match from_list nodes edges (get_nth_child adj_nodes 1) with
+        match from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) with
         | EVar x -> x
         | _ -> raise (SyntaxError "Expression in variable name")
       in
       EFix
         ( varname,
-          TypeConv.from_list nodes edges (get_nth_child adj_nodes 2),
-          from_list nodes edges (get_nth_child adj_nodes 3) )
+          TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
   | EPair (_, _) ->
       let adj_nodes = get_adj_nodes edges root in
       EPair
-        ( from_list nodes edges (get_nth_child adj_nodes 1),
-          from_list nodes edges (get_nth_child adj_nodes 2) )
+        ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+          from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
   | EHole -> EHole
   | ENil -> ENil
 
 let%test_module "Test Expr.from_list" =
   (module struct
-    let%test _ = from_list [ 35 ] [] 0 = EInt 0
+    let%test _ = from_list ~nodes:[ 35 ] ~edges:[] ~root:0 = EInt 0
 
     let%test _ =
       from_list
-        [ 15; 38; 25; 1; 3; 37; 38; 36 ]
-        [
-          (0, 1, 1);
-          (0, 2, 2);
-          (0, 3, 3);
-          (3, 4, 1);
-          (3, 7, 2);
-          (4, 5, 1);
-          (4, 6, 2);
-          (6, 1, -1);
-        ]
-        0
+        ~nodes:[ 15; 38; 25; 1; 3; 37; 38; 36 ]
+        ~edges:
+          [
+            (0, 1, 1);
+            (0, 2, 2);
+            (0, 3, 3);
+            (3, 4, 1);
+            (3, 7, 2);
+            (4, 5, 1);
+            (4, 6, 2);
+            (6, 1, -1);
+          ]
+        ~root:0
       = EFun
           ( "x",
             THole,
@@ -309,7 +310,7 @@ let%test_module "Test to_list" =
   (module struct
     let check_id e =
       let (nodes, edges), _ = to_list (Cursor e) in
-      let changed_tree = from_list nodes edges 0 in
+      let changed_tree = from_list ~nodes ~edges ~root:0 in
       e = changed_tree
 
     let%test _ =

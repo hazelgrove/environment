@@ -49,9 +49,9 @@ type z_t =
   | EIf_C of t * z_t * t
   | EIf_R of t * t * z_t
   | EFun_R of Var.t * Type.t * z_t
-  | EFun_L of Var.t * Type.z_t * t (* TOOD: need to fix all our rerucsion operations now *)
+  | EFun_L of Var.t * Type.z_t * t
   | EFix_R of Var.t * Type.t * z_t
-  | EFix_L of Var.t * Type.z_t * t (* TOOD: need to fix all our rerucsion operations now *)
+  | EFix_L of Var.t * Type.z_t * t
   | EPair_L of z_t * t
   | EPair_R of t * z_t
 [@@deriving sexp]

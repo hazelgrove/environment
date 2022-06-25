@@ -233,13 +233,17 @@ let%test_module "Test perform_action" =
     let%test _ =
       Expr.z_equal
         (Cursor (EBinOp (EInt 2, OpPlus, EInt 3)))
-        (perform_action (EBinOp_L (Cursor (EInt 2), OpPlus, EInt 3)) (Move Parent))
+        (perform_action
+           (EBinOp_L (Cursor (EInt 2), OpPlus, EInt 3))
+           (Move Parent))
       = true
 
     let%test _ =
       Expr.z_equal
         (Cursor (EBinOp (EInt 2, OpDiv, EInt 3)))
-        (perform_action (EBinOp_R (EInt 2, OpDiv, Cursor (EInt 3))) (Move Parent))
+        (perform_action
+           (EBinOp_R (EInt 2, OpDiv, Cursor (EInt 3)))
+           (Move Parent))
       = true
 
     let%test _ =
@@ -436,13 +440,17 @@ let%test_module "Test perform_action" =
     let%test _ =
       Expr.z_equal
         (EBinOp_L (Cursor (EInt 2), OpPlus, EInt 3))
-        (perform_action (Cursor (EBinOp (EInt 2, OpPlus, EInt 3))) (Move (Child 0)))
+        (perform_action
+           (Cursor (EBinOp (EInt 2, OpPlus, EInt 3)))
+           (Move (Child 0)))
       = true
 
     let%test _ =
       Expr.z_equal
         (EBinOp_R (EInt 2, OpDiv, Cursor (EInt 3)))
-        (perform_action (Cursor (EBinOp (EInt 2, OpDiv, EInt 3))) (Move (Child 1)))
+        (perform_action
+           (Cursor (EBinOp (EInt 2, OpDiv, EInt 3)))
+           (Move (Child 1)))
       = true
 
     let%test _ =
@@ -686,7 +694,9 @@ let%test_module "Test perform_action" =
 
     let%test _ =
       Expr.z_equal
-        (perform_action (EBinOp_L (Cursor EHole, OpEq, EInt 2)) (Construct (Int 4)))
+        (perform_action
+           (EBinOp_L (Cursor EHole, OpEq, EInt 2))
+           (Construct (Int 4)))
         (EBinOp_L (Cursor (EInt 4), OpEq, EInt 2))
       = true
 
@@ -750,13 +760,17 @@ let%test_module "Test perform_action" =
 
     let%test _ =
       Expr.z_equal
-        (perform_action (EPair_R (EInt 0, Cursor (EVar "myvar"))) (Construct If_C))
+        (perform_action
+           (EPair_R (EInt 0, Cursor (EVar "myvar")))
+           (Construct If_C))
         (EPair_R (EInt 0, Cursor (EIf (EHole, EVar "myvar", EHole))))
       = true
 
     let%test _ =
       Expr.z_equal
-        (perform_action (EPair_L (Cursor (EVar "myvar"), EInt 0)) (Construct If_R))
+        (perform_action
+           (EPair_L (Cursor (EVar "myvar"), EInt 0))
+           (Construct If_R))
         (EPair_L (Cursor (EIf (EHole, EHole, EVar "myvar")), EInt 0))
       = true
 
@@ -794,13 +808,17 @@ let%test_module "Test perform_action" =
 
     let%test _ =
       Expr.z_equal
-        (perform_action (EFun_L ("newvar", Cursor TBool, EHole)) (Construct TypInt))
+        (perform_action
+           (EFun_L ("newvar", Cursor TBool, EHole))
+           (Construct TypInt))
         (EFun_L ("newvar", Cursor TInt, EHole))
       = true
 
     let%test _ =
       Expr.z_equal
-        (perform_action (EFun_L ("newvar", Cursor TInt, EHole)) (Construct TypInt))
+        (perform_action
+           (EFun_L ("newvar", Cursor TInt, EHole))
+           (Construct TypInt))
         (EFun_L ("newvar", Cursor TInt, EHole))
       = true
 

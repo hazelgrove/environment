@@ -17,7 +17,7 @@ from evaluation import evaluate
 from logger import get_logger
 
 
-class Trainer():
+class Trainer:
     @staticmethod
     def main():
         args = get_args()
@@ -118,7 +118,10 @@ class Trainer():
                 # If done then clean the history of observations.
                 masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
                 bad_masks = torch.FloatTensor(
-                    [[0.0] if "bad_transition" in info.keys() else [1.0] for info in infos]
+                    [
+                        [0.0] if "bad_transition" in info.keys() else [1.0]
+                        for info in infos
+                    ]
                 )
                 rollouts.insert(
                     obs,

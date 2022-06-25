@@ -1,10 +1,6 @@
 (* Sum type combining the expressions and types *)
 
-type t =
-  | ENode of Expr.t
-  | TNode of Type.t
-[@@deriving sexp]
-
+type t = ENode of Expr.t | TNode of Type.t [@@deriving sexp]
 type z_t = ZENode of Expr.z_t | ZTNode of Type.z_t [@@deriving sexp]
 
 let rec size (tree : t) : int =
