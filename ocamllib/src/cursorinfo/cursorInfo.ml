@@ -413,7 +413,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       let currlist = handle_constr_arithmetic_binops currlist in
       let currlist = handle_comp_binops currlist in
       let currlist = handle_eq_binops currlist in
-      let currlist = handle_cons_binop currlist in
+      let _ = handle_cons_binop currlist in
       let currlist = handle_ap_binop currlist in
       let currlist = handle_basic_types currlist in
       let currlist = handle_var currlist in
@@ -422,3 +422,85 @@ let cursor_info_to_actions (info : t) : Action.t list =
       let currlist = handle_fun currlist in
       let currlist = handle_fix currlist in
       handle_pair currlist
+
+let%test_module "Test cursor_info_to_actions" =
+  (module struct
+    let check (e: Expr.z_t) (lst: Action.t list) =
+      let actions = (Syntax.ZENode e) |> get_cursor_info |> cursor_info_to_actions in
+      let rec eq l1 l2 = 
+        match l1 with
+        | [] -> true
+        | hd :: tl -> if List.mem hd l2 then eq tl l2 else false
+      in
+      eq actions lst
+
+    open Action
+    (* let rec move_child_actions n = 
+      if n = -1 then [] else (Move (Child n)) :: (move_child_actions (n - 1)) *)
+    let ints = [
+      Construct (Int (-2));
+      Construct (Int (-1));
+      Construct (Int 0);
+      Construct (Int 1);
+      Construct (Int 2);
+    ]
+    let bools = [
+      Construct (Bool true);
+      Construct (Bool false);
+    ]
+    let arith = [
+      Construct (BinOp_L OpPlus);
+      Construct (BinOp_L OpMinus);
+      Construct (BinOp_L OpTimes);
+      Construct (BinOp_L OpDiv);
+      Construct (BinOp_R OpPlus);
+      Construct (BinOp_R OpMinus);
+      Construct (BinOp_R OpTimes);
+      Construct (BinOp_R OpDiv);
+    ]
+    let comp = [
+      Construct (BinOp_L OpLt);
+      Construct (BinOp_L OpLe);
+      Construct (BinOp_L OpGt);
+      Construct (BinOp_L OpGe);
+      Construct (BinOp_L OpEq);
+      Construct (BinOp_L OpNe);
+      Construct (BinOp_R OpLt);
+      Construct (BinOp_R OpLe);
+      Construct (BinOp_R OpGt);
+      Construct (BinOp_R OpGe);
+      Construct (BinOp_R OpEq);
+      Construct (BinOp_R OpNe);
+    ]
+
+    let e = Expr.Cursor (EInt 1)
+    let lst = [
+      Construct Hole;
+      Construct Nil;
+      Construct (UnOp OpNeg);
+      Construct (BinOp_R OpAp);
+      Construct (Let_L Var.undef_var);
+      Construct (Let_R Var.undef_var);
+      Construct If_C;
+      Construct If_R;
+      Construct (Fun Var.undef_var);
+      Construct Pair_L;
+      Construct Pair_R;
+    ] @ ints @ bools @ arith @ comp
+    let%test _ = check e lst
+
+    let e = Expr.EBinOp_L (Cursor (EHole), OpPlus, EInt 2)
+    let lst = [
+      Move Parent;
+      Construct Hole;
+      Construct (UnOp OpNeg);
+      Construct (BinOp_L OpAp);
+      Construct (BinOp_R OpAp);
+      Construct (Let_L Var.undef_var);
+      Construct (Let_R Var.undef_var);
+      Construct If_L;
+      Construct If_C;
+      Construct If_R;
+    ] @ ints @ arith
+    let%test _ = check e lst
+  end)

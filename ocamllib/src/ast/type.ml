@@ -44,13 +44,14 @@ let rec z_equal (ty : z_t) (ty' : z_t) : bool =
   | _ -> false
 
 (* Check type consistency *)
-let consistent (ty : t) (ty' : t) : bool =
+let rec consistent (ty : t) (ty' : t) : bool =
   match (ty, ty') with
   | _, THole | THole, _ -> true
   | TInt, TInt | TBool, TBool -> true
-  | TArrow (tin1, tout1), TArrow (tin2, tout2) ->
-      equal tin1 tin2 && equal tout1 tout2
-  | TList t_1, TList t_2 -> equal t_1 t_2
+  | TArrow (t1, t2), TArrow (t1', t2')
+  | TProd (t1, t2), TProd (t1', t2') ->
+      consistent t1 t1' && consistent t2 t2'
+  | TList t_1, TList t_2 -> consistent t_1 t_2
   | _ -> false
 
 (*

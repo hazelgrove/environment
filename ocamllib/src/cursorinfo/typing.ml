@@ -8,7 +8,7 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.t option =
   | EVar x -> Context.lookup context x
   | EInt _ -> Some TInt
   | EBool _ -> Some TBool
-  | EUnOp (OpNeg, arg) ->
+  | EUnOp (OpNeg, arg) -> 
       (* negation: if child is int, expr has same type*)
       if analysis context arg Type.TInt then Some TInt else None
   | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) ->
@@ -63,7 +63,7 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.t option =
       if analysis (Context.extend context (varn, vart)) body vart
       then Some vart
       else None
-  | EHole -> None
+  | EHole -> Some THole
   | ENil -> Some (TList THole)
 
 and analysis (context : Context.t) (e : Expr.t) (targ : Type.t) : bool =

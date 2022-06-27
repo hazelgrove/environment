@@ -26,7 +26,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | TypProd_L -> Type.TProd (subtr, THole)
         | TypProd_R -> Type.TProd (THole, subtr)
         | _ ->
-            subtr (* all other shapes are for exprssions which are not valid*))
+            raise (InvalidAction (ActionConv.action_to_tag action))
     in
     let rec construct (shape : Action.shape) (tree : Type.z_t) : Type.z_t =
       (*recurses to cursor in type tree and builds the appropriate tree*)
