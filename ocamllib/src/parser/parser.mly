@@ -33,22 +33,22 @@ expr:
         | None -> EHole
         | Some e -> e
     in
-    ELet (x, e1, ebody)
+    Expr.make_node (ELet (x, e1, ebody))
     }
 | LET x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
             | [] -> raise (Failure "Incorrect syntax")
-            | [(a, ty)] -> EFun(a, ty, e)
-            | (a, ty) :: tl -> EFun(a, ty, resolve_fun tl e)
+            | [(a, ty)] -> Expr.make_node (EFun(a, ty, e))
+            | (a, ty) :: tl -> Expr.make_node (EFun(a, ty, resolve_fun tl e))
     in
     let ebody = 
         match e2 with
-        | None -> EHole
+        | None -> Expr.make_node (EHole)
         | Some e -> e
     in
-    ELet (x, resolve_fun args e1, ebody)
+    Expr.make_node (ELet (x, resolve_fun args e1, ebody))
     }
 | LET REC x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
