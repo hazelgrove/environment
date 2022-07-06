@@ -55,7 +55,9 @@ let get_cursor_info_c (ser_zast : string) : int =
     |> List.map (fun b -> if b then 1 else 0)
   in
   let vars_in_scope =
-    List.map (fun (var, _) -> ExprConv.node_to_tag (EVar var)) cursorInfo.ctx
+    List.map
+      (fun (var, _) -> ExprConv.node_to_tag (EVar var))
+      cursorInfo.vars_in_scope
   in
   pass_actions (list_to_array1 actions);
   pass_vars_in_scope (list_to_array1 vars_in_scope);

@@ -1,45 +1,46 @@
 (* Synthesis and Analysis *)
 
-let rec synthesis (context : Context.t) (e : Expr.t) : Type.t option =
+open Type
+
+let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
   (*given an expression and its type-context, infer its type by looking
      at its children, if possible *)
-  match e with
+  match e.node with
   (*match epxression based on type (and operation for unops and binops)*)
   | EVar x -> Context.lookup context x
-  | EInt _ -> Some TInt
-  | EBool _ -> Some TBool
+  | EInt _ -> Some Int
+  | EBool _ -> Some Bool
   | EUnOp (OpNeg, arg) ->
       (* negation: if child is int, expr has same type *)
-      if analysis context arg TInt then Some TInt else None
+      if analysis context arg Int then Some Int else None
   | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) ->
       (*arithmetic operations: if we see an int, return an int *)
-      if analysis context argl TInt && analysis context argr TInt
-      then Some TInt
+      if analysis context argl Int && analysis context argr Int
+      then Some Int
       else None
   | EBinOp (argl, (OpGt | OpGe | OpLt | OpLe | OpEq | OpNe), argr) ->
       (*comparasons: int-> bool*)
-      if analysis context argl TInt && analysis context argr TInt
-      then Some TBool
+      if analysis context argl Int && analysis context argr Int
+      then Some Bool
       else None
   | EBinOp (arrow, OpAp, arg) -> (
       match synthesis context arrow with
-      | Some (TArrow (in_t, out_t)) ->
+      | Some (Arrow (in_t, out_t)) ->
           if analysis context arg in_t then Some out_t else None
-      | Some THole -> if analysis context arg THole then Some THole else None
+      | Some Hole -> if analysis context arg Hole then Some Hole else None
       | _ -> None)
   | EBinOp (hd, OpCons, tl) -> (
       match synthesis context tl with
-      | Some (TList list_t) ->
-          if analysis context hd list_t then Some (TList list_t) else None
-      | Some THole ->
-          if analysis context hd THole then Some (TList THole) else None
+      | Some (List list_t) ->
+          if analysis context hd list_t then Some (List list_t) else None
+      | Some Hole -> if analysis context hd Hole then Some (List Hole) else None
       | _ -> None)
   | EPair (l_pair, r_pair) -> (
       match (synthesis context l_pair, synthesis context r_pair) with
-      | Some l_t, Some r_t -> Some (TProd (l_t, r_t))
+      | Some l_t, Some r_t -> Some (Prod (l_t, r_t))
       | _ -> None)
   | EIf (argl, argc, argr) ->
-      if analysis context argl TBool
+      if analysis context argl Bool
       then
         match synthesis context argc with
         | Some out_t ->
@@ -53,37 +54,41 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.t option =
       | Some var_t -> synthesis (Context.extend context (varn, var_t)) body
       | _ -> None)
   | EFun (varn, vart, body) -> (
+      let vart = Type.strip vart in
       match synthesis (Context.extend context (varn, vart)) body with
-      | Some outtype -> Some (TArrow (vart, outtype))
+      | Some outtype -> Some (Arrow (vart, outtype))
       | _ -> None)
   | EFix (varn, vart, body) ->
+      let vart = Type.strip vart in
       if analysis (Context.extend context (varn, vart)) body vart
       then Some vart
       else None
-  | EHole -> Some THole
-  | ENil -> Some (TList THole)
+  | EHole -> Some Hole
+  | ENil -> Some (List Hole)
 
-and analysis (context : Context.t) (e : Expr.t) (targ : Type.t) : bool =
+and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
   (* given an epxression and an expected type,
       return a bool representing whether that's correct*)
-  match e with
+  match e.node with
   | EFun (varn, vart, expr) -> (
+      let vart = Type.strip vart in
       match synthesis (Context.extend context (varn, vart)) expr with
       | Some etyp -> Type.consistent etyp targ
       | None -> false)
   | EFix (varn, vart, arg) ->
+      let vart = Type.strip vart in
       Type.consistent vart targ && analysis context arg targ
   | EPair (lpair, rpair) -> (
       match targ with
-      | TProd (l_t, r_t) ->
+      | Prod (l_t, r_t) ->
           analysis context lpair l_t && analysis context rpair r_t
-      | THole -> analysis context lpair THole && analysis context rpair THole
+      | Hole -> analysis context lpair Hole && analysis context rpair Hole
       | _ -> false)
   | EIf (argl, argc, argr) ->
       (* for if statements, first arg is expected to be a bool,
          and second and third are expected to match *)
-      analysis context argl TBool
-      && analysis context argc targ && analysis context argr targ
+      analysis context argl Bool && analysis context argc targ
+      && analysis context argr targ
   | ELet (varn, def, body) -> (
       (* for variable definitions, add variable type to context*)
       match synthesis context def with

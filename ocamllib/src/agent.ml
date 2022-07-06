@@ -15,7 +15,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     let build_type (subtr : Type.t) (shape : Action.shape) : Type.z_t =
       (* actually creates the desired type at the cursor.*)
       (*Also handles child wrapping logics *)
-      Cursor
+      Type.Cursor
         (match shape with
         | TypInt -> Type.TInt
         | TypBool -> Type.TBool
@@ -25,8 +25,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | TypList -> Type.TList subtr
         | TypProd_L -> Type.TProd (subtr, THole)
         | TypProd_R -> Type.TProd (THole, subtr)
-        | _ ->
-            raise (InvalidAction (ActionConv.action_to_tag action))
+        | _ -> raise (InvalidAction (ActionConv.action_to_tag action)))
     in
     let rec construct (shape : Action.shape) (tree : Type.z_t) : Type.z_t =
       (*recurses to cursor in type tree and builds the appropriate tree*)

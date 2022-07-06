@@ -2,6 +2,7 @@
 
 type t = ENode of Expr.t | TNode of Type.t [@@deriving sexp]
 type z_t = ZENode of Expr.z_t | ZTNode of Type.z_t [@@deriving sexp]
+type p_t = PENode of Expr.p_t | PTNode of Type.p_t [@@deriving sexp]
 
 let size (tree : t) : int =
   match tree with ENode e -> Expr.size e | TNode t -> Type.size t

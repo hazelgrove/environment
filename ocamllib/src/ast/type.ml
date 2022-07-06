@@ -22,6 +22,15 @@ and t = {
 }
 [@@deriving sexp]
 
+type p_t =
+  | Int
+  | Bool
+  | Arrow of p_t * p_t
+  | Prod of p_t * p_t
+  | Hole
+  | List of p_t
+[@@deriving sexp]
+
 type z_node =
   | Cursor of node
   | Arrow_L of z_t * t
@@ -39,6 +48,24 @@ and z_t = {
 let make_node (node : node) : t = { id = Id.generate (); node }
 let make_z_node (node : z_node) : z_t = { id = Id.generate (); node }
 let make_dummy_node (node : node) : t = { id = -1; node }
+
+let rec strip (e : t) : p_t =
+  match e.node with
+  | TInt -> Int
+  | TBool -> Bool
+  | TArrow (t1, t2) -> Arrow (strip t1, strip t2)
+  | TProd (t1, t2) -> Prod (strip t1, strip t2)
+  | THole -> Hole
+  | TList t -> List (strip t)
+
+let rec add_metadata (e : p_t) : t =
+  match e with
+  | Int -> make_node TInt
+  | Bool -> make_node TBool
+  | Arrow (t1, t2) -> make_node (TArrow (add_metadata t1, add_metadata t2))
+  | Prod (t1, t2) -> make_node (TProd (add_metadata t1, add_metadata t2))
+  | Hole -> make_node THole
+  | List t -> make_node (TList (add_metadata t))
 
 (* Check if two types are equal *)
 let rec equal (ty : t) (ty' : t) : bool =
@@ -62,13 +89,13 @@ let rec z_equal (ty : z_t) (ty' : z_t) : bool =
   | _ -> false
 
 (* Check type consistency *)
-let rec consistent (ty : t) (ty' : t) : bool =
-  match (ty.node, ty'.node) with
-  | _, THole | THole, _ -> true
-  | TInt, TInt | TBool, TBool -> true
-  | TArrow (t1, t2), TArrow (t1', t2') | TProd (t1, t2), TProd (t1', t2') ->
+let rec consistent (ty : p_t) (ty' : p_t) : bool =
+  match (ty, ty') with
+  | _, Hole | Hole, _ -> true
+  | Int, Int | Bool, Bool -> true
+  | Arrow (t1, t2), Arrow (t1', t2') | Prod (t1, t2), Prod (t1', t2') ->
       consistent t1 t1' && consistent t2 t2'
-  | TList t_1, TList t_2 -> consistent t_1 t_2
+  | List t_1, List t_2 -> consistent t_1 t_2
   | _ -> false
 
 (*

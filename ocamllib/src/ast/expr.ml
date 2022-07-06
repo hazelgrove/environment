@@ -20,7 +20,7 @@ type binop =
   | OpAp
 [@@deriving sexp]
 
-(* Expressions *)
+(* Expression with metadata *)
 type node =
   | EVar of Var.t
   | EInt of int
@@ -39,6 +39,22 @@ and t = {
   id : int; (* An unique ID assigned to each node *)
   node : node; (* Node type and its children *)
 }
+[@@deriving sexp]
+
+(* Pure expression *)
+type p_t =
+  | Var of Var.t
+  | IntLit of int
+  | BoolLit of bool
+  | UnOp of unop * p_t
+  | BinOp of p_t * binop * p_t
+  | Let of Var.t * p_t * p_t
+  | If of p_t * p_t * p_t
+  | Fun of Var.t * Type.p_t * p_t
+  | Fix of Var.t * Type.p_t * p_t
+  | Pair of p_t * p_t
+  | Hole
+  | Nil
 [@@deriving sexp]
 
 (* Zippered Expressions *)
@@ -80,6 +96,41 @@ let make_z_node (node : z_node) : z_t = { id = Id.generate (); node }
 let make_dummy_node (node : node) : t = { id = -1; node }
 
 (*
+   Strip the meta data from the nodes to form a pure expression
+*)
+let rec strip (e : t) : p_t =
+  match e.node with
+  | EVar x -> Var x
+  | EInt n -> IntLit n
+  | EBool b -> BoolLit b
+  | EUnOp (op, e) -> UnOp (op, strip e)
+  | EBinOp (e1, op, e2) -> BinOp (strip e1, op, strip e2)
+  | ELet (x, e1, e2) -> Let (x, strip e1, strip e2)
+  | EIf (e1, e2, e3) -> If (strip e1, strip e2, strip e3)
+  | EFun (x, t, e) -> Fun (x, Type.strip t, strip e)
+  | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
+  | EPair (e1, e2) -> Pair (strip e1, strip e2)
+  | EHole -> Hole
+  | ENil -> Nil
+
+let rec add_metadata (e : p_t) : t =
+  match e with
+  | Var x -> make_node (EVar x)
+  | IntLit n -> make_node (EInt n)
+  | BoolLit b -> make_node (EBool b)
+  | UnOp (op, e) -> make_node (EUnOp (op, add_metadata e))
+  | BinOp (e1, op, e2) ->
+      make_node (EBinOp (add_metadata e1, op, add_metadata e2))
+  | Let (x, e1, e2) -> make_node (ELet (x, add_metadata e1, add_metadata e2))
+  | If (e1, e2, e3) ->
+      make_node (EIf (add_metadata e1, add_metadata e2, add_metadata e3))
+  | Fun (x, t, e) -> make_node (EFun (x, Type.add_metadata t, add_metadata e))
+  | Fix (x, t, e) -> make_node (EFix (x, Type.add_metadata t, add_metadata e))
+  | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
+  | Hole -> make_node EHole
+  | Nil -> make_node ENil
+
+(*
     Return the size of the AST
     Input :
       - e : the AST
@@ -96,20 +147,21 @@ let rec size (e : t) : int =
   | EFix (_, ty, ebody) | EFun (_, ty, ebody) ->
       1 + 1 + Type.size ty + size ebody
 
-(* let%test_module "Test Expr.size" =
-   (module struct
-     let%test _ = size (EInt 10) = 1
-     let%test _ = size (EUnOp (OpNeg, EBinOp (EHole, OpPlus, EVar "x"))) = 4
+let%test_module "Test Expr.size" =
+  (module struct
+    let check e n = size (add_metadata e) = n
 
-     let%test _ =
-       size
-         (ELet
-            ( "x",
-              EIf (EBool true, EInt 3, EInt 4),
-              EFun ("f", TProd (TInt, TInt), EBinOp (EVar "f", OpAp, EVar "x"))
-            ))
-       = 14
-   end) *)
+    let%test _ = check (IntLit 10) 1
+    let%test _ = check (UnOp (OpNeg, BinOp (Hole, OpPlus, Var "x"))) 4
+
+    let%test _ =
+      check
+        (Let
+           ( "x",
+             If (BoolLit true, IntLit 3, IntLit 4),
+             Fun ("f", Prod (Int, Int), BinOp (Var "f", OpAp, Var "x")) ))
+        14
+  end)
 
 (* Get the expression form of a value *)
 let rec from_val (v : value) : t =
@@ -223,9 +275,10 @@ let rec unzip (tree : z_t) : t =
 (* Each edge is represented as (index of start node, index of end node, edge type) *)
 (* let%test_module "Test Expr.unzip" =
    (module struct
-     let%test _ = unzip (Cursor EHole) = EHole
+     let check z_e e = equal (unzip (add_metadata z_e)) (add_metadata e)
+
+     let%test _ = check (Cursor EHole) EHole
 
      let%test _ =
-       unzip (EPair_L (Cursor (EInt 7), EBool false))
-       = EPair (EInt 7, EBool false)
+       check (EPair_L (Cursor (EInt 7), EBool false)) EPair (EInt 7, EBool false)
    end) *)
