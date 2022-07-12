@@ -111,11 +111,15 @@ let rec size (ty : t) : int =
   | TList t1 -> 1 + size t1
   | TArrow (t1, t2) | TProd (t1, t2) -> 1 + size t1 + size t2
 
-(* let%test_module "Test Typ.size" =
-   (module struct
-     let%test _ = size (TArrow (TProd (TInt, TInt), TBool)) = 5
-     let%test _ = size (TArrow (TArrow (TInt, TInt), TProd (TBool, THole))) = 7
-   end) *)
+let%test_module "Test Typ.size" =
+  (module struct
+    let check t n = size (add_metadata t) = n
+
+    let%test _ = check (Arrow (Prod (Int, Int), Bool)) 5
+    let%test _ = check (Arrow (Arrow (Int, Int), Prod (Bool, Hole))) 7
+  end)
+
+let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node }
 
 let rec unzip (tree : z_t) : t =
   let id = tree.id in

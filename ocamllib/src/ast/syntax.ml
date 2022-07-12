@@ -11,3 +11,9 @@ let zsize (tree : z_t) : int =
   match tree with
   | ZENode e -> Expr.size (Expr.unzip e)
   | ZTNode t -> Type.size (Type.unzip t)
+
+let equal (tree1 : t) (tree2 : t) : bool =
+  match (tree1, tree2) with
+  | ENode e1, ENode e2 -> Expr.equal e1 e2
+  | TNode t1, TNode t2 -> Type.equal t1 t2
+  | _ -> false

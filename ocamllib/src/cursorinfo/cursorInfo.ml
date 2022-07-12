@@ -129,11 +129,17 @@ let get_cursor_info (e : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:edef ~parent_term:(Some current_term)
           ~vars ~typ_ctx ~exp_ty:Type.Hole ~index:(index + 2)
     | ELet_R (x, edef, ebody) ->
+        let x_type =
+          match synthesis typ_ctx edef with
+          | Some t -> t
+          | None -> raise (TypeError "Type cannot be inferred")
+        in
         get_cursor_info_expr ~current_term:ebody
           ~parent_term:(Some current_term)
           ~vars:((x, index + 1) :: vars)
-          ~typ_ctx:(Context.extend typ_ctx (x, Type.Hole))
-          ~exp_ty:Type.Hole ~index:(index + 2)
+          ~typ_ctx:(Context.extend typ_ctx (x, x_type))
+          ~exp_ty:Type.Hole
+          ~index:(index + Expr.size edef + 2)
     | EIf_L (econd, _, _) ->
         get_cursor_info_expr ~current_term:econd
           ~parent_term:(Some current_term) ~vars ~typ_ctx ~exp_ty:Type.Bool
@@ -197,6 +203,186 @@ let get_cursor_info (e : Syntax.z_t) : t =
         ~typ_ctx:[] ~exp_ty:Type.Hole ~index:0
   | ZTNode t -> get_cursor_info_type ~current_term:t ~parent_term:None ~index:0
 
+let%test_module "Test get_cursor_info" =
+  (module struct
+    let equal i i' =
+      Syntax.equal i.current_term i'.current_term
+      && (match (i.parent_term, i'.parent_term) with
+         | Some _, Some _ | None, None -> true
+         | _ -> false)
+      && i.vars_in_scope = i'.vars_in_scope
+      && i.typ_ctx = i'.typ_ctx
+      && i.expected_ty = i'.expected_ty
+      && i.actual_ty = i'.actual_ty
+      && i.cursor_position = i'.cursor_position
+
+    let check e i = equal (get_cursor_info (ZENode e)) i
+    let e : Expr.z_t = { id = -1; node = Expr.Cursor EHole }
+
+    let i =
+      {
+        current_term = ENode (Expr.make_dummy_node Expr.EHole);
+        parent_term = None;
+        vars_in_scope = [];
+        typ_ctx = [];
+        expected_ty = Some Type.Hole;
+        actual_ty = Some Type.Hole;
+        cursor_position = 0;
+      }
+
+    let%test _ = check e i
+
+    let e : Expr.z_t = { id = -1; node = Expr.Cursor (EInt 1) }
+
+    let i =
+      {
+        current_term = ENode (Expr.make_dummy_node (EInt 1));
+        parent_term = None;
+        vars_in_scope = [];
+        typ_ctx = [];
+        expected_ty = Some Type.Hole;
+        actual_ty = Some Type.Int;
+        cursor_position = 0;
+      }
+
+    let%test _ = check e i
+
+    let e : Expr.z_t =
+      {
+        id = -1;
+        node = Expr.EUnOp_L (OpNeg, { id = -1; node = Expr.Cursor (EBool true) });
+      }
+
+    let i =
+      {
+        current_term = ENode (Expr.make_dummy_node (Expr.EBool true));
+        parent_term = Some (ZENode e);
+        vars_in_scope = [];
+        typ_ctx = [];
+        expected_ty = Some Type.Int;
+        actual_ty = Some Type.Bool;
+        cursor_position = 1;
+      }
+
+    let%test _ = check e i
+
+    (* Remove checks on current & parent terms *)
+    let equal i i' =
+      i.vars_in_scope = i'.vars_in_scope
+      && i.typ_ctx = i'.typ_ctx
+      && i.expected_ty = i'.expected_ty
+      && i.actual_ty = i'.actual_ty
+      && i.cursor_position = i'.cursor_position
+
+    let check e i = equal (get_cursor_info (ZENode e)) i
+
+    let e : Expr.z_t =
+      {
+        id = -1;
+        node =
+          Expr.ELet_R
+            ( "x",
+              Expr.make_dummy_node (EInt 1),
+              { id = -1; node = Expr.Cursor (EVar "x") } );
+      }
+
+    let i =
+      {
+        current_term = ENode (Expr.make_dummy_node EHole);
+        parent_term = None;
+        vars_in_scope = [ ("x", 1) ];
+        typ_ctx = [ ("x", Type.Int) ];
+        expected_ty = Some Type.Hole;
+        actual_ty = Some Type.Int;
+        cursor_position = 3;
+      }
+
+    let%test _ = check e i
+
+    let e : Expr.z_t =
+      {
+        id = -1;
+        node =
+          Expr.ELet_R
+            ( "x",
+              Expr.make_dummy_node (EInt 1),
+              {
+                id = -1;
+                node =
+                  Expr.ELet_R
+                    ( "y",
+                      Expr.make_dummy_node (EBool false),
+                      {
+                        id = -1;
+                        node =
+                          Expr.EBinOp_L
+                            ( Expr.make_z_node (Expr.Cursor (EVar "y")),
+                              OpAp,
+                              Expr.make_dummy_node (EInt 2) );
+                      } );
+              } );
+      }
+
+    let i =
+      {
+        current_term = ENode (Expr.make_dummy_node EHole);
+        parent_term = None;
+        vars_in_scope = [ ("y", 4); ("x", 1) ];
+        typ_ctx = [ ("y", Type.Bool); ("x", Type.Int) ];
+        expected_ty = Some (Type.Arrow (Type.Int, Type.Hole));
+        actual_ty = Some Type.Bool;
+        cursor_position = 7;
+      }
+
+    let%test _ = check e i
+
+    let e : Expr.z_t =
+      {
+        id = -1;
+        node =
+          Expr.EIf_L
+            ( Expr.make_z_node (Cursor EHole),
+              Expr.make_dummy_node EHole,
+              Expr.make_dummy_node EHole );
+      }
+
+    let i =
+      {
+        current_term = ENode (Expr.make_dummy_node EHole);
+        parent_term = None;
+        vars_in_scope = [];
+        typ_ctx = [];
+        expected_ty = Some Type.Bool;
+        actual_ty = Some Type.Hole;
+        cursor_position = 1;
+      }
+
+    let%test _ = check e i
+
+    let e : Expr.z_t =
+      {
+        id = -1;
+        node =
+          Expr.EIf_C
+            ( Expr.make_dummy_node EHole,
+              Expr.make_z_node (Cursor (EBool true)),
+              Expr.make_dummy_node (EInt 1) );
+      }
+
+    let i =
+      {
+        current_term = ENode (Expr.make_dummy_node EHole);
+        parent_term = None;
+        vars_in_scope = [];
+        typ_ctx = [];
+        expected_ty = Some Type.Int;
+        actual_ty = Some Type.Bool;
+        cursor_position = 2;
+      }
+
+    let%test _ = check e i
+  end)
+
 let ints =
   [
     Action.Construct (Int (-2));
@@ -249,9 +435,14 @@ let cursor_info_to_actions (info : t) : Action.t list =
           match e.node with
           | EVar _ | EInt _ | EBool _ | EHole | ENil -> []
           | EUnOp _ -> [ Move (Child 0) ]
-          | EBinOp _ | EFun _ | ELet _ | EFix _ | EPair _ ->
+          | EBinOp _ | EFun _ | EFix _ | EPair _ ->
               [ Move (Child 0); Move (Child 1) ]
-          | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ])
+          | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ]
+          | ELet (_, edef, _) -> (
+              match synthesis info.typ_ctx edef with
+              | Some Type.Hole -> [ Move (Child 0) ]
+              | Some _ -> [ Move (Child 0); Move (Child 1) ]
+              | None -> raise (TypeError "Type cannot be inferred")))
       | TNode t -> (
           match t.node with
           | TInt | TBool | THole -> []
@@ -328,11 +519,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       in
       construct_arith_comp () @ construct_ap () @ construct_cons ()
     in
-    let construct_let _ =
-      if Type.consistent exp_ty actual_ty
-      then [ Construct (Let_L ""); Construct (Let_R "") ]
-      else [ Construct (Let_L "") ]
-    in
+    let construct_let _ = [ Construct (Let_L "") ] in
     let construct_if _ =
       let cond_consistent = Type.consistent actual_ty Type.Bool in
       let body_consistent = Type.consistent actual_ty exp_ty in
@@ -376,10 +563,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
         construct_pair ();
       ]
   in
-  let handle_type _ =
-    (* Are we allowing construction of types? *)
-    []
-  in
+  let handle_type _ = [] in
   List.concat [ handle_move (); handle_expr (); handle_type () ]
 (*
    let%test_module "Test cursor_info_to_actions" =

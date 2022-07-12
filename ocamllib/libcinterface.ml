@@ -56,12 +56,12 @@ let get_cursor_info_c (ser_zast : string) : int =
   in
   let vars_in_scope =
     List.map
-      (fun (var, _) -> ExprConv.node_to_tag (EVar var))
+      (fun (var, _) -> ExprConv.node_to_tag (Expr.make_dummy_node (EVar var)))
       cursorInfo.vars_in_scope
   in
   pass_actions (list_to_array1 actions);
   pass_vars_in_scope (list_to_array1 vars_in_scope);
-  CursorInfo.get_cursor_position (Syntax.ZENode zast)
+  cursorInfo.cursor_position
 
 (* run_unittests function that will be called by C *)
 let run_unit_tests_c (root : int) : bool =
@@ -87,7 +87,7 @@ let print_code_c (root : int) : unit =
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
   let e = ExprConv.from_list ~nodes ~edges ~root in
-  let s = ExprConv.to_string e in
+  let s = e |> Expr.strip |> ExprConv.to_string in
   let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl") in
   ()
 

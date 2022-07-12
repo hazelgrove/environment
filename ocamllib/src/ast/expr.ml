@@ -85,7 +85,7 @@ and z_t = {
 type value =
   | VInt of int
   | VBool of bool
-  | VFun of Var.t * Type.t * t
+  | VFun of Var.t * Type.p_t * p_t
   | VPair of value * value
   | VNil
   | VError
@@ -164,17 +164,14 @@ let%test_module "Test Expr.size" =
   end)
 
 (* Get the expression form of a value *)
-let rec from_val (v : value) : t =
-  let node =
-    match v with
-    | VInt n -> EInt n
-    | VBool b -> EBool b
-    | VFun (x, typ, e) -> EFun (x, typ, e)
-    | VPair (e1, e2) -> EPair (from_val e1, from_val e2)
-    | VNil -> ENil
-    | _ -> raise (Failure "Cannot be changed to expr")
-  in
-  make_node node
+let rec from_val (v : value) : p_t =
+  match v with
+  | VInt n -> IntLit n
+  | VBool b -> BoolLit b
+  | VFun (x, typ, e) -> Fun (x, typ, e)
+  | VPair (e1, e2) -> Pair (from_val e1, from_val e2)
+  | VNil -> Nil
+  | _ -> raise (Failure "Cannot be changed to expr")
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)
 let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node }
@@ -275,9 +272,9 @@ let rec unzip (tree : z_t) : t =
 (* Each edge is represented as (index of start node, index of end node, edge type) *)
 (* let%test_module "Test Expr.unzip" =
    (module struct
-     let check z_e e = equal (unzip (add_metadata z_e)) (add_metadata e)
+     let check z_e e = strip (unzip z_e) = e
 
-     let%test _ = check (Cursor EHole) EHole
+     let%test _ = check (make_z_node (Cursor EHole)) Hole
 
      let%test _ =
        check (EPair_L (Cursor (EInt 7), EBool false)) EPair (EInt 7, EBool false)
