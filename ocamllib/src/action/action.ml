@@ -9,13 +9,13 @@ type shape =
   | UnOp of Expr.unop
   | BinOp_L of Expr.binop
   | BinOp_R of Expr.binop
-  | Let_L of Var.t
-  | Let_R of Var.t
+  | Let_L
+  | Let_R
   | If_L
   | If_C
   | If_R
-  | Fun of Var.t
-  | Fix of Var.t
+  | Fun
+  | Fix
   | Pair_L
   | Pair_R
   | TypInt

@@ -7,7 +7,7 @@ open Expr
 (* Convert AST represented by OCaml sum type to string *)
 let rec to_string (e : p_t) : string =
   match e with
-  | Var x -> "<VAR>" ^ x ^ " "
+  | Var x -> Var.to_string x ^ " "
   | IntLit n -> string_of_int n ^ " "
   | BoolLit b -> string_of_bool b ^ " "
   | UnOp (_, e) -> "(-" ^ to_string e ^ ") "
@@ -31,23 +31,28 @@ let rec to_string (e : p_t) : string =
   | If (cond, e1, e2) ->
       "(if " ^ to_string cond ^ " then " ^ to_string e1 ^ " else "
       ^ to_string e2 ^ ") "
-  | Let (x, Fix (_, _, e1), Hole) -> "let rec " ^ x ^ resolve_fun e1 ^ " "
+  | Let (x, Fix (_, _, e1), Hole) ->
+      "let rec " ^ Var.to_string x ^ resolve_fun e1 ^ " "
   | Let (x, Fix (_, _, e1), e2) ->
-      "let rec " ^ x ^ resolve_fun e1 ^ " in " ^ to_string e2 ^ " "
+      "let rec " ^ Var.to_string x ^ resolve_fun e1 ^ " in " ^ to_string e2
+      ^ " "
   | Let (x, Fun (arg, ty, e1), Hole) ->
-      "let " ^ x ^ resolve_fun (Fun (arg, ty, e1)) ^ " "
+      "let " ^ Var.to_string x ^ resolve_fun (Fun (arg, ty, e1)) ^ " "
   | Let (x, Fun (arg, ty, e1), e2) ->
-      "let " ^ x ^ resolve_fun (Fun (arg, ty, e1)) ^ " in " ^ to_string e2 ^ " "
-  | Let (x, e1, Hole) -> "let " ^ x ^ " = " ^ to_string e1 ^ " "
+      "let " ^ Var.to_string x
+      ^ resolve_fun (Fun (arg, ty, e1))
+      ^ " in " ^ to_string e2 ^ " "
+  | Let (x, e1, Hole) -> "let " ^ Var.to_string x ^ " = " ^ to_string e1 ^ " "
   | Let (x, e1, e2) ->
-      "let " ^ x ^ " = " ^ to_string e1 ^ " in " ^ to_string e2 ^ " "
+      "let " ^ Var.to_string x ^ " = " ^ to_string e1 ^ " in " ^ to_string e2
+      ^ " "
   | Fix (_, _, _) -> raise (SyntaxError "Incorrect syntax with fix")
   | Fun (x, ty, e) ->
       if ty = Type.Hole
-      then "(fun " ^ x ^ " -> " ^ to_string e ^ ") "
+      then "(fun " ^ Var.to_string x ^ " -> " ^ to_string e ^ ") "
       else
-        "(fun (" ^ x ^ " : " ^ TypeConv.to_string ty ^ ") -> " ^ to_string e
-        ^ ") "
+        "(fun (" ^ Var.to_string x ^ " : " ^ TypeConv.to_string ty ^ ") -> "
+        ^ to_string e ^ ") "
   | Pair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
   | Hole -> "<HOLE> "
   | Nil -> "[] "
@@ -56,87 +61,77 @@ and resolve_fun (e : p_t) : string =
   match e with
   | Fun (x, ty, e) ->
       if ty = Type.Hole
-      then " " ^ x ^ resolve_fun e
-      else " (" ^ x ^ " : " ^ TypeConv.to_string ty ^ ") " ^ resolve_fun e
+      then " " ^ Var.to_string x ^ resolve_fun e
+      else
+        " (" ^ Var.to_string x ^ " : " ^ TypeConv.to_string ty ^ ") "
+        ^ resolve_fun e
   | _ -> " = " ^ to_string e ^ " "
+
+let node_list =
+  [
+    EUnOp (OpNeg, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpPlus, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpMinus, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpTimes, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpDiv, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpLt, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpLe, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpGt, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpGe, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpEq, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpNe, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpCons, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpAp, make_dummy_node EHole);
+    EIf (make_dummy_node EHole, make_dummy_node EHole, make_dummy_node EHole);
+    ELet (Var.undef_var, make_dummy_node EHole, make_dummy_node EHole);
+    EFun (Var.undef_var, Type.make_dummy_node THole, make_dummy_node EHole);
+    EFix (Var.undef_var, Type.make_dummy_node THole, make_dummy_node EHole);
+    EPair (make_dummy_node EHole, make_dummy_node EHole);
+    EHole;
+    ENil;
+    EBool true;
+    EBool false;
+    EInt (-2);
+    EInt (-1);
+    EInt 0;
+    EInt 1;
+    EInt 2;
+  ]
+
+let num_nodes = List.length node_list
+
+let node_list_equal (e1 : node) (e2 : node) : bool =
+  if e1 = e2
+  then true
+  else
+    match (e1, e2) with
+    | EUnOp (op1, _), EUnOp (op2, _) -> op1 = op2
+    | EBinOp (_, op1, _), EBinOp (_, op2, _) -> op1 = op2
+    | EIf _, EIf _ | ELet _, ELet _ | EFun _, EFun _ | EPair _, EPair _ -> true
+    | _ -> false
 
 (* Convert each unique AST node to an integer *)
 let node_to_tag (e : t) : int =
   match e.node with
-  | EUnOp (OpNeg, _) -> 0
-  | EBinOp (_, op, _) -> (
-      match op with
-      | OpPlus -> 1
-      | OpMinus -> 2
-      | OpTimes -> 3
-      | OpDiv -> 4
-      | OpLt -> 5
-      | OpLe -> 6
-      | OpGt -> 7
-      | OpGe -> 8
-      | OpEq -> 9
-      | OpNe -> 10
-      | OpCons -> 11
-      | OpAp -> 12)
-  | ELet (_, _, _) -> 13
-  | EIf (_, _, _) -> 14
-  | EFun (_, _, _) -> 15
-  | EFix (_, _, _) -> 16
-  | EPair (_, _) -> 17
-  | EHole -> 30
-  | EBool false -> 31
-  | EBool true -> 32
-  | EInt -2 -> 33
-  | EInt -1 -> 34
-  | EInt 0 -> 35
-  | EInt 1 -> 36
-  | EInt 2 -> 37
-  | EVar "x" -> 38
-  | EVar "y" -> 39
-  | EVar "z" -> 40
-  | ENil -> 41
-  | EVar "" -> 42
-  | node ->
-      raise
-        (Failure (to_string (strip (make_dummy_node node)) ^ "not supported yet"))
+  | EVar x -> num_nodes + TypeConv.num_nodes + x
+  | _ ->
+      let rec find_node x lst c =
+        match lst with
+        | [] -> raise (Failure "Invalid node")
+        | hd :: tl -> if node_list_equal x hd then c else find_node x tl (c + 1)
+      in
+      find_node e.node node_list 0 + TypeConv.num_nodes
 
 (* Convert each integer to a type of node with expression holes padded for its children *)
 let tag_to_node (tag : int) : t =
+  let tag = tag - TypeConv.num_nodes in
   let node =
-    match tag with
-    | 0 -> EUnOp (OpNeg, make_dummy_node EHole)
-    | 2 -> EBinOp (make_dummy_node EHole, OpMinus, make_dummy_node EHole)
-    | 3 -> EBinOp (make_dummy_node EHole, OpTimes, make_dummy_node EHole)
-    | 1 -> EBinOp (make_dummy_node EHole, OpPlus, make_dummy_node EHole)
-    | 4 -> EBinOp (make_dummy_node EHole, OpDiv, make_dummy_node EHole)
-    | 5 -> EBinOp (make_dummy_node EHole, OpLt, make_dummy_node EHole)
-    | 6 -> EBinOp (make_dummy_node EHole, OpLe, make_dummy_node EHole)
-    | 7 -> EBinOp (make_dummy_node EHole, OpGt, make_dummy_node EHole)
-    | 8 -> EBinOp (make_dummy_node EHole, OpGe, make_dummy_node EHole)
-    | 9 -> EBinOp (make_dummy_node EHole, OpEq, make_dummy_node EHole)
-    | 10 -> EBinOp (make_dummy_node EHole, OpNe, make_dummy_node EHole)
-    | 11 -> EBinOp (make_dummy_node EHole, OpCons, make_dummy_node EHole)
-    | 12 -> EBinOp (make_dummy_node EHole, OpAp, make_dummy_node EHole)
-    | 13 -> ELet ("", make_dummy_node EHole, make_dummy_node EHole)
-    | 14 ->
-        EIf (make_dummy_node EHole, make_dummy_node EHole, make_dummy_node EHole)
-    | 15 -> EFun ("", Type.make_dummy_node THole, make_dummy_node EHole)
-    | 16 -> EFix ("", Type.make_dummy_node THole, make_dummy_node EHole)
-    | 17 -> EPair (make_dummy_node EHole, make_dummy_node EHole)
-    | 30 -> EHole
-    | 31 -> EBool false
-    | 32 -> EBool true
-    | 33 -> EInt (-2)
-    | 34 -> EInt (-1)
-    | 35 -> EInt 0
-    | 36 -> EInt 1
-    | 37 -> EInt 2
-    | 38 -> EVar "x"
-    | 39 -> EVar "y"
-    | 40 -> EVar "z"
-    | 41 -> ENil
-    | 42 -> EVar ""
-    | _ -> raise (Failure "Node index not supported")
+    if tag >= num_nodes
+    then EVar (tag - num_nodes)
+    else
+      try List.nth node_list tag
+      with Failure _ | Invalid_argument _ ->
+        raise (Failure "Invalid node index")
   in
   make_node node
 
@@ -263,7 +258,7 @@ let to_list (e : z_t) : graph * CursorInfo.t =
   let add_var (var : Var.t) (index : int) (vars : varlist) : varlist =
     (var, index) :: vars
   in
-  let find_var (target : string) (vars : varlist) : int =
+  let find_var (target : Var.t) (vars : varlist) : int =
     let indices = List.filter (fun (var, index) -> Var.equal target var) vars in
     match indices with
     | (_, index) :: tl -> index

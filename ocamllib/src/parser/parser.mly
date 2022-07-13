@@ -1,5 +1,5 @@
 %token <int> INT
-%token <string> ID
+%token <int> ID
 %token TINT TBOOL
 %token TRUE FALSE
 %token IF THEN ELSE
@@ -63,7 +63,7 @@ expr:
         | None -> Expr.make_node EHole
         | Some e -> e
     in
-    Expr.make_node (ELet (x, Expr.make_node (EFix (x, Type.make_node THole, resolve_fun args e1)), ebody))
+    Expr.make_node (ELet (x, Expr.make_node (EFix (x, Type.make_node THole, resolve_fun args e1)), ebody))    
     }
 | IF econd = expr THEN ethen = expr ELSE eelse = expr 
     {
@@ -132,7 +132,7 @@ app:
 
 simple: 
 | x = ID
-    { Expr.make_node (EVar x) }
+    { Expr.make_node (EVar (Var.get_new_var ())) }
 | TRUE
     { Expr.make_node (EBool true) }
 | FALSE

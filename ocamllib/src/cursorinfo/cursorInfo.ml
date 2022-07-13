@@ -281,17 +281,17 @@ let%test_module "Test get_cursor_info" =
         id = -1;
         node =
           Expr.ELet_R
-            ( "x",
+            ( 0,
               Expr.make_dummy_node (EInt 1),
-              { id = -1; node = Expr.Cursor (EVar "x") } );
+              { id = -1; node = Expr.Cursor (EVar 0) } );
       }
 
     let i =
       {
         current_term = ENode (Expr.make_dummy_node EHole);
         parent_term = None;
-        vars_in_scope = [ ("x", 1) ];
-        typ_ctx = [ ("x", Type.Int) ];
+        vars_in_scope = [ (0, 1) ];
+        typ_ctx = [ (0, Type.Int) ];
         expected_ty = Some Type.Hole;
         actual_ty = Some Type.Int;
         cursor_position = 3;
@@ -304,19 +304,19 @@ let%test_module "Test get_cursor_info" =
         id = -1;
         node =
           Expr.ELet_R
-            ( "x",
+            ( 0,
               Expr.make_dummy_node (EInt 1),
               {
                 id = -1;
                 node =
                   Expr.ELet_R
-                    ( "y",
+                    ( 1,
                       Expr.make_dummy_node (EBool false),
                       {
                         id = -1;
                         node =
                           Expr.EBinOp_L
-                            ( Expr.make_z_node (Expr.Cursor (EVar "y")),
+                            ( Expr.make_z_node (Expr.Cursor (EVar 1)),
                               OpAp,
                               Expr.make_dummy_node (EInt 2) );
                       } );
@@ -327,8 +327,8 @@ let%test_module "Test get_cursor_info" =
       {
         current_term = ENode (Expr.make_dummy_node EHole);
         parent_term = None;
-        vars_in_scope = [ ("y", 4); ("x", 1) ];
-        typ_ctx = [ ("y", Type.Bool); ("x", Type.Int) ];
+        vars_in_scope = [ (1, 4); (0, 1) ];
+        typ_ctx = [ (1, Type.Bool); (0, Type.Int) ];
         expected_ty = Some (Type.Arrow (Type.Int, Type.Hole));
         actual_ty = Some Type.Bool;
         cursor_position = 7;
@@ -519,7 +519,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       in
       construct_arith_comp () @ construct_ap () @ construct_cons ()
     in
-    let construct_let _ = [ Construct (Let_L "") ] in
+    let construct_let _ = [ Construct Let_L ] in
     let construct_if _ =
       let cond_consistent = Type.consistent actual_ty Type.Bool in
       let body_consistent = Type.consistent actual_ty exp_ty in
@@ -534,7 +534,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
     let construct_fun_fix _ =
       (* TODO: Allow changing type annotations? *)
       if Type.consistent exp_ty (Type.Arrow (Type.Hole, actual_ty))
-      then [ Construct (Fun ""); Construct (Fix "") ]
+      then [ Construct Fun; Construct Fix ]
       else []
     in
     let construct_pair _ =

@@ -152,14 +152,14 @@ let%test_module "Test Expr.size" =
     let check e n = size (add_metadata e) = n
 
     let%test _ = check (IntLit 10) 1
-    let%test _ = check (UnOp (OpNeg, BinOp (Hole, OpPlus, Var "x"))) 4
+    let%test _ = check (UnOp (OpNeg, BinOp (Hole, OpPlus, Var 0))) 4
 
     let%test _ =
       check
         (Let
-           ( "x",
+           ( 0,
              If (BoolLit true, IntLit 3, IntLit 4),
-             Fun ("f", Prod (Int, Int), BinOp (Var "f", OpAp, Var "x")) ))
+             Fun (1, Prod (Int, Int), BinOp (Var 1, OpAp, Var 0)) ))
         14
   end)
 

@@ -3,25 +3,39 @@ exception SyntaxError of string
 
 open Type
 
+let node_list =
+  [
+    TInt;
+    TBool;
+    TArrow (make_dummy_node THole, make_dummy_node THole);
+    TProd (make_dummy_node THole, make_dummy_node THole);
+    TList (make_dummy_node THole);
+    THole;
+  ]
+
+let num_nodes = List.length node_list
+
+let node_list_equal (e1 : node) (e2 : node) : bool =
+  if e1 = e2
+  then true
+  else
+    match (e1, e2) with
+    | TArrow _, TArrow _ | TProd _, TProd _ | TList _, TList _ -> true
+    | _ -> false
+
 let node_to_tag (ty : t) : int =
-  match ty.node with
-  | TInt -> 20
-  | TBool -> 21
-  | TArrow (_, _) -> 22
-  | TProd (_, _) -> 23
-  | TList _ -> 24
-  | THole -> 25
+  let rec find_node x lst c =
+    match lst with
+    | [] -> raise (Failure "Invalid node")
+    | hd :: tl -> if node_list_equal x hd then c else find_node x tl (c + 1)
+  in
+  find_node ty.node node_list 0
 
 let tag_to_node (tag : int) : t =
   let node =
-    match tag with
-    | 20 -> TInt
-    | 21 -> TBool
-    | 22 -> TArrow (make_dummy_node THole, make_dummy_node THole)
-    | 23 -> TProd (make_dummy_node THole, make_dummy_node THole)
-    | 24 -> TList (make_dummy_node THole)
-    | 25 -> THole
-    | _ -> raise (SyntaxError "Unrecognized type")
+    try List.nth node_list tag
+    with Failure _ | Invalid_argument _ ->
+      raise (Failure "Invalid node index")
   in
   make_node node
 

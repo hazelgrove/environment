@@ -7,9 +7,6 @@ let action_list =
     Move (Child 0);
     Move (Child 1);
     Move (Child 2);
-    Construct (Var "x");
-    Construct (Var "y");
-    Construct (Var "z");
     Construct Hole;
     Construct Nil;
     Construct (Int (-2));
@@ -44,13 +41,13 @@ let action_list =
     Construct (BinOp_R OpNe);
     Construct (BinOp_R OpAp);
     Construct (BinOp_R OpCons);
-    Construct (Let_L Var.undef_var);
-    Construct (Let_R Var.undef_var);
+    Construct Let_L;
+    Construct Let_R;
     Construct If_L;
     Construct If_C;
     Construct If_R;
-    Construct (Fun Var.undef_var);
-    Construct (Fix Var.undef_var);
+    Construct Fun;
+    Construct Fix;
     Construct Pair_L;
     Construct Pair_R;
     Construct TypInt;
@@ -66,9 +63,12 @@ let action_list =
 let num_actions = List.length action_list
 
 let tag_to_action (action : int) : t =
-  try List.nth action_list action
-  with Failure _ | Invalid_argument _ ->
-    raise (Failure "Invalid action index")
+  if action >= num_actions
+  then Construct (Var (action - num_actions))
+  else
+    try List.nth action_list action
+    with Failure _ | Invalid_argument _ ->
+      raise (Failure "Invalid action index")
 
 let action_to_tag (action : t) : int =
   let rec find x lst c =
@@ -76,7 +76,9 @@ let action_to_tag (action : t) : int =
     | [] -> raise (Failure "Invalid action")
     | hd :: tl -> if hd = x then c else find x tl (c + 1)
   in
-  find action action_list 0
+  match action with
+  | Construct (Var x) -> x + num_actions
+  | _ -> find action action_list 0
 
 (*
    Converts a list of possible actions to a list of bools, where each possible action is marked as true while others are marked as false
@@ -85,7 +87,6 @@ let to_list (action_list : t list) : bool list =
   let action_list = List.map action_to_tag action_list in
   let action_list = List.sort compare action_list in
   let bool_list = Array.make num_actions false in
-  (* TODO: Change max num of actions *)
   let rec to_bool (action_list : int list) (bool_list : bool Array.t) =
     match action_list with
     | [] -> bool_list
