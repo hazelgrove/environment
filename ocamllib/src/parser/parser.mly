@@ -132,7 +132,7 @@ app:
 
 simple: 
 | x = ID
-    { Expr.make_node (EVar (Var.get_new_var ())) }
+    { Expr.make_node (EVar x) }
 | TRUE
     { Expr.make_node (EBool true) }
 | FALSE

@@ -96,4 +96,5 @@ let parse_file filename =
     s
   in
   let s = read_whole_file filename in
+  print_endline s;
   parse s
