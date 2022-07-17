@@ -56,7 +56,7 @@ let get_cursor_info_c (ser_zast : string) : int =
   in
   let vars_in_scope =
     List.map
-      (fun (var, _) -> ExprConv.node_to_tag (Expr.make_dummy_node (EVar var)))
+      (fun (_, index) -> index + 1)
       cursorInfo.vars_in_scope
   in
   pass_actions (list_to_array1 actions);
@@ -88,8 +88,7 @@ let print_code_c (root : int) : unit =
   let edges = edge_to_list (get_edges ()) in
   let e = ExprConv.from_list ~nodes ~edges ~root in
   let s = e |> Expr.strip |> ExprConv.to_string in
-  let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl") in
-  ()
+  print_endline s
 
 let _ = Callback.register "run_unit_tests" run_unit_tests_c
 let _ = Callback.register "change_zast" change_zast_c

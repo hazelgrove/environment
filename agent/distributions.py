@@ -121,3 +121,30 @@ class Bernoulli(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         return FixedBernoulli(logits=x)
+    
+
+class QKV(nn.Module):
+    def __init__(self, num_actions, embedding_size) -> None:
+        super().__init__()
+        
+        self.k_fixed = torch.nn.Parameter(torch.randn((num_actions, embedding_size)))
+        self.gaussian = DiagGaussian(embedding_size, embedding_size)
+        
+    def forward(self, actor_features : torch.Tensor, k_var : torch.Tensor, attn_mask):
+        # Sample q from gaussian
+        q = self.gaussian(actor_features)
+        
+        B, E = q.shape
+        q = q.reshape((B, 1, E))
+        q = q / math.sqrt(E)
+        
+        # Concatenate k_fixed and k_var
+        k = torch.cat((self.k_fixed, k_var), dim=1)
+        
+        #TODO: transpose of q?
+        attn = torch.baddbmm(attn_mask, q, k.transpose(-2, -1))
+        attn = attn.transpose(-2, -1).reshape((B, -1))
+        
+        return attn
+        
+        

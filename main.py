@@ -107,9 +107,10 @@ class Trainer:
                         rollouts.masks[step],
                     )
 
-                print(action)
+                print(f"Action: {action}")
                 # Obser reward and next obs
                 obs, reward, done, infos = envs.step(action)
+                envs.render()
 
                 for info in infos:
                     if "episode" in info.keys():

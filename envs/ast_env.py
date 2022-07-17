@@ -101,10 +101,9 @@ class ASTEnv(gym.Env):
 
         return self.get_state()
 
-    def render(self) -> None:
+    def render(self, mode=None) -> None:
         print("Current state:")
         self.astclib.print_curr_state(ctypes.byref(self.state))
-        print(self.get_state()["edges"])
 
     def close(self) -> None:
         self.astclib.close_c()

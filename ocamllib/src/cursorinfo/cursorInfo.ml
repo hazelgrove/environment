@@ -70,7 +70,7 @@ let get_cursor_info (e : Syntax.z_t) : t =
               actual_ty = Some t;
               cursor_position = index;
             }
-        | None -> raise (TypeError "Incorrec type"))
+        | None -> raise (TypeError "Incorrect type"))
     | EUnOp_L (OpNeg, e) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
@@ -514,7 +514,12 @@ let cursor_info_to_actions (info : t) : Action.t list =
             then [ Construct (BinOp_R OpCons) ]
             else []
         | Type.Hole ->
-            [ Construct (BinOp_L OpCons); Construct (BinOp_R OpCons) ]
+            begin match actual_ty with
+            | Type.List _ | Type.Hole -> 
+              [ Construct (BinOp_L OpCons); Construct (BinOp_R OpCons) ]
+            | _ -> 
+              [Construct (BinOp_L OpCons)]
+            end
         | _ -> []
       in
       construct_arith_comp () @ construct_ap () @ construct_cons ()
@@ -534,7 +539,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
     let construct_fun_fix _ =
       (* TODO: Allow changing type annotations? *)
       if Type.consistent exp_ty (Type.Arrow (Type.Hole, actual_ty))
-      then [ Construct Fun; Construct Fix ]
+      then [ Construct Fun; (*Construct Fix*) ]
       else []
     in
     let construct_pair _ =

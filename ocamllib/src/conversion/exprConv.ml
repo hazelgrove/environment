@@ -107,7 +107,7 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
     match (e1, e2) with
     | EUnOp (op1, _), EUnOp (op2, _) -> op1 = op2
     | EBinOp (_, op1, _), EBinOp (_, op2, _) -> op1 = op2
-    | EIf _, EIf _ | ELet _, ELet _ | EFun _, EFun _ | EPair _, EPair _ -> true
+    | EIf _, EIf _ | ELet _, ELet _ | EFun _, EFun _ | EFix _, EFix _ | EPair _, EPair _ -> true
     | _ -> false
 
 (* Convert each unique AST node to an integer *)
@@ -117,7 +117,7 @@ let node_to_tag (e : t) : int =
   | _ ->
       let rec find_node x lst c =
         match lst with
-        | [] -> raise (Failure "Invalid node")
+        | [] -> raise (Failure ("Invalid node"))
         | hd :: tl -> if node_list_equal x hd then c else find_node x tl (c + 1)
       in
       find_node e.node node_list 0 + TypeConv.num_nodes

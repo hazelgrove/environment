@@ -45,7 +45,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
                 num_node_descriptor=50,
                 num_assignments=1,
                 code_per_assignment=[1],
-                num_actions=58,
+                num_actions=54,
             )
             env = FlattenObservation(env)
             env = TimeLimit(env, max_episode_steps=1000)
