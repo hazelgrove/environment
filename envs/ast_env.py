@@ -29,7 +29,7 @@ class ASTEnv(gym.Env):
             ("edges", (ctypes.c_int * (max_num_nodes * 3)) * 3),
             ("tests", (ctypes.c_int * max_num_tests) * 2),
             ("nodes", ctypes.c_int * max_num_nodes),
-            ("permitted_actions", ctypes.c_int * num_actions),
+            ("permitted_actions", ctypes.c_int * (num_actions + max_num_vars)),
             ("vars_in_scope", ctypes.c_int * max_num_vars),
             ("zast", ctypes.c_char * max_tree_length),
             ("cursor", ctypes.c_int),
@@ -52,12 +52,12 @@ class ASTEnv(gym.Env):
         edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes * 3, 3))
         vars_nvec = (max_num_nodes + 1) * np.ones(max_num_vars)
 
-        self.action_space = gym.spaces.Discrete(num_actions)
+        self.action_space = gym.spaces.Discrete(num_actions + max_num_vars)
         self.observation_space = gym.spaces.Dict(
             {
                 "nodes": gym.spaces.MultiDiscrete(node_nvec),
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
-                "permitted_actions": gym.spaces.MultiBinary(num_actions),
+                "permitted_actions": gym.spaces.MultiBinary(num_actions + max_num_vars),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(vars_nvec),
                 "assignment": gym.spaces.Discrete(num_assignments),

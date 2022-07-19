@@ -40,9 +40,12 @@ def main():
         )
     
     gnn = GNNBase()
-    value, actor_features, vars = gnn(asdict(inputs))
+    value, actor_features = gnn(asdict(inputs))
     
-    qkv = QKV(num_actions=54, embedding_size=512)
+    qkv = QKV(num_actions=64, embedding_size=32)
+    attn = qkv(actor_features)
+    print(attn.shape)
+    
 
 if __name__ == "__main__":
     main()

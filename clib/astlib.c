@@ -70,7 +70,7 @@ void print_curr_state(State *ast)
     printf("Zippered AST in Sexp form: %s\n", curr_state.zast);
     printf("Cursor Position: %d\n", curr_state.cursor);
     printf("Variables in scope: ");
-    for (int i = 0; i < MAX_VARS; i++)
+    for (int i = 0; i < MAX_NUM_VARS; i++)
     {
         if (curr_state.vars_in_scope[i] != -1)
             printf("%d ", curr_state.vars_in_scope[i]);
@@ -125,7 +125,7 @@ void init_c()
     }
 
     curr_state.num_vars = 0;
-    for (int i = 0; i < MAX_VARS; i++)
+    for (int i = 0; i < MAX_NUM_VARS; i++)
     {
         curr_state.vars_in_scope[i] = -1;
     }
@@ -175,7 +175,7 @@ void copy_ast(State *astdst, const State *astsrc)
         astdst->tests[i][0] = astsrc->tests[i][0];
         astdst->tests[i][1] = astsrc->tests[i][1];
     }
-    for (int i = 0; i < MAX_VARS; i++){
+    for (int i = 0; i < MAX_NUM_VARS; i++){
         astdst->vars_in_scope[i] = astsrc->vars_in_scope[i];
     }
     astdst->cursor = astsrc->cursor;

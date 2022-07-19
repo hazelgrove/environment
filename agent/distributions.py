@@ -73,14 +73,13 @@ class Categorical(nn.Module):
         return FixedCategorical(logits=x)
 
 
-class CategoricalAction(Categorical):
-    def __init__(self, num_inputs: int, num_outputs: int):
-        super().__init__(num_inputs, num_outputs)
+class CategoricalAction(nn.Module):
+    def __init__(self):
+        super().__init__()
 
     def forward(self, x, mask):
-        x = self.linear(x)
         x = x * mask
-        x[x == 0] = -1e5
+        x = x + -1e-5 * (x == 0)
 
         return FixedCategorical(logits=x)
 
@@ -124,26 +123,26 @@ class Bernoulli(nn.Module):
     
 
 class QKV(nn.Module):
+    # Note: num_actions includes constructing variables
     def __init__(self, num_actions, embedding_size) -> None:
         super().__init__()
         
-        self.k_fixed = torch.nn.Parameter(torch.randn((num_actions, embedding_size)))
+        self.k = torch.nn.Parameter(torch.empty((num_actions, embedding_size)))
         self.gaussian = DiagGaussian(embedding_size, embedding_size)
         
-    def forward(self, actor_features : torch.Tensor, k_var : torch.Tensor, attn_mask):
-        # Sample q from gaussian
-        q = self.gaussian(actor_features)
+        self.reset_parameters()
         
-        B, E = q.shape
-        q = q.reshape((B, 1, E))
-        q = q / math.sqrt(E)
+    def reset_parameters(self):
+        torch.nn.init.normal_(self.k)
         
-        # Concatenate k_fixed and k_var
-        k = torch.cat((self.k_fixed, k_var), dim=1)
+    def forward(self, q : torch.Tensor):
+        B, D = q.shape
+        q = q.reshape((B, 1, D))
         
-        #TODO: transpose of q?
-        attn = torch.baddbmm(attn_mask, q, k.transpose(-2, -1))
-        attn = attn.transpose(-2, -1).reshape((B, -1))
+        k = self.k.expand((B, -1, -1))
+        
+        attn = torch.bmm(q, k.transpose(-2, -1)) / math.sqrt(D)
+        attn = attn.transpose(-2, -1).reshape((B, -1)) # attn : B x (N + N_var)
         
         return attn
         

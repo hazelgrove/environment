@@ -61,6 +61,7 @@ let action_list =
   ]
 
 let num_actions = List.length action_list
+let max_num_vars = 10
 
 let tag_to_action (action : int) : t =
   if action >= num_actions
@@ -86,7 +87,7 @@ let action_to_tag (action : t) : int =
 let to_list (action_list : t list) : bool list =
   let action_list = List.map action_to_tag action_list in
   let action_list = List.sort compare action_list in
-  let bool_list = Array.make num_actions false in
+  let bool_list = Array.make (num_actions + max_num_vars) false in
   let rec to_bool (action_list : int list) (bool_list : bool Array.t) =
     match action_list with
     | [] -> bool_list

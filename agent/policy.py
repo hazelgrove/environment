@@ -13,7 +13,7 @@ from gym.spaces import Discrete, MultiBinary, MultiDiscrete
 from gym.spaces.utils import unflatten
 
 from agent.base import CNNBase, GNNBase, MLPBase
-from agent.distributions import Bernoulli, Categorical, CategoricalAction, DiagGaussian
+from agent.distributions import QKV, Bernoulli, Categorical, CategoricalAction, DiagGaussian
 from agent.utils import batch_unflatten, init
 from agent.wrapper import Obs
 
@@ -102,9 +102,9 @@ class GNNPolicy(Policy):
         if base_kwargs is None:
             base_kwargs = {}
         self.base = GNNBase(**base_kwargs)
-
-        num_outputs = action_space.n
-        self.dist = CategoricalAction(self.base.output_size, num_outputs)
+        
+        self.qkv = QKV(num_actions=action_space.n, embedding_size=self.base.output_size)
+        self.dist = CategoricalAction()
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         inputs = Obs(
@@ -115,14 +115,15 @@ class GNNPolicy(Policy):
             )
         )
         value, actor_features = self.base(asdict(inputs))
-
+        
+        actor_features = self.qkv(actor_features)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
             action = dist.mode()
         else:
             action = dist.sample()
-
+        
         action_log_probs = dist.log_probs(action)
 
         return value, action, action_log_probs, rnn_hxs

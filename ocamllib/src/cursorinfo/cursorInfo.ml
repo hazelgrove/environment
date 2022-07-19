@@ -17,13 +17,14 @@ type t = {
   actual_ty : Type.p_t option;
   (* result of calling Syn on current_term (use to determine wrapping viability)  *)
   cursor_position : int; (* Index of the cursor *)
+  num_nodes : int; (* number of nodes in the tree *)
 }
 
 (*
    Given a zippered AST, return the information (expr, typing, etc.) at the cursor
    For variables in scope, assumes that there is no shadowing
 *)
-let get_cursor_info (e : Syntax.z_t) : t =
+let get_cursor_info (tree : Syntax.z_t) : t =
   let rec get_cursor_info_type ~(current_term : Type.z_t)
       ~(parent_term : Syntax.z_t option) ~(index : int) =
     match current_term.node with
@@ -39,6 +40,7 @@ let get_cursor_info (e : Syntax.z_t) : t =
           expected_ty = None;
           actual_ty = None;
           cursor_position = index;
+          num_nodes = Syntax.zsize tree;
         }
     | Arrow_L (t, _) | Prod_L (t, _) | List_L t ->
         get_cursor_info_type ~current_term:t
@@ -69,6 +71,7 @@ let get_cursor_info (e : Syntax.z_t) : t =
               expected_ty = Some exp_ty;
               actual_ty = Some t;
               cursor_position = index;
+              num_nodes = Syntax.zsize tree;
             }
         | None -> raise (TypeError "Incorrect type"))
     | EUnOp_L (OpNeg, e) ->
@@ -197,7 +200,7 @@ let get_cursor_info (e : Syntax.z_t) : t =
           ~vars ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
   in
-  match e with
+  match tree with
   | ZENode e ->
       get_cursor_info_expr ~current_term:e ~parent_term:None ~vars:[]
         ~typ_ctx:[] ~exp_ty:Type.Hole ~index:0
@@ -215,9 +218,11 @@ let%test_module "Test get_cursor_info" =
       && i.expected_ty = i'.expected_ty
       && i.actual_ty = i'.actual_ty
       && i.cursor_position = i'.cursor_position
+      && i.num_nodes = i'.num_nodes
 
     let check e i = equal (get_cursor_info (ZENode e)) i
     let e : Expr.z_t = { id = -1; node = Expr.Cursor EHole }
+    (* ^<HOLE> *)
 
     let i =
       {
@@ -228,11 +233,13 @@ let%test_module "Test get_cursor_info" =
         expected_ty = Some Type.Hole;
         actual_ty = Some Type.Hole;
         cursor_position = 0;
+        num_nodes = 1;
       }
 
     let%test _ = check e i
 
     let e : Expr.z_t = { id = -1; node = Expr.Cursor (EInt 1) }
+    (* ^1 *)
 
     let i =
       {
@@ -243,6 +250,7 @@ let%test_module "Test get_cursor_info" =
         expected_ty = Some Type.Hole;
         actual_ty = Some Type.Int;
         cursor_position = 0;
+        num_nodes = 1;
       }
 
     let%test _ = check e i
@@ -252,6 +260,7 @@ let%test_module "Test get_cursor_info" =
         id = -1;
         node = Expr.EUnOp_L (OpNeg, { id = -1; node = Expr.Cursor (EBool true) });
       }
+    (* -(^true) *)
 
     let i =
       {
@@ -262,6 +271,7 @@ let%test_module "Test get_cursor_info" =
         expected_ty = Some Type.Int;
         actual_ty = Some Type.Bool;
         cursor_position = 1;
+        num_nodes = 2;
       }
 
     let%test _ = check e i
@@ -285,6 +295,7 @@ let%test_module "Test get_cursor_info" =
               Expr.make_dummy_node (EInt 1),
               { id = -1; node = Expr.Cursor (EVar 0) } );
       }
+    (* let x0 = 1 in ^x0 *)
 
     let i =
       {
@@ -295,6 +306,7 @@ let%test_module "Test get_cursor_info" =
         expected_ty = Some Type.Hole;
         actual_ty = Some Type.Int;
         cursor_position = 3;
+        num_nodes = 4;
       }
 
     let%test _ = check e i
@@ -322,6 +334,11 @@ let%test_module "Test get_cursor_info" =
                       } );
               } );
       }
+    (* 
+      let x0 = 1 in 
+        let x1 = false in
+          x1 ^2 
+    *)
 
     let i =
       {
@@ -332,6 +349,7 @@ let%test_module "Test get_cursor_info" =
         expected_ty = Some (Type.Arrow (Type.Int, Type.Hole));
         actual_ty = Some Type.Bool;
         cursor_position = 7;
+        num_nodes = 9;
       }
 
     let%test _ = check e i
@@ -345,6 +363,7 @@ let%test_module "Test get_cursor_info" =
               Expr.make_dummy_node EHole,
               Expr.make_dummy_node EHole );
       }
+    (* if ^<HOLE> then <HOLE> else <HOLE> *)
 
     let i =
       {
@@ -355,6 +374,7 @@ let%test_module "Test get_cursor_info" =
         expected_ty = Some Type.Bool;
         actual_ty = Some Type.Hole;
         cursor_position = 1;
+        num_nodes = 4;
       }
 
     let%test _ = check e i
@@ -368,6 +388,7 @@ let%test_module "Test get_cursor_info" =
               Expr.make_z_node (Cursor (EBool true)),
               Expr.make_dummy_node (EInt 1) );
       }
+    (* if <HOLE> then ^true else 1 *)
 
     let i =
       {
@@ -378,10 +399,13 @@ let%test_module "Test get_cursor_info" =
         expected_ty = Some Type.Int;
         actual_ty = Some Type.Bool;
         cursor_position = 2;
+        num_nodes = 4;
       }
 
     let%test _ = check e i
   end)
+
+let max_num_nodes = 50
 
 let ints =
   [
@@ -557,16 +581,30 @@ let cursor_info_to_actions (info : t) : Action.t list =
       then [ Construct Pair_R ]
       else []
     in
-    List.concat
-      [
-        construct_atom ();
-        construct_unop ();
-        construct_binop ();
-        construct_let ();
-        construct_if ();
-        construct_fun_fix ();
-        construct_pair ();
-      ]
+    let construct_var _ =
+      List.map (fun (var, _) -> Construct (Var var)) info.vars_in_scope
+    in
+    let remaining_nodes = max_num_nodes - info.num_nodes in
+    let actions = 
+      if remaining_nodes = 0 then
+        [construct_atom (); construct_var ();]
+      else if remaining_nodes = 1 then
+        [construct_atom (); construct_var (); construct_unop ();]
+      else if remaining_nodes = 2 then
+        [construct_atom (); construct_var (); construct_unop (); construct_binop (); construct_pair ();]
+      else
+        [
+          construct_atom ();
+          construct_unop ();
+          construct_binop ();
+          construct_let ();
+          construct_if ();
+          construct_fun_fix ();
+          construct_pair ();
+          construct_var ();
+        ]
+    in
+    List.concat actions
   in
   let handle_type _ = [] in
   List.concat [ handle_move (); handle_expr (); handle_type () ]

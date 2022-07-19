@@ -329,12 +329,6 @@ class GNNBase(NNBase):
         data_list = data.to_data_list()
         for i in range(batch_size):
             out[i] = data_list[i].x[inputs["cursor_position"][i]]
-            
-        vars = torch.zeros((batch_size, self.max_num_vars, self.hidden_size))
-        num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
-        for i in range(batch_size):
-            if num_vars[i] > 0:
-                vars[i] = data_list[i].x[inputs["vars_in_scope"][i, :num_vars[i]]]
 
-        return self.critic_linear(out), out, vars
+        return self.critic_linear(out), out
     

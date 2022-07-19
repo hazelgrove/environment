@@ -5,7 +5,7 @@
 #define MAX_NUM_TESTS 10
 #define NUM_ACTIONS 54
 #define MAX_TREE_LENGTH 10000
-#define MAX_VARS 10
+#define MAX_NUM_VARS 10
 
 /*
 Struct defining the AST structure
@@ -40,9 +40,9 @@ typedef struct
 
     For the n-th action, permistted_actions[n] is 1 if it is permitted, and 0 otherwise.
     */
-    int permitted_actions[NUM_ACTIONS];
+    int permitted_actions[NUM_ACTIONS + MAX_NUM_VARS];
 
-    int vars_in_scope[MAX_VARS];
+    int vars_in_scope[MAX_NUM_VARS];
 
     char zast[MAX_TREE_LENGTH];
 
