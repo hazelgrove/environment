@@ -102,15 +102,39 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | Move Parent -> move_parent type_tree
   in
   let build_expr (shape : Action.shape) (subtree : Expr.t) : Expr.z_node =
+    let rec free_vars (e : Expr.t) : unit = 
+      match e.node with
+      | ELet (x, edef, ebody) ->
+        Var.free_var x;
+        free_vars edef;
+        free_vars ebody
+      | EFun (x, _, e) | EFix (x, _, e) ->
+        Var.free_var x;
+        free_vars e
+      | EUnOp (_, e) ->
+        free_vars e
+      | EBinOp (e1, _, e2) | EPair (e1, e2) ->
+        free_vars e1;
+        free_vars e2
+      | EIf (e1, e2, e3) ->
+        free_vars e1;
+        free_vars e2;
+        free_vars e3
+      | _ -> ()
+    in
     (* builds the actual expression at the cursor for expression types *)
     (* handles wrapping logics appropriately *)
     let node : Expr.node =
       match shape with
-      | Var varname -> EVar varname
-      | Hole -> EHole
-      | Nil -> ENil
-      | Int value -> EInt value
-      | Bool value -> EBool value
+      | Var index ->
+        free_vars subtree;
+        let info = CursorInfo.get_cursor_info (Syntax.ZENode tree) in
+        let (varname, _) = List.nth info.vars_in_scope index in
+        EVar varname
+      | Hole -> free_vars subtree; EHole
+      | Nil -> free_vars subtree; ENil
+      | Int value -> free_vars subtree; EInt value
+      | Bool value -> free_vars subtree; EBool value
       | UnOp op -> EUnOp (op, subtree)
       | BinOp_L op -> EBinOp (subtree, op, Expr.make_node EHole)
       | BinOp_R op -> EBinOp (Expr.make_node EHole, op, subtree)

@@ -26,9 +26,7 @@ def main():
             )
     obs_space = Obs(**env.observation_space.spaces)
     env = FlattenObservation(env)
-    env.reset()
-    env.step(1)
-    obs, _, _, _ = env.step(2)
+    obs = env.reset()
     obs = torch.tensor([obs, obs, obs])
     
     inputs = Obs(
@@ -44,7 +42,8 @@ def main():
     
     qkv = QKV(num_actions=64, embedding_size=32)
     attn = qkv(actor_features)
-    print(attn.shape)
+    
+    print(asdict(inputs)["permitted_actions"])
     
 
 if __name__ == "__main__":

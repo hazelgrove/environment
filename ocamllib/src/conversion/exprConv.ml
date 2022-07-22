@@ -31,18 +31,13 @@ let rec to_string (e : p_t) : string =
   | If (cond, e1, e2) ->
       "(if " ^ to_string cond ^ " then " ^ to_string e1 ^ " else "
       ^ to_string e2 ^ ") "
-  | Let (x, Fix (_, _, e1), Hole) ->
-      "let rec " ^ Var.to_string x ^ resolve_fun e1 ^ " "
   | Let (x, Fix (_, _, e1), e2) ->
       "let rec " ^ Var.to_string x ^ resolve_fun e1 ^ " in " ^ to_string e2
       ^ " "
-  | Let (x, Fun (arg, ty, e1), Hole) ->
-      "let " ^ Var.to_string x ^ resolve_fun (Fun (arg, ty, e1)) ^ " "
   | Let (x, Fun (arg, ty, e1), e2) ->
       "let " ^ Var.to_string x
       ^ resolve_fun (Fun (arg, ty, e1))
       ^ " in " ^ to_string e2 ^ " "
-  | Let (x, e1, Hole) -> "let " ^ Var.to_string x ^ " = " ^ to_string e1 ^ " "
   | Let (x, e1, e2) ->
       "let " ^ Var.to_string x ^ " = " ^ to_string e1 ^ " in " ^ to_string e2
       ^ " "

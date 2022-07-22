@@ -55,6 +55,7 @@ class Trainer:
         actor_critic = GNNPolicy(
             envs.get_attr("orig_obs_space")[0],
             envs.get_attr("action_space")[0],
+            envs.get_attr("num_actions")[0],
             base_kwargs={},
         )
         actor_critic.to(device)
@@ -111,6 +112,7 @@ class Trainer:
                 # Obser reward and next obs
                 obs, reward, done, infos = envs.step(action)
                 envs.render()
+                print()
 
                 for info in infos:
                     if "episode" in info.keys():

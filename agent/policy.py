@@ -13,7 +13,7 @@ from gym.spaces import Discrete, MultiBinary, MultiDiscrete
 from gym.spaces.utils import unflatten
 
 from agent.base import CNNBase, GNNBase, MLPBase
-from agent.distributions import QKV, Bernoulli, Categorical, CategoricalAction, DiagGaussian
+from agent.distributions import QKV, Bernoulli, Categorical, MaskedCategorical, DiagGaussian
 from agent.utils import batch_unflatten, init
 from agent.wrapper import Obs
 
@@ -94,7 +94,7 @@ class Policy(nn.Module):
 
 
 class GNNPolicy(Policy):
-    def __init__(self, obs_space, action_space, base_kwargs=None):
+    def __init__(self, obs_space, action_space, num_fixed_actions, base_kwargs=None):
         super(Policy, self).__init__()
 
         self.obs_space = Obs(**obs_space.spaces)
@@ -103,8 +103,8 @@ class GNNPolicy(Policy):
             base_kwargs = {}
         self.base = GNNBase(**base_kwargs)
         
-        self.qkv = QKV(num_actions=action_space.n, embedding_size=self.base.output_size)
-        self.dist = CategoricalAction()
+        self.qkv = QKV(num_fixed_actions=num_fixed_actions, embedding_size=self.base.output_size)
+        self.dist = MaskedCategorical()
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         inputs = Obs(
@@ -114,9 +114,9 @@ class GNNPolicy(Policy):
                 dim=-1,
             )
         )
-        value, actor_features = self.base(asdict(inputs))
+        value, actor_features, vars = self.base(asdict(inputs))
         
-        actor_features = self.qkv(actor_features)
+        actor_features = self.qkv(actor_features, vars)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
@@ -136,7 +136,7 @@ class GNNPolicy(Policy):
                 dim=-1,
             )
         )
-        value, _ = self.base(asdict(inputs))
+        value, _, _ = self.base(asdict(inputs))
 
         return value
 
@@ -148,7 +148,9 @@ class GNNPolicy(Policy):
                 dim=-1,
             )
         )
-        value, actor_features = self.base(asdict(inputs))
+        value, actor_features, vars = self.base(asdict(inputs))
+        
+        actor_features = self.qkv(actor_features, vars)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         action_log_probs = dist.log_probs(action)

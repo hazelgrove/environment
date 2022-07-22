@@ -42,7 +42,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
         if env_id == "pl":
             env = ASTEnv(
                 max_num_nodes=50,
-                num_node_descriptor=50,
+                num_node_descriptor=33,
                 num_assignments=1,
                 code_per_assignment=[1],
                 num_actions=54,

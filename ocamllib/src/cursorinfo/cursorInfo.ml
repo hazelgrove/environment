@@ -149,18 +149,28 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~index:(index + 1)
     | EIf_C (econd, ethen, eelse) ->
         let exp_ty =
-          match synthesis typ_ctx eelse with
+          let t_else =
+            match synthesis typ_ctx eelse with
+            | Some t -> t
+            | None -> raise (TypeError "Type cannot be inferred")
+          in
+          match Typing.get_common_type exp_ty t_else with
           | Some t -> t
-          | None -> raise (TypeError "Type cannot be inferred")
+          | None -> raise (TypeError "Conflicting types between expected type and type of else branch")
         in
         get_cursor_info_expr ~current_term:ethen
           ~parent_term:(Some current_term) ~vars ~typ_ctx ~exp_ty
           ~index:(index + Expr.size econd + 1)
     | EIf_R (econd, ethen, eelse) ->
         let exp_ty =
-          match synthesis typ_ctx ethen with
+          let t_then =
+            match synthesis typ_ctx ethen with
+            | Some t -> t
+            | None -> raise (TypeError "Type cannot be inferred")
+          in
+          match Typing.get_common_type exp_ty t_then with
           | Some t -> t
-          | None -> raise (TypeError "Type cannot be inferred")
+          | None -> raise (TypeError "Conflicting types between expected type and type of then branch")
         in
         get_cursor_info_expr ~current_term:eelse
           ~parent_term:(Some current_term) ~vars ~typ_ctx ~exp_ty
@@ -509,7 +519,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
         | Type.Int -> (
             match actual_ty with Type.Int | Type.Hole -> arith | _ -> [])
         | Type.Bool -> (
-            match actual_ty with Type.Bool | Type.Hole -> comp | _ -> [])
+            match actual_ty with Type.Int | Type.Hole -> comp | _ -> [])
         | Type.Hole -> (
             match actual_ty with
             | Type.Int | Type.Hole -> arith @ comp
@@ -582,7 +592,14 @@ let cursor_info_to_actions (info : t) : Action.t list =
       else []
     in
     let construct_var _ =
-      List.map (fun (var, _) -> Construct (Var var)) info.vars_in_scope
+      let num_vars = List.length info.vars_in_scope in
+      let rec var_names n = 
+        if n > 0 then
+          (Construct (Var (n - 1))) :: (var_names (n - 1))
+        else
+          []
+      in
+      var_names num_vars
     in
     let remaining_nodes = max_num_nodes - info.num_nodes in
     let actions = 

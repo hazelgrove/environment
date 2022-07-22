@@ -2,6 +2,36 @@
 
 open Type
 
+let rec get_common_type (t1 : Type.p_t) (t2 : Type.p_t) : Type.p_t option =
+    if Type.consistent t1 t2 then 
+        match t1, t2 with
+        | Type.Hole, t | t, Type.Hole -> Some t
+        | Type.Int, Type.Int -> Some Type.Int
+        | Type.Bool, Type.Bool -> Some Type.Bool
+        | Type.Arrow (t1_l, t1_r), Type.Arrow (t2_l, t2_r) ->
+            let t1 = get_common_type t1_l t2_l in
+            let t2 = get_common_type t1_r t2_r in
+            begin match t1, t2 with
+            | Some t1, Some t2 -> Some (Type.Arrow (t1, t2))
+            | _ -> None
+            end
+        | Type.Prod (t1_l, t1_r), Type.Prod (t2_l, t2_r) ->
+            let t1 = get_common_type t1_l t2_l in
+            let t2 = get_common_type t1_r t2_r in
+            begin match t1, t2 with
+            | Some t1, Some t2 -> Some (Type.Prod (t1, t2))
+            | _ -> None
+            end
+        | Type.List t1, Type.List t2 ->
+            let t = get_common_type t1 t2 in
+            begin match t with
+            | Some t -> Some (Type.List t)
+            | _ -> None
+            end
+        | _ -> None
+    else
+        None
+
 let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
   (*given an expression and its type-context, infer its type by looking
      at its children, if possible *)
@@ -39,14 +69,13 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       match (synthesis context l_pair, synthesis context r_pair) with
       | Some l_t, Some r_t -> Some (Prod (l_t, r_t))
       | _ -> None)
-  | EIf (argl, argc, argr) ->
-      if analysis context argl Bool
+  | EIf (econd, ethen, eelse) ->
+      if analysis context econd Bool
       then
-        match synthesis context argc with
-        | Some out_t ->
-            if analysis context argc out_t && analysis context argr out_t
-            then Some out_t
-            else None
+        let tthen = synthesis context ethen in
+        let telse = synthesis context eelse in
+        match tthen, telse with
+        | Some tthen, Some teelse -> get_common_type tthen teelse
         | _ -> None
       else None
   | ELet (varn, dec, body) -> (
