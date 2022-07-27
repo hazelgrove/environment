@@ -334,7 +334,10 @@ class GNNBase(NNBase):
         num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
         for i in range(batch_size):
             if num_vars[i] > 0:
-                vars[i] = data_list[i].x[inputs["vars_in_scope"][i, :num_vars[i]]]
+                vars[i] = torch.concat((
+                    data_list[i].x[inputs["vars_in_scope"][i, :num_vars[i]]],
+                    torch.zeros(self.max_num_vars - num_vars[i], self.hidden_size)
+                ), dim=0)
 
         return self.critic_linear(out), out, vars
     

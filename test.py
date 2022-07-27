@@ -3,7 +3,7 @@ import numpy as np
 from gym.spaces import flatten, unflatten
 from stable_baselines3.common.vec_env import DummyVecEnv
 import torch
-from agent.envs import VecPyTorch, make_env
+from agent.envs import VecPyTorch
 from agent.policy import GNNPolicy, get_size
 
 from envs.ast_env import ASTEnv
@@ -26,24 +26,13 @@ def main():
             )
     obs_space = Obs(**env.observation_space.spaces)
     env = FlattenObservation(env)
-    obs = env.reset()
-    obs = torch.tensor([obs, obs, obs])
     
-    inputs = Obs(
-            *torch.split(
-                obs,
-                [get_size(space) for space in astuple(obs_space)],
-                dim=-1,
-            )
-        )
-    
-    gnn = GNNBase()
-    value, actor_features = gnn(asdict(inputs))
-    
-    qkv = QKV(num_actions=64, embedding_size=32)
-    attn = qkv(actor_features)
-    
-    print(asdict(inputs)["permitted_actions"])
+    env.reset()
+    env.step(1)
+    env.step(2)
+    env.step(2)
+    _, _, done, _ = env.step(9)
+    print(done)
     
 
 if __name__ == "__main__":

@@ -91,7 +91,7 @@ class ASTEnv(gym.Env):
 
         # Change state to Python dict
         state = self.get_state()
-
+        
         return state, reward, done, {}
 
     def reset(self):

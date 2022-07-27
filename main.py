@@ -2,6 +2,7 @@ import os
 import time
 from collections import deque
 from cProfile import run
+from gym import Env
 
 import ipdb
 import numpy as np
@@ -9,23 +10,73 @@ import torch
 
 from agent import utils
 from agent.arguments import get_args
-from agent.envs import make_env, make_vec_envs
-from agent.policy import GNNPolicy
+from agent.envs import PLEnv, Env
+from agent.policy import GNNPolicy, Policy
 from agent.ppo import PPO
 from agent.storage import RolloutStorage
-from evaluation import evaluate
+from evaluation import Evaluator, PLEvaluator
 from logger import get_logger
 
 
 class Trainer:
     @staticmethod
-    def main():
-        args = get_args()
+    def get_policy(envs, args):
+        return Policy(
+            envs.observation_space.shape,
+            envs.action_space,
+            base_kwargs={'recurrent': args.recurrent_policy}
+        )
 
-        # if args.log:
-        #     params, logger = get_logger()
-        # else:
-        #     params, logger = None, None
+    @staticmethod
+    def setup_log():
+        return None
+    
+    @staticmethod
+    def get_env(args, device):
+        return Env.make_vec_envs(
+            args.env_name,
+            args.seed,
+            args.num_processes,
+            args.gamma,
+            args.log_dir,
+            device,
+            False,
+        )
+        
+    @staticmethod
+    def evaluate(
+        actor_critic,
+        obs_rms,
+        env_name,
+        seed,
+        num_processes,
+        eval_log_dir,
+        device,
+        max_episode_steps,
+    ):
+        Evaluator.evaluate(actor_critic,
+                    obs_rms,
+                    env_name,
+                    seed,
+                    num_processes,
+                    eval_log_dir,
+                    device,
+                    max_episode_steps)
+        
+    @staticmethod
+    def reset_env(env, num_processes):
+        return env.reset()
+    
+    @classmethod
+    def main(cls):
+        args = get_args()
+        
+        if args.log:
+            logger = cls.setup_log()
+        else:
+            logger = None
+            
+        print(logger)
 
         torch.manual_seed(args.seed)
         torch.cuda.manual_seed_all(args.seed)
@@ -42,22 +93,9 @@ class Trainer:
         torch.set_num_threads(1)
         device = torch.device("cuda:0" if args.cuda else "cpu")
 
-        envs = make_vec_envs(
-            args.env_name,
-            args.seed,
-            args.num_processes,
-            args.gamma,
-            args.log_dir,
-            device,
-            False,
-        )
+        envs = cls.get_env(args, device)
 
-        actor_critic = GNNPolicy(
-            envs.get_attr("orig_obs_space")[0],
-            envs.get_attr("action_space")[0],
-            envs.get_attr("num_actions")[0],
-            base_kwargs={},
-        )
+        actor_critic = cls.get_policy(envs, args)
         actor_critic.to(device)
 
         agent = PPO(
@@ -80,7 +118,7 @@ class Trainer:
             actor_critic.recurrent_hidden_state_size,
         )
 
-        obs = envs.reset()
+        obs = cls.reset_env(envs, args.num_processes)
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
@@ -108,12 +146,9 @@ class Trainer:
                         rollouts.masks[step],
                     )
 
-                print(f"Action: {action}")
-                # Obser reward and next obs
+                # print(f"Action: {action}")
                 obs, reward, done, infos = envs.step(action)
-                envs.render()
-                print()
-
+                
                 for info in infos:
                     if "episode" in info.keys():
                         episode_rewards.append(info["episode"]["r"])
@@ -173,7 +208,7 @@ class Trainer:
                     ],
                     os.path.join(save_path, args.env_name + ".pt"),
                 )
-
+            
             if j % args.log_interval == 0 and len(episode_rewards) > 1:
                 total_num_steps = (j + 1) * args.num_processes * args.num_steps
                 end = time.time()
@@ -200,17 +235,18 @@ class Trainer:
                     param_norm = p.grad.detach().data.norm(2)
                     grad_norm += param_norm.item() ** 2
                 grad_norm = grad_norm**0.5
+                print(grad_norm)
 
-                # if args.log:
-                #     logger.log(
-                #         update=j,
-                #         mean_episode_rewards=np.mean(episode_rewards),
-                #         episode_timesteps=total_num_steps,
-                #         gradient_norms=grad_norm,
-                #         policy_loss=action_loss,
-                #         value_loss=value_loss,
-                #         policy_entropy=dist_entropy,
-                #     )
+                if logger is not None:
+                    logger.log(
+                        update=j,
+                        mean_episode_rewards=np.mean(episode_rewards),
+                        episode_timesteps=total_num_steps,
+                        gradient_norms=grad_norm,
+                        policy_loss=action_loss,
+                        value_loss=value_loss,
+                        policy_entropy=dist_entropy,
+                    )
 
             if (
                 args.eval_interval is not None
@@ -218,7 +254,7 @@ class Trainer:
                 and j % args.eval_interval == 0
             ):
                 obs_rms = utils.get_vec_normalize(envs).obs_rms
-                evaluate(
+                cls.evaluate(
                     actor_critic,
                     obs_rms,
                     args.env_name,
@@ -226,8 +262,67 @@ class Trainer:
                     args.num_processes,
                     eval_log_dir,
                     device,
+                    args.max_episode_steps,
                 )
 
 
+class GNNTrainer(Trainer):
+    def get_policy(envs, args):
+        return GNNPolicy(
+            envs.get_attr("orig_obs_space")[0],
+            envs.get_attr("action_space")[0],
+            envs.get_attr("num_actions")[0],
+            base_kwargs={},
+        )
+    
+    @staticmethod
+    def setup_log():
+        _, logger = get_logger()
+        return logger
+    
+    def get_env(args, device):
+        return PLEnv.make_vec_envs(
+            args.seed,
+            args.num_processes,
+            device,
+            args.max_episode_steps,
+        )
+        
+    @staticmethod
+    def evaluate(
+        actor_critic,
+        obs_rms,
+        env_name,
+        seed,
+        num_processes,
+        eval_log_dir,
+        device,
+        max_episode_steps,
+    ):
+        PLEvaluator.evaluate(actor_critic,
+                    obs_rms,
+                    env_name,
+                    seed,
+                    num_processes,
+                    eval_log_dir,
+                    device,
+                    max_episode_steps)
+        
+    @staticmethod
+    def reset_env(env, num_processes):
+        # Manually shift cursor
+        env.reset()
+        env.step(torch.tensor([
+            [1] for _ in range(num_processes)
+        ]))
+        env.step(torch.tensor([
+            [2] for _ in range(num_processes)
+        ]))
+        obs, _, _, _ = env.step(torch.tensor([
+            [2] for _ in range(num_processes)
+        ]))
+        return obs
+        
+
 if __name__ == "__main__":
-    Trainer.main()
+    GNNTrainer.main()

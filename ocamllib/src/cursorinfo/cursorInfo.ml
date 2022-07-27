@@ -141,7 +141,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~parent_term:(Some current_term)
           ~vars:((x, index + 1) :: vars)
           ~typ_ctx:(Context.extend typ_ctx (x, x_type))
-          ~exp_ty:Type.Hole
+          ~exp_ty
           ~index:(index + Expr.size edef + 2)
     | EIf_L (econd, _, _) ->
         get_cursor_info_expr ~current_term:econd
@@ -624,7 +624,10 @@ let cursor_info_to_actions (info : t) : Action.t list =
     List.concat actions
   in
   let handle_type _ = [] in
-  List.concat [ handle_move (); handle_expr (); handle_type () ]
+  match info.current_term with
+  | ENode _ -> List.concat [handle_move (); handle_expr ();]
+  | TNode _ -> List.concat [handle_move (); handle_type ();]
+  
 (*
    let%test_module "Test cursor_info_to_actions" =
      (module struct
