@@ -184,6 +184,28 @@ unicode = ["unicodedata2 (>=14.0.0)"]
 woff = ["zopfli (>=0.1.4)", "brotlicffi (>=0.8.0)", "brotli (>=1.0.1)"]
 
 [[package]]
+name = "gitdb"
+version = "4.0.9"
+description = "Git Object Database"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+smmap = ">=3.0.1,<6"
+
+[[package]]
+name = "gitpython"
+version = "3.1.27"
+description = "GitPython is a python library used to interact with Git repositories"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+gitdb = ">=4.0.1,<5"
+
+[[package]]
 name = "gql"
 version = "2.0.0"
 description = "GraphQL client for Python"
@@ -718,6 +740,14 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
+name = "smmap"
+version = "5.0.0"
+description = "A pure Python implementation of a sliding window memory map manager"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "stable-baselines3"
 version = "1.5.0"
 description = "Pytorch version of Stable Baselines, implementations of reinforcement learning algorithms."
@@ -806,6 +836,7 @@ typing-extensions = "*"
 [package.source]
 type = "url"
 url = "https://download.pytorch.org/whl/cu115/torch-1.11.0%2Bcu115-cp38-cp38-linux_x86_64.whl"
+
 [[package]]
 name = "torch-geometric"
 version = "2.0.4"
@@ -843,6 +874,7 @@ test = ["pytest", "pytest-cov"]
 [package.source]
 type = "url"
 url = "https://data.pyg.org/whl/torch-1.11.0%2Bcpu/torch_scatter-2.0.9-cp38-cp38-macosx_10_14_x86_64.whl"
+
 [[package]]
 name = "torch-sparse"
 version = "0.6.13"
@@ -860,6 +892,7 @@ test = ["pytest", "pytest-cov"]
 [package.source]
 type = "url"
 url = "https://data.pyg.org/whl/torch-1.11.0%2Bcpu/torch_sparse-0.6.13-cp38-cp38-macosx_10_14_x86_64.whl"
+
 [[package]]
 name = "tqdm"
 version = "4.64.0"
@@ -932,7 +965,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "ef1d50a86a17d39f4a60c6cb7e8748602597de7fae08477c7cc109c43ec27672"
+content-hash = "12845199dcab566c5ea44ddcdc885b33696b4c044d9cdd76e8c690dd9408480f"
 
 [metadata.files]
 ale-py = [
@@ -1010,6 +1043,8 @@ fonttools = [
     {file = "fonttools-4.33.3-py3-none-any.whl", hash = "sha256:f829c579a8678fa939a1d9e9894d01941db869de44390adb49ce67055a06cc2a"},
     {file = "fonttools-4.33.3.zip", hash = "sha256:c0fdcfa8ceebd7c1b2021240bd46ef77aa8e7408cf10434be55df52384865f8e"},
 ]
+gitdb = []
+gitpython = []
 gql = [
     {file = "gql-2.0.0-py2.py3-none-any.whl", hash = "sha256:35032ddd4bfe6b8f3169f806b022168932385d751eacc5c5f7122e0b3f4d6b88"},
     {file = "gql-2.0.0.tar.gz", hash = "sha256:fe8d3a08047f77362ddfcfddba7cae377da2dd66f5e61c59820419c9283d4fb5"},
@@ -1418,6 +1453,7 @@ six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
 ]
+smmap = []
 stable-baselines3 = [
     {file = "stable_baselines3-1.5.0-py3-none-any.whl", hash = "sha256:e50c8dd9282db689568063188ea6e1363a3e5f818baf1ec3fd2d27db24ad9e11"},
     {file = "stable_baselines3-1.5.0.tar.gz", hash = "sha256:a3707b7688e8d4f3257a565514fd2cacaadb5c5af5d1553a095a28cf81f5ca03"},

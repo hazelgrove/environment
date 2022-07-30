@@ -39,7 +39,7 @@ except ImportError:
 
 class Env:
     @staticmethod
-    def make_env(env_id, seed, rank, log_dir, allow_early_resets):
+    def make_env(env_id, seed, rank, allow_early_resets):
         def _thunk():
             if env_id.startswith("dm"):
                 _, domain, task = env_id.split('.')
@@ -59,10 +59,7 @@ class Env:
             if str(env.__class__.__name__).find('TimeLimit') >= 0:
                 env = TimeLimitMask(env)
 
-            if log_dir is not None:
-                env = Monitor(env,
-                            os.path.join(log_dir, str(rank)),
-                            allow_early_resets=allow_early_resets)
+            env = Monitor(env, allow_early_resets=allow_early_resets)
 
             if is_atari:
                 if len(env.observation_space.shape) == 3:
@@ -92,13 +89,12 @@ class Env:
         seed,
         num_processes,
         gamma,
-        log_dir,
         device,
         allow_early_resets,
         num_frame_stack=None,
     ):
         envs = [
-            Env.make_env(env_name, seed, i, log_dir, allow_early_resets)
+            Env.make_env(env_name, seed, i, allow_early_resets)
             for i in range(num_processes)
         ]
 
@@ -125,8 +121,9 @@ class Env:
 
 class PLEnv(Env):
     @staticmethod
-    def make_env(seed, rank, max_episode_steps=1000):
+    def make_env(seed, rank, max_episode_steps):
         def _thunk():
+            # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
                 max_num_nodes=50,
                 num_node_descriptor=33,

@@ -27,6 +27,7 @@ torch-sparse = [
     {platform = 'linux', url = "https://data.pyg.org/whl/torch-1.11.0%2Bcu115/torch_sparse-0.6.13-cp38-cp38-linux_x86_64.whl"}
 ]
 torch-geometric = "^2.0.4"
+GitPython = "^3.1.27"
 
 [tool.poetry.dev-dependencies]
 ipython = "^8.0.1"

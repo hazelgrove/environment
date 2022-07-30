@@ -204,6 +204,12 @@ class GNNBase(NNBase):
         self.hidden_size = hidden_size
         self.embedding_dim = embedding_dim
         self.max_num_vars = max_num_vars
+        
+        # Check lengths for GNN hyperparameters
+        if len(gnn_layer_size) != 3:
+            raise ValueError("GNN layer size must be a list of length 3")
+        if len(heads) != 4:
+            raise ValueError("Heads must be a list of length 4")
 
         self.main = gnn.Sequential(
             "x, edge_index, edge_feature",
