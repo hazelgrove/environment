@@ -3,8 +3,11 @@
   (flags
    (:standard -w -27))))
 
+(data_only_dirs ui)
+
 (executable
  (name libcinterface)
  (libraries environment)
  (modes
-  (native shared_object)))
+  (native shared_object))
+)

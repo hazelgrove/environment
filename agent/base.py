@@ -188,11 +188,12 @@ class GNNBase(NNBase):
         hidden_size: int = 32,
         gnn_layer_size: List[int] = [128, 64, 64],
         heads: List[int] = [8, 8, 16, 1],
-        num_node_descriptor: int = 50,
-        num_edge_descriptor: int = 5,
+        num_node_descriptor: int = 33,
+        num_edge_descriptor: int = 4,
         num_assignments: int = 1,
         embedding_dim: int = 512,
         assignment_aggr: str = "add",
+        max_num_vars: int = 10,
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)
 
@@ -202,6 +203,7 @@ class GNNBase(NNBase):
         self.heads = heads
         self.hidden_size = hidden_size
         self.embedding_dim = embedding_dim
+        self.max_num_vars = max_num_vars
 
         self.main = gnn.Sequential(
             "x, edge_index, edge_feature",
@@ -254,8 +256,8 @@ class GNNBase(NNBase):
             ],
         )
 
-        self.node_embedding = nn.Embedding(num_node_descriptor, embedding_dim)
-        self.edge_embedding = nn.Embedding(num_edge_descriptor, embedding_dim)
+        self.node_embedding = nn.Embedding(num_node_descriptor + max_num_vars + 1, embedding_dim)
+        self.edge_embedding = nn.Embedding(num_edge_descriptor + 1, embedding_dim)
         self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
 
         init_ = lambda m: init(
@@ -274,27 +276,19 @@ class GNNBase(NNBase):
         edge_index = edges[:, :, :2]
         edge_attr = edges[:, :, 2]
         assignment = inputs["assignment"]
-
-        # Find number of valid nodes
-        num_nodes = x[0].shape[0] * np.ones(batch_size, dtype=np.int64)
-        num_edges = edge_index[0].shape[0] * np.ones(batch_size, dtype=np.int64)
-        for i in range(batch_size):
-            for j in range(x[i].shape[0]):
-                if x[i, j] == -1:
-                    num_nodes[i] = j
-                    break
-            for j in range(edge_index[i].shape[0]):
-                if edge_index[i, j, 0] == -1:
-                    num_edges[i] = j
-                    break
-        edge_index = edge_index.transpose(1, 2)
-        print(f"Num Nodes: {num_nodes}")
+        
+        num_nodes = torch.count_nonzero(x + 1, dim=1)
+        num_edges = torch.count_nonzero(edge_index + 1, dim=1)[:, 0]
+        
+        edge_index = edge_index.transpose(-2, -1)
 
         # Convert inputs to long
         x = x.long()
         edge_index = edge_index.long()
         edge_attr = edge_attr.long()
         assignment = assignment.long()
+        inputs["cursor_position"] = inputs["cursor_position"].long()
+        inputs["vars_in_scope"] = inputs["vars_in_scope"].long()
 
         # Convert to embedding
         x = self.node_embedding(x + 1)
@@ -329,11 +323,23 @@ class GNNBase(NNBase):
 
         # Pass through GNN & get info on current node
         data.x = self.main(data.x, data.edge_index, data.edge_attr)
-
-        # Separate into individual points
+        
+        # Get position at cursor & variables in scope
         out = torch.zeros((batch_size, self.hidden_size))
         data_list = data.to_data_list()
+        
+        
         for i in range(batch_size):
-            out[i] = data_list[i].x[int(inputs["cursor_position"][i])]
+            out[i] = data_list[i].x[inputs["cursor_position"][i]]
+            
+        vars = torch.zeros((batch_size, self.max_num_vars, self.hidden_size))
+        num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
+        for i in range(batch_size):
+            if num_vars[i] > 0:
+                vars[i] = torch.concat((
+                    data_list[i].x[inputs["vars_in_scope"][i, :num_vars[i]]],
+                    torch.zeros(self.max_num_vars - num_vars[i], self.hidden_size)
+                ), dim=0)
 
-        return self.critic_linear(out), out
+        return self.critic_linear(out), out, vars
+    

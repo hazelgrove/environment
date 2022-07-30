@@ -73,14 +73,13 @@ class Categorical(nn.Module):
         return FixedCategorical(logits=x)
 
 
-class CategoricalAction(Categorical):
-    def __init__(self, num_inputs: int, num_outputs: int):
-        super().__init__(num_inputs, num_outputs)
+class MaskedCategorical(nn.Module):
+    def __init__(self):
+        super().__init__()
 
     def forward(self, x, mask):
-        x = self.linear(x)
         x = x * mask
-        x[x == 0] = -1e5
+        x = x + -1e5 * (x == 0)
 
         return FixedCategorical(logits=x)
 
@@ -121,3 +120,29 @@ class Bernoulli(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         return FixedBernoulli(logits=x)
+    
+
+class QKV(nn.Module):
+    def __init__(self, num_fixed_actions, embedding_size) -> None:
+        super().__init__()
+        
+        self.k = torch.nn.Parameter(torch.empty((num_fixed_actions, embedding_size)))
+        
+        self.reset_parameters()
+        
+    def reset_parameters(self):
+        torch.nn.init.orthogonal_(self.k)
+        
+    def forward(self, q : torch.Tensor, k_var : torch.Tensor):
+        B, D = q.shape
+        q = q.reshape((B, 1, D))
+        
+        k = self.k.expand((B, -1, -1))
+        k = torch.concat((k, k_var), dim=1)
+        
+        attn = torch.bmm(q, k.transpose(-2, -1)) / math.sqrt(D)
+        attn = attn.transpose(-2, -1).reshape((B, -1)) # attn : B x (N + N_var)
+        
+        return attn
+        
+        

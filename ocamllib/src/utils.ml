@@ -16,13 +16,14 @@ let deserialize (zast : string) : Expr.z_t =
 let load_tests (directory : string) (assignment : int) : (int * int) list =
   let filename = directory ^ "/" ^ string_of_int assignment ^ "/test.ml" in
   let tests_cons = ParserUtils.parse_file filename in
-  let rec combine_tests (tests_cons : Expr.t) : (int * int) list =
+  let rec combine_tests (tests_cons : Expr.p_t) : (int * int) list =
     match tests_cons with
-    | EBinOp (EPair (EInt a, EInt b), OpCons, ENil) -> [ (a, b) ]
-    | EBinOp (EPair (EInt a, EInt b), OpCons, tl) -> (a, b) :: combine_tests tl
+    | BinOp (Pair (IntLit a, IntLit b), OpCons, Nil) -> [ (a, b) ]
+    | BinOp (Pair (IntLit a, IntLit b), OpCons, tl) ->
+        (a, b) :: combine_tests tl
     | _ -> raise (IOError "Test file in incorrect format.")
   in
-  combine_tests tests_cons
+  combine_tests (Expr.strip tests_cons)
 
 (* Given an assignment number, load the code
    Input:

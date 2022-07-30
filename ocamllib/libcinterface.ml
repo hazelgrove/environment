@@ -55,18 +55,20 @@ let get_cursor_info_c (ser_zast : string) : int =
     |> List.map (fun b -> if b then 1 else 0)
   in
   let vars_in_scope =
-    List.map (fun (var, _) -> ExprConv.node_to_tag (EVar var)) cursorInfo.ctx
+    List.map
+      (fun (_, index) -> index + 1)
+      cursorInfo.vars_in_scope
   in
   pass_actions (list_to_array1 actions);
   pass_vars_in_scope (list_to_array1 vars_in_scope);
-  CursorInfo.get_cursor_position (Syntax.ZENode zast)
+  cursorInfo.cursor_position
 
 (* run_unittests function that will be called by C *)
 let run_unit_tests_c (root : int) : bool =
   let tests = tests_to_list (get_unit_tests ()) in
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
-  let e = ExprConv.from_list nodes edges root in
+  let e = ExprConv.from_list ~nodes ~edges ~root in
   Evaluator.run_unit_tests tests e
 
 (* load_assignment function that will be called by C *)
@@ -84,10 +86,9 @@ let load_starter_code_c (assignment : int) (index : int) : string =
 let print_code_c (root : int) : unit =
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
-  let e = ExprConv.from_list nodes edges root in
-  let s = ExprConv.to_string e in
-  let _ = Sys.command ("echo '" ^ s ^ "' | ocamlformat - --impl") in
-  ()
+  let e = ExprConv.from_list ~nodes ~edges ~root in
+  let s = e |> Expr.strip |> ExprConv.to_string in
+  print_endline s
 
 let _ = Callback.register "run_unit_tests" run_unit_tests_c
 let _ = Callback.register "change_zast" change_zast_c

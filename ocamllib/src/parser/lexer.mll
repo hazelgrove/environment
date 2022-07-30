@@ -6,7 +6,7 @@ let white = [' ' '\t' '\n']+
 let digit = ['0'-'9']
 let int = '-'? digit+
 let letter = ['a'-'z' 'A'-'Z']
-let id = letter (letter | digit | '_')*
+let id = 'x' digit+
 
 rule read =
   parse
@@ -42,6 +42,6 @@ rule read =
   | "int"   { TINT }
   | "bool"  { TBOOL }
   | "->"    { RIGHTARROW }
-  | id as i { ID (i) }
+  | id as x { ID (int_of_string (String.sub x 1 (String.length x - 1))) }
   | eof     { EOF }
   | _       { raise (Failure "unknown token")}

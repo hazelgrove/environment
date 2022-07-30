@@ -1,47 +1,19 @@
 (* Sum type combining the expressions and types *)
 
-type t =
-  | ENode of Expr.t
-  | TNode of Type.t
-[@@deriving sexp]
-
+type t = ENode of Expr.t | TNode of Type.t [@@deriving sexp]
 type z_t = ZENode of Expr.z_t | ZTNode of Type.z_t [@@deriving sexp]
+type p_t = PENode of Expr.p_t | PTNode of Type.p_t [@@deriving sexp]
 
-let rec size (tree : t) : int =
-  match tree with
-  | ENode (EVar _ | EInt _ | EBool _ | EHole | ENil) -> 1
-  | ENode (EUnOp (_, arg)) -> size (ENode arg) + 1
-  | ENode (EBinOp (argl, _, argr) | ELet (_, argl, argr) | EPair (argl, argr))
-    ->
-      size (ENode argl) + size (ENode argr) + 1
-  | ENode (EIf (argl, argc, argr)) ->
-      size (ENode argl) + size (ENode argc) + size (ENode argr) + 1
-  | ENode (EFun (_, typ, arg) | EFix (_, typ, arg)) ->
-      Type.size typ + size (ENode arg) + 1
-  | TNode type_tree -> Type.size type_tree
+let size (tree : t) : int =
+  match tree with ENode e -> Expr.size e | TNode t -> Type.size t
 
-let rec zsize (tree : z_t) : int =
+let zsize (tree : z_t) : int =
   match tree with
-  | ZENode (Cursor cursed) -> size (ENode cursed)
-  | ZENode (EUnOp_L (_, argl)) -> zsize (ZENode argl) + 1
-  | ZENode (EBinOp_L (argl, _, argr)) ->
-      zsize (ZENode argl) + size (ENode argr) + 1
-  | ZENode (EBinOp_R (argl, _, argr)) ->
-      size (ENode argl) + zsize (ZENode argr) + 1
-  | ZENode (ELet_L (_, argl, argr)) ->
-      zsize (ZENode argl) + size (ENode argr) + 1
-  | ZENode (ELet_R (_, argl, argr)) ->
-      size (ENode argl) + zsize (ZENode argr) + 1
-  | ZENode (EIf_L (argl, argc, argr)) ->
-      zsize (ZENode argl) + size (ENode argc) + size (ENode argr) + 1
-  | ZENode (EIf_C (argl, argc, argr)) ->
-      size (ENode argl) + zsize (ZENode argc) + size (ENode argr) + 1
-  | ZENode (EIf_R (argl, argc, argr)) ->
-      size (ENode argl) + size (ENode argc) + zsize (ZENode argr) + 1
-  | ZENode (EFun_L (_, typ, argr)) -> size (ENode argr) + size (ENode argr) + 1
-  | ZENode (EFun_R (_, typ, argr)) -> size (TNode typ) + zsize (ZENode argr) + 1
-  | ZENode (EFix_L (_, typ, argr)) -> zsize (ZTNode typ) + size (ENode argr) + 1
-  | ZENode (EFix_R (_, typ, argr)) -> size (TNode typ) + zsize (ZENode argr) + 1
-  | ZENode (EPair_L (argl, argr)) -> zsize (ZENode argl) + size (ENode argr) + 1
-  | ZENode (EPair_R (argl, argr)) -> size (ENode argl) + zsize (ZENode argr) + 1
-  | ZTNode type_tree -> Type.size (Type.unzip type_tree)
+  | ZENode e -> Expr.size (Expr.unzip e)
+  | ZTNode t -> Type.size (Type.unzip t)
+
+let equal (tree1 : t) (tree2 : t) : bool =
+  match (tree1, tree2) with
+  | ENode e1, ENode e2 -> Expr.equal e1 e2
+  | TNode t1, TNode t2 -> Type.equal t1 t2
+  | _ -> false

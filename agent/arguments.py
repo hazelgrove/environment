@@ -151,6 +151,7 @@ def get_args():
         help="use a linear schedule on the learning rate",
     )
     parser.add_argument("--log", default=True, help="open logging")
+    parser.add_argument("--max-episode-steps", type=int, default=1000)
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

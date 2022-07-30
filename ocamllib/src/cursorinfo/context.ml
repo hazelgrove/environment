@@ -1,11 +1,11 @@
 (* Typing context *)
 
-type assumption = Var.t * Type.t
+type assumption = Var.t * Type.p_t
 type t = assumption list
 
 let empty : t = []
 
-let lookup (ctx : t) (x : Var.t) : Type.t option =
+let lookup (ctx : t) (x : Var.t) : Type.p_t option =
   List.fold_left
     (fun found (y, ty) ->
       match found with

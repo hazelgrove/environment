@@ -1,1 +1,1 @@
-let x y = y + 2
+let x0 x1 = x1 + 2
