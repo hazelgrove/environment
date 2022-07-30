@@ -22,14 +22,16 @@ class Trainer:
     @staticmethod
     def get_policy(envs, args):
         return Policy(
-            envs.observation_space.shape,
+            envs.observation_space,
             envs.action_space,
             base_kwargs={'recurrent': args.recurrent_policy}
         )
 
     @staticmethod
     def setup_log():
-        return None
+        _, logger = get_logger()
+        print(f"Logger: {logger}")
+        return logger
     
     @staticmethod
     def get_env(args, device):
@@ -75,8 +77,6 @@ class Trainer:
             logger = cls.setup_log()
         else:
             logger = None
-            
-        print(logger)
 
         torch.manual_seed(args.seed)
         torch.cuda.manual_seed_all(args.seed)
@@ -84,6 +84,7 @@ class Trainer:
         if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
+        print(f"Cuda: {torch.cuda.is_available()}")
 
         log_dir = os.path.expanduser(args.log_dir)
         eval_log_dir = log_dir + "_eval"
@@ -275,11 +276,6 @@ class GNNTrainer(Trainer):
             base_kwargs={},
         )
     
-    @staticmethod
-    def setup_log():
-        _, logger = get_logger()
-        return logger
-    
     def get_env(args, device):
         return PLEnv.make_vec_envs(
             args.seed,
@@ -325,4 +321,8 @@ class GNNTrainer(Trainer):
         
 
 if __name__ == "__main__":
-    GNNTrainer.main()
+    args = get_args()
+    if args.env_name == "pl":
+        GNNTrainer.main()
+    else:
+        Trainer.main()

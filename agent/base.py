@@ -327,6 +327,8 @@ class GNNBase(NNBase):
         # Get position at cursor & variables in scope
         out = torch.zeros((batch_size, self.hidden_size))
         data_list = data.to_data_list()
+        
+        
         for i in range(batch_size):
             out[i] = data_list[i].x[inputs["cursor_position"][i]]
             

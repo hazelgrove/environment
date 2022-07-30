@@ -32,6 +32,5 @@ def get_logger():
         charts=charts,
         load_id=None,
     )
-    print(logger)
 
     return params, logger
