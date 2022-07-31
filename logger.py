@@ -27,14 +27,10 @@ def get_charts():
     ]
     
 
-def get_metadata(name, env_kwargs, base_kwargs, ppo_kwargs):
+def get_metadata():
     repo = Repo.init(os.getcwd())
     
     return dict(
-        name=name,
-        env=env_kwargs,
-        base=base_kwargs,
-        ppo=ppo_kwargs,
         reproducibility=dict(
             command_line=f'python {" ".join(sys.argv)}',
             time=time.strftime("%c"),
@@ -45,16 +41,13 @@ def get_metadata(name, env_kwargs, base_kwargs, ppo_kwargs):
     )
 
 
-def get_logger(name, env_kwargs, base_kwargs, ppo_kwargs):
-    config = "logger_config.yaml"
-    charts = get_charts()
-
+def get_logger(name):
     params, logger = initialize(
         graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
-        config=config,
-        charts=charts,
+        charts=get_charts(),
+        config="params.yaml",
         load_id=None,
-        metadata=get_metadata(name, env_kwargs, base_kwargs, ppo_kwargs),
+        name=name,
+        metadata=get_metadata(),
     )
-
     return params, logger

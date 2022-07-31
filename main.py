@@ -20,33 +20,33 @@ from logger import get_logger
 
 class Trainer:
     @staticmethod
-    def get_policy(envs, args):
-        base_kwargs = {'recurrent': args.recurrent_policy}
+    def get_policy(envs, params):
+        base_kwargs = params["base"]
         policy = Policy(
             envs.observation_space,
             envs.action_space,
             base_kwargs=base_kwargs
         )
-        return policy, base_kwargs
+        return policy
 
     @staticmethod
-    def setup_log(name, env_kwargs, base_kwargs, ppo_kwargs):
-        _, logger = get_logger(name, env_kwargs, base_kwargs, ppo_kwargs)
+    def setup_log(name):
+        params, logger = get_logger(name)
         print(f"Logger: {logger}")
-        return logger
+        return params, logger
     
     @staticmethod
-    def get_env(args, device):
+    def get_env(params, device):
         envs = Env.make_vec_envs(
-            args.env_name,
-            args.seed,
-            args.num_processes,
-            args.gamma,
+            params["env_name"],
+            params["seed"],
+            params["num_processes"],
+            params["return"]["gamma"],
             device,
             False,
         )
         
-        return envs, {}
+        return envs
         
     @staticmethod
     def evaluate(
@@ -73,13 +73,13 @@ class Trainer:
         return env.reset()
     
     @classmethod
-    def main(cls):
-        args = get_args()
+    def main(cls, log_name):
+        params, logger = cls.setup_log(log_name)
 
-        torch.manual_seed(args.seed)
-        torch.cuda.manual_seed_all(args.seed)
+        torch.manual_seed(params["seed"])
+        torch.cuda.manual_seed_all(params["seed"])
 
-        if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
+        if params["cuda"] and torch.cuda.is_available() and params["cuda_deterministic"]:
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
         print(f"Cuda Availability: {torch.cuda.is_available()}")
@@ -87,55 +87,38 @@ class Trainer:
         torch.set_num_threads(1)
         device = torch.device("cuda:0" if args.cuda else "cpu")
 
-        envs, env_kwargs = cls.get_env(args, device)
+        envs = cls.get_env(params, device)
 
-        actor_critic, base_kwargs = cls.get_policy(envs, args)
+        actor_critic = cls.get_policy(envs, params)
         actor_critic.to(device)
 
-        ppo_kwargs = {
-            'clip_param': args.clip_param,
-            'ppo_epoch': args.ppo_epoch,
-            'num_mini_batch': args.num_mini_batch,
-            'value_loss_coef': args.value_loss_coef,
-            'entropy_coef': args.entropy_coef,
-            'lr': args.lr,
-            'eps': args.eps,
-            'max_grad_norm': args.max_grad_norm,
-        }
         agent = PPO(
             actor_critic,
-            **ppo_kwargs,
+            **params["ppo"],
         )
-        
-        # Setup logging
-        if args.log:
-            logger = cls.setup_log(args.env_name, env_kwargs, base_kwargs, ppo_kwargs)
-        else:
-            logger = None
 
         rollouts = RolloutStorage(
-            args.num_steps,
-            args.num_processes,
+            params["num_steps"],
+            params["num_processes"],
             envs.observation_space.shape,
             envs.action_space,
             actor_critic.recurrent_hidden_state_size,
         )
 
-        obs = cls.reset_env(envs, args.num_processes)
+        obs = cls.reset_env(envs, params["num_processes"])
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
         episode_rewards = deque(maxlen=10)
 
         start = time.time()
-        num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
+        num_updates = int(params["num_env_steps"]) // params["num_steps"] // params["num_processes"]
         for j in range(num_updates):
-
-            if args.use_linear_lr_decay:
+            if params["use_linear_lr_decay"]:
                 # decrease learning rate linearly
-                utils.update_linear_schedule(agent.optimizer, j, num_updates, args.lr)
+                utils.update_linear_schedule(agent.optimizer, j, num_updates, params["ppo"]["lr"])
 
-            for step in range(args.num_steps):
+            for step in range(params["num_steps"]):
                 # Sample actions
                 with torch.no_grad():
                     (
@@ -184,10 +167,7 @@ class Trainer:
 
             rollouts.compute_returns(
                 next_value,
-                args.use_gae,
-                args.gamma,
-                args.gae_lambda,
-                args.use_proper_time_limits,
+                **params["return"],
             )
 
             value_loss, action_loss, dist_entropy = agent.update(rollouts)
@@ -195,25 +175,25 @@ class Trainer:
             rollouts.after_update()
 
             # save for every interval-th episode or for the last epoch
-            if (
-                j % args.save_interval == 0 or j == num_updates - 1
-            ) and args.save_dir != "":
-                save_path = args.save_dir
-                try:
-                    os.makedirs(save_path)
-                except OSError:
-                    pass
+            # if (
+            #     j % args.save_interval == 0 or j == num_updates - 1
+            # ) and args.save_dir != "":
+            #     save_path = args.save_dir
+            #     try:
+            #         os.makedirs(save_path)
+            #     except OSError:
+            #         pass
 
-                torch.save(
-                    [
-                        actor_critic,
-                        getattr(utils.get_vec_normalize(envs), "obs_rms", None),
-                    ],
-                    os.path.join(save_path, args.env_name + ".pt"),
-                )
+            #     torch.save(
+            #         [
+            #             actor_critic,
+            #             getattr(utils.get_vec_normalize(envs), "obs_rms", None),
+            #         ],
+            #         os.path.join(save_path, args.env_name + ".pt"),
+            #     )
             
-            if j % args.log_interval == 0 and len(episode_rewards) > 1:
-                total_num_steps = (j + 1) * args.num_processes * args.num_steps
+            if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
+                total_num_steps = (j + 1) * params["num_processes"] * params["num_steps"]
                 end = time.time()
                 
                 grad_norm = 0
@@ -228,7 +208,7 @@ class Trainer:
                 grad_norm = grad_norm**0.5
                 
                 print(
-                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3f}, value loss {:.3f}, policy entropy {:.3f}\n".format(
+                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
                         j,
                         total_num_steps,
                         int(total_num_steps / (end - start)),
@@ -264,23 +244,18 @@ class Trainer:
                 cls.evaluate(
                     actor_critic,
                     obs_rms,
-                    args.env_name,
-                    args.seed,
-                    args.num_processes,
-                    eval_log_dir,
+                    params["env_name"],
+                    params["seed"],
+                    params["num_processes"],
                     device,
-                    args.max_episode_steps,
+                    params["max_episode_steps"],
                 )
 
 
 class GNNTrainer(Trainer):
     @staticmethod
-    def get_policy(envs, args):
-        base_kwargs = {
-            'hidden_size': 32,
-            'gnn_layer_size': [128, 64, 64],
-            'heads': [8, 8, 16, 1],
-        }
+    def get_policy(envs, params):
+        base_kwargs = params["base"]
         policy = GNNPolicy(
             envs.get_attr("orig_obs_space")[0],
             envs.get_attr("action_space")[0],
@@ -291,10 +266,8 @@ class GNNTrainer(Trainer):
         return policy, base_kwargs
     
     @staticmethod
-    def get_env(args, device):
-        env_kwargs = {
-            'max_episode_steps': args.max_episode_steps,
-        }
+    def get_env(params, device):
+        env_kwargs = params["env"]
         envs = PLEnv.make_vec_envs(
             args.seed,
             args.num_processes,
@@ -311,7 +284,6 @@ class GNNTrainer(Trainer):
         env_name,
         seed,
         num_processes,
-        eval_log_dir,
         device,
         max_episode_steps,
     ):
@@ -320,7 +292,6 @@ class GNNTrainer(Trainer):
                     env_name,
                     seed,
                     num_processes,
-                    eval_log_dir,
                     device,
                     max_episode_steps)
         
@@ -342,7 +313,7 @@ class GNNTrainer(Trainer):
 
 if __name__ == "__main__":
     args = get_args()
-    if args.env_name == "pl":
-        GNNTrainer.main()
+    if args.gnn:
+        GNNTrainer.main(args.log_name)
     else:
-        Trainer.main()
+        Trainer.main(args.log_name)

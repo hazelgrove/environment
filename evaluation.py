@@ -6,26 +6,24 @@ from agent.envs import Env, PLEnv
 
 class Evaluator:
     @staticmethod
-    def get_envs(env_name, seed, num_processes, eval_log_dir, device, max_episode_steps):
+    def get_envs(env_name, seed, num_processes, device, max_episode_steps):
         return Env.make_vec_envs(
             env_name,
             seed + num_processes,
             num_processes,
             None,
-            eval_log_dir,
             device,
             True,
         )
     
     @classmethod
     def evaluate(
-        cls, actor_critic, obs_rms, env_name, seed, num_processes, eval_log_dir, device, max_episode_steps
+        cls, actor_critic, obs_rms, env_name, seed, num_processes, device, max_episode_steps
     ):
         eval_envs = cls.get_envs(
             env_name,
             seed,
             num_processes,
-            eval_log_dir,
             device,
             max_episode_steps,
         )
