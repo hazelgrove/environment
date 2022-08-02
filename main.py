@@ -20,7 +20,7 @@ from logger import get_logger
 
 class Trainer:
     @staticmethod
-    def get_policy(envs, params):
+    def get_policy(envs, params, device):
         base_kwargs = params["base"]
         policy = Policy(
             envs.observation_space,
@@ -28,12 +28,6 @@ class Trainer:
             base_kwargs=base_kwargs
         )
         return policy
-
-    @staticmethod
-    def setup_log(name):
-        params, logger = get_logger(name)
-        print(f"Logger: {logger}")
-        return params, logger
     
     @staticmethod
     def get_env(params, device):
@@ -67,14 +61,14 @@ class Trainer:
                     eval_log_dir,
                     device,
                     max_episode_steps)
-        
-    @staticmethod
-    def reset_env(env, num_processes):
-        return env.reset()
     
     @classmethod
-    def main(cls, log_name):
-        params, logger = cls.setup_log(log_name)
+    def main(cls, log_name, render):
+        params, logger = get_logger(log_name)
+        
+        # Only use one process if we are rendering
+        if render:
+            params["num_processes"] = 1
 
         torch.manual_seed(params["seed"])
         torch.cuda.manual_seed_all(params["seed"])
@@ -85,11 +79,11 @@ class Trainer:
         print(f"Cuda Availability: {torch.cuda.is_available()}")
 
         torch.set_num_threads(1)
-        device = torch.device("cuda:0" if args.cuda else "cpu")
+        device = torch.device("cuda:0" if params["cuda"] else "cpu")
 
         envs = cls.get_env(params, device)
 
-        actor_critic = cls.get_policy(envs, params)
+        actor_critic = cls.get_policy(envs, params, device)
         actor_critic.to(device)
 
         agent = PPO(
@@ -105,7 +99,11 @@ class Trainer:
             actor_critic.recurrent_hidden_state_size,
         )
 
-        obs = cls.reset_env(envs, params["num_processes"])
+        obs = envs.reset()
+        
+        if render:
+            envs.render(mode="human")
+        
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
@@ -132,8 +130,12 @@ class Trainer:
                         rollouts.masks[step],
                     )
 
-                # print(f"Action: {action}")
+                if render:
+                    print(f"Action: {action}")
                 obs, reward, done, infos = envs.step(action.reshape((-1, )))
+                
+                if render:
+                    envs.render(mode="human")
                 
                 for info in infos:
                     if "episode" in info.keys():
@@ -236,7 +238,7 @@ class Trainer:
                     )
 
             if (
-                args.eval_interval is not None
+                params["eval"]
                 and len(episode_rewards) > 1
                 and j % args.eval_interval == 0
             ):
@@ -254,28 +256,29 @@ class Trainer:
 
 class GNNTrainer(Trainer):
     @staticmethod
-    def get_policy(envs, params):
+    def get_policy(envs, params, device):
         base_kwargs = params["base"]
         policy = GNNPolicy(
             envs.get_attr("orig_obs_space")[0],
             envs.get_attr("action_space")[0],
             envs.get_attr("num_actions")[0],
             base_kwargs=base_kwargs,
+            device=device,
         )
         
-        return policy, base_kwargs
+        return policy
     
     @staticmethod
     def get_env(params, device):
         env_kwargs = params["env"]
         envs = PLEnv.make_vec_envs(
-            args.seed,
-            args.num_processes,
+            params["seed"],
+            params["num_processes"],
             device,
             **env_kwargs
         )
         
-        return envs, env_kwargs
+        return envs
         
     @staticmethod
     def evaluate(
@@ -295,25 +298,10 @@ class GNNTrainer(Trainer):
                     device,
                     max_episode_steps)
         
-    @staticmethod
-    def reset_env(env, num_processes):
-        # Manually shift cursor
-        env.reset()
-        env.step(torch.tensor([
-            [1] for _ in range(num_processes)
-        ]))
-        env.step(torch.tensor([
-            [2] for _ in range(num_processes)
-        ]))
-        obs, _, _, _ = env.step(torch.tensor([
-            [2] for _ in range(num_processes)
-        ]))
-        return obs
-        
 
 if __name__ == "__main__":
     args = get_args()
     if args.gnn:
-        GNNTrainer.main(args.log_name)
+        GNNTrainer.main(args.log_name, render=args.render)
     else:
-        Trainer.main(args.log_name)
+        Trainer.main(args.log_name, render=args.render)

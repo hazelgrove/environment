@@ -1,7 +1,8 @@
 #! /usr/bin/env bash
+
 name=rl
 docker build -t "$name" .
-docker run --rm -it -d \
+docker run --rm -it \
         --env-file .env \
         --shm-size=10.24gb \
         --name "$name" \

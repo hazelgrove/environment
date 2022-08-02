@@ -1,17 +1,20 @@
-env_name: ALE/Breakout-v5
+env_name: ASTEnv
 seed: 1
 cuda: True
 cuda_deterministic: False
 num_processes: 8
 num_steps: 128
 log_interval: 1
-eval_interval: None
+eval: False
+eval_interval: 0
 num_env_steps: 1.0e+7
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 1000
+  max_episode_steps: 1
 base: 
-  recurrent: False
+  hidden_size: 32
+  gnn_layer_size: [128, 64, 64]
+  heads: [8, 8, 16, 1]
 ppo:
   lr: 2.5e-4
   eps: 1.0e-5

@@ -558,7 +558,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       in
       construct_arith_comp () @ construct_ap () @ construct_cons ()
     in
-    let construct_let _ = [ Construct Let_L ] in
+    let construct_let _ = if !(Var.num_vars) < Var.max_num_vars then [ Construct Let_L ] else [] in
     let construct_if _ =
       let cond_consistent = Type.consistent actual_ty Type.Bool in
       let body_consistent = Type.consistent actual_ty exp_ty in
@@ -572,7 +572,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
     in
     let construct_fun_fix _ =
       (* TODO: Allow changing type annotations? *)
-      if Type.consistent exp_ty (Type.Arrow (Type.Hole, actual_ty))
+      if Type.consistent exp_ty (Type.Arrow (Type.Hole, actual_ty)) && !(Var.num_vars) < Var.max_num_vars
       then [ Construct Fun; (*Construct Fix*) ]
       else []
     in

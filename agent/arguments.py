@@ -12,9 +12,13 @@ def get_args():
     )
     parser.add_argument(
         "--gnn",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Whether the training is for our AST env"
+    )
+    parser.add_argument(
+        "--render",
+        action="store_true",
+        help="Whether to render the environment"
     )
     args = parser.parse_args()
 

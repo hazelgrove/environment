@@ -94,17 +94,18 @@ class Policy(nn.Module):
 
 
 class GNNPolicy(Policy):
-    def __init__(self, obs_space, action_space, num_fixed_actions, base_kwargs=None):
+    def __init__(self, obs_space, action_space, num_fixed_actions, base_kwargs=None, device=None):
         super(Policy, self).__init__()
 
         self.obs_space = Obs(**obs_space.spaces)
 
         if base_kwargs is None:
             base_kwargs = {}
-        self.base = GNNBase(**base_kwargs)
+        self.base = GNNBase(device=device, **base_kwargs)
         
         self.qkv = QKV(num_fixed_actions=num_fixed_actions, embedding_size=self.base.output_size)
         self.dist = MaskedCategorical()
+        self.device = device
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         inputs = Obs(

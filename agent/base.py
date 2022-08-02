@@ -194,6 +194,7 @@ class GNNBase(NNBase):
         embedding_dim: int = 512,
         assignment_aggr: str = "add",
         max_num_vars: int = 10,
+        device=None
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)
 
@@ -204,6 +205,7 @@ class GNNBase(NNBase):
         self.hidden_size = hidden_size
         self.embedding_dim = embedding_dim
         self.max_num_vars = max_num_vars
+        self.device = device
         
         # Check lengths for GNN hyperparameters
         if len(gnn_layer_size) != 3:
@@ -333,10 +335,9 @@ class GNNBase(NNBase):
         # Get position at cursor & variables in scope
         out = torch.zeros((batch_size, self.hidden_size))
         data_list = data.to_data_list()
-        
-        
         for i in range(batch_size):
             out[i] = data_list[i].x[inputs["cursor_position"][i]]
+        out = out.to(self.device)
             
         vars = torch.zeros((batch_size, self.max_num_vars, self.hidden_size))
         num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
@@ -344,8 +345,9 @@ class GNNBase(NNBase):
             if num_vars[i] > 0:
                 vars[i] = torch.concat((
                     data_list[i].x[inputs["vars_in_scope"][i, :num_vars[i]]],
-                    torch.zeros(self.max_num_vars - num_vars[i], self.hidden_size)
+                    torch.zeros((self.max_num_vars - num_vars[i], self.hidden_size), device=self.device),
                 ), dim=0)
-
+        vars = vars.to(self.device)
+        
         return self.critic_linear(out), out, vars
     

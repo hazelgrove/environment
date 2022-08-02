@@ -4,6 +4,7 @@ open Sexplib.Std
 type t = int [@@deriving sexp]
 
 let max_num_vars : int = 10
+let num_vars : int ref = ref 0
 let used_vars : bool Array.t = Array.make max_num_vars false
 
 let undef_var : t = -1
@@ -22,10 +23,12 @@ let get_new_var _ : t =
     find 0
   in
   used_vars.(new_var) <- true;
+  num_vars := !num_vars + 1;
   new_var
 
 let free_var (x : t) : unit = 
-  used_vars.(x) <- false
+  used_vars.(x) <- false;
+  num_vars := !num_vars - 1
 
 (* Check if two variable identifiers are equal *)
 let equal (x1 : t) (x2 : t) : bool = x1 = x2

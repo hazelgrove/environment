@@ -1,3 +1,4 @@
+import copy
 import ctypes
 import random
 from typing import Any, List, Tuple, TypedDict, TypeVar
@@ -66,20 +67,10 @@ class ASTEnv(gym.Env):
 
         self.astclib = ctypes.CDLL("./clib/astclib.so")  # Used to call C functions
         self.state = None
-
-        self.states = []
+        
+        self.code_per_assignment = code_per_assignment
 
         self.astclib.init_c()
-
-        for i in range(num_assignments):
-            states = []
-            for j in range(code_per_assignment[i]):
-                state = State()
-                self.astclib.init_assignment(
-                    ctypes.byref(state), ctypes.c_int(i), ctypes.c_int(j)
-                )
-                states.append(state)
-            self.states.append(states)
 
     def step(self, action: int):
         self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
@@ -96,8 +87,17 @@ class ASTEnv(gym.Env):
 
     def reset(self):
         assignment = self.observation_space.spaces["assignment"].sample()
-        states = self.states[assignment]
-        self.state = states[random.randint(0, len(states) - 1)]
+        code = random.randint(0, self.code_per_assignment[assignment] - 1)
+        
+        self.state = State()
+        self.astclib.init_assignment(
+            ctypes.byref(self.state), ctypes.c_int(assignment), ctypes.c_int(code)
+        )
+        
+        # TODO: Currently hardcodes reset to correct cursor position
+        self.step(1)
+        self.step(2)
+        self.step(2)
 
         return self.get_state()
 

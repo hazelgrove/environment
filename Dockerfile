@@ -56,4 +56,4 @@ RUN opam init --yes --disable-sandboxing \
 ENV PATH="$PYTHON_ENV/bin:$PATH"
 COPY . .
 
-ENTRYPOINT /RL_env/entrypoint.sh
+ENTRYPOINT ["/RL_env/entrypoint.sh"]
