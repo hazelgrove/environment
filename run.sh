@@ -2,7 +2,7 @@
 
 name=rl
 docker build -t "$name" .
-docker run --rm -it \
+docker run --rm -it -d \
         --env-file .env \
         --shm-size=10.24gb \
         --name "$name" \

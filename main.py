@@ -101,9 +101,6 @@ class Trainer:
 
         obs = envs.reset()
         
-        if render:
-            envs.render(mode="human")
-        
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
@@ -136,6 +133,7 @@ class Trainer:
                 
                 if render:
                     envs.render(mode="human")
+                    print()
                 
                 for info in infos:
                     if "episode" in info.keys():

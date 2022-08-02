@@ -30,6 +30,10 @@ let free_var (x : t) : unit =
   used_vars.(x) <- false;
   num_vars := !num_vars - 1
 
+let reset _ : unit = 
+  num_vars := 0;
+  Array.fill used_vars 0 max_num_vars false
+
 (* Check if two variable identifiers are equal *)
 let equal (x1 : t) (x2 : t) : bool = x1 = x2
 let to_string (var : t) = "x" ^ string_of_int var

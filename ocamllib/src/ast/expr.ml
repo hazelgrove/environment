@@ -269,6 +269,27 @@ let rec unzip (tree : z_t) : t =
   { id; node }
 (*unzip child type*)
 
+
+let rec add_vars (e : t) : unit = 
+  match e.node with
+  | EUnOp (unop, child) ->
+      add_vars child
+  | EBinOp (l_child, _, r_child) 
+  | EPair (l_child, r_child) ->
+      add_vars l_child; add_vars r_child
+  | ELet (x, l_child, r_child) ->
+      Var.used_vars.(x) <- true;
+      Var.num_vars := !(Var.num_vars) + 1;
+      add_vars l_child; add_vars r_child
+  | EIf (l_child, c_child, r_child) ->
+      add_vars l_child; add_vars c_child; add_vars r_child
+  | EFun (x, _, child) | EFix (x, _, child) ->
+      Var.used_vars.(x) <- true;
+      Var.num_vars := !(Var.num_vars) + 1;
+      add_vars child
+  | _ -> ()  
+
+
 (* Each edge is represented as (index of start node, index of end node, edge type) *)
 (* let%test_module "Test Expr.unzip" =
    (module struct

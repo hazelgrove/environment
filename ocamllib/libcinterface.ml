@@ -78,7 +78,10 @@ let load_tests_c (assignment : int) : unit =
 
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (assignment : int) (index : int) : string =
+  Var.reset ();
+  Id.reset ();
   let e = Utils.load_starter_code "data" assignment index in
+  Expr.add_vars e;
   let zast = Expr.select_root e in
   Utils.serialize zast
 
