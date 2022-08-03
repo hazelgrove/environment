@@ -82,7 +82,30 @@ let load_starter_code_c (assignment : int) (index : int) : string =
   Id.reset ();
   let e = Utils.load_starter_code "data" assignment index in
   Expr.add_vars e;
-  let zast = Expr.select_root e in
+  let rec find_fun_body (e : Expr.t) : Expr.z_t = 
+    match e.node with
+    | Expr.EFun (x, ty, e) ->
+      let e : Expr.z_t = 
+        {
+          id=e.id;
+          node=Expr.EFun_R (x, ty, find_fun_body e);
+        }
+      in
+      e
+    | _ -> Expr.select_root e
+  in
+  let zast = 
+    match e.node with
+    | ELet (x, edef, ebody) ->
+      let e : Expr.z_t = 
+        {
+          id=e.id;
+          node=ELet_L (x, find_fun_body edef, ebody);
+        }
+      in
+      e
+    | _ -> raise (Failure "Starter code in incorect format")
+  in
   Utils.serialize zast
 
 (* For debugging use *)
