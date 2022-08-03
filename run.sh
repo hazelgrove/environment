@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-name=rl
+name=$1
 docker build -t "$name" .
 docker run --rm -it -d \
         --env-file .env \
@@ -10,6 +10,6 @@ docker run --rm -it -d \
     --network="host" \
         -h="$(hostname -s)" \
         -e TERM=xterm-256color \
-    "$name" "${@:1}"
+    "$name" "${@:2}"
 docker logs -f "$name"
     
