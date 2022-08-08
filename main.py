@@ -208,13 +208,16 @@ class Trainer:
                     grad_norm += param_norm.item() ** 2
                 grad_norm = grad_norm**0.5
                 
+                fps = int(total_num_steps / (end - start))
+                mean_episode_reward = np.mean(episode_rewards)
+                
                 print(
                     "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
                         j,
                         total_num_steps,
-                        int(total_num_steps / (end - start)),
+                        fps,
                         len(episode_rewards),
-                        np.mean(episode_rewards),
+                        mean_episode_reward,
                         np.median(episode_rewards),
                         np.min(episode_rewards),
                         np.max(episode_rewards),
@@ -228,9 +231,10 @@ class Trainer:
                 if logger is not None:
                     logger.log(
                         update=j,
-                        mean_episode_rewards=np.mean(episode_rewards),
+                        mean_episode_rewards=mean_episode_reward,
+                        fps=fps,
                         episode_timesteps=total_num_steps,
-                        gradient_norms=grad_norm,
+                        gradient_norm=grad_norm,
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
