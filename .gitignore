@@ -8,6 +8,5 @@ __pycache__
 _opam/
 *.so
 .env
-data/
 *.pyc
 logger_config.yaml
