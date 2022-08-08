@@ -54,9 +54,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
       ~(parent_term : Expr.z_t option) ~(vars : (Var.t * int) list)
       ~(typ_ctx : Context.t) ~(exp_ty : Type.p_t) ~(index : int) =
     match current_term.node with
-    | Cursor e -> (
+    | Cursor e -> 
         let e : Expr.t = { id = current_term.id; node = e } in
-        match synthesis typ_ctx e with
+        begin match synthesis typ_ctx e with
         | Some t ->
             let parent_term =
               match parent_term with
@@ -73,7 +73,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
               cursor_position = index;
               num_nodes = Syntax.zsize tree;
             }
-        | None -> raise (TypeError "Incorrect type"))
+        | None -> 
+          raise (TypeError ("Incorrect type: " ^ (Core.Sexp.to_string (Expr.sexp_of_z_t current_term))))
+        end
     | EUnOp_L (OpNeg, e) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
@@ -592,14 +594,20 @@ let cursor_info_to_actions (info : t) : Action.t list =
       else []
     in
     let construct_var _ =
-      let num_vars = List.length info.vars_in_scope in
-      let rec var_names n = 
-        if n > 0 then
-          (Construct (Var (n - 1))) :: (var_names (n - 1))
-        else
-          []
+      let rec construct_var_aux n lst = 
+        match lst with
+        | [] -> []
+        | (var, _) :: tl ->
+          begin match Context.lookup info.typ_ctx var with
+          | Some t -> 
+            if Type.consistent t exp_ty
+            then (Construct (Var n)) :: (construct_var_aux (n + 1) tl)
+            else construct_var_aux (n + 1) tl
+          | None ->
+            raise (Failure "Not in typing context")
+          end
       in
-      var_names num_vars
+      construct_var_aux 0 info.vars_in_scope
     in
     let remaining_nodes = max_num_nodes - info.num_nodes in
     let actions = 

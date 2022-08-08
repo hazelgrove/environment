@@ -36,7 +36,10 @@ external pass_actions : (int32, int32_elt, c_layout) Array1.t -> unit
 let change_zast_c (ser_zast : string) (action : int) : string =
   let zast = Utils.deserialize ser_zast in
   let action = ActionConv.tag_to_action action in
-  let zast = Agent.perform_action zast action in
+  let zast = 
+    try Agent.perform_action zast action with
+      CursorInfo.TypeError exn -> raise (CursorInfo.TypeError ("Incorrect Type: " ^ (zast |> Expr.unzip |> Expr.strip |> ExprConv.to_string)))
+  in
   Utils.serialize zast
 
 (* Update the observation for the given zast *)
@@ -51,8 +54,11 @@ let get_cursor_info_c (ser_zast : string) : int =
   let zast = Utils.deserialize ser_zast in
   let (nodes, edges), cursorInfo = ExprConv.to_list zast in
   let actions =
-    cursorInfo |> CursorInfo.cursor_info_to_actions |> ActionConv.to_list
-    |> List.map (fun b -> if b then 1 else 0)
+    try (
+      cursorInfo |> CursorInfo.cursor_info_to_actions |> ActionConv.to_list
+      |> List.map (fun b -> if b then 1 else 0)
+    ) with
+      CursorInfo.TypeError exn -> raise (CursorInfo.TypeError ("Incorrect Type: " ^ (zast |> Expr.unzip |> Expr.strip |> ExprConv.to_string)))
   in
   let vars_in_scope =
     List.map

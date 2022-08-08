@@ -2,6 +2,6 @@
  (name cursorInfo)
  (inline_tests)
  (wrapped false)
- (libraries ast parser action)
+ (libraries unix ast parser action)
  (preprocess
   (pps ppx_inline_test)))

@@ -134,7 +134,6 @@ class Trainer:
                 if render:
                     envs.render(mode="human")
                     print()
-                    breakpoint()
                 
                 for info in infos:
                     if "episode" in info.keys():
