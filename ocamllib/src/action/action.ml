@@ -34,7 +34,7 @@ type dir = Parent | Child of int
 (* Look at only allowing inserts on empty holes... *)
 (* maybe have delete move the subtree into 'copy' register *)
 
-type t = Move of dir | Construct of shape
+type t = Move of dir | Construct of shape | Unwrap of int
 
 (*  Contains short-form avaliable actions*)
 (* In the format (Parent avaliable,

@@ -28,10 +28,11 @@ def main():
     env = FlattenObservation(env)
     
     env.reset()
-    env.step(1)
+    breakpoint()
+    env.step(53)
+    env.step(0)
     env.step(2)
-    env.step(2)
-    _, _, done, _ = env.step(9)
+    _, _, done, _ = env.step(54)
     print(done)
     
 

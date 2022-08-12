@@ -58,6 +58,9 @@ let action_list =
     Construct TypProd_R;
     Construct TypList;
     Construct TypHole;
+    Unwrap 0;
+    Unwrap 1;
+    Unwrap 2;
   ]
 
 let num_actions = List.length action_list

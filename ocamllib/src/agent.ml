@@ -100,6 +100,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | Construct shape -> construct shape type_tree
     | Move (Child n) -> move_child n type_tree
     | Move Parent -> move_parent type_tree
+    | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
   in
   let build_expr (shape : Action.shape) (subtree : Expr.t) : Expr.z_node =
     let rec free_vars (e : Expr.t) : unit = 
@@ -300,13 +301,59 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     in
     { id = tree.id; node }
   in
+  let rec unwrap (tree : Expr.z_t) (n : int) : Expr.z_t = 
+    match tree.node with
+      | Cursor e -> 
+        let subtree = 
+          match n, e with
+          | 0, EUnOp (_, e) -> e
+          | 0, EBinOp (e, _, _) -> e
+          | 1, EBinOp (_, _, e) -> e
+          | 0, ELet (_, e, _) -> e
+          | 1, ELet (_, _, e) -> e
+          | 0, EIf (e, _, _) -> e
+          | 1, EIf (_, e, _) -> e
+          | 2, EIf (_, _, e) -> e
+          | 1, EFun (_, _, e) -> e
+          | 1, EFix (_, _, e) -> e
+          | 0, EPair (e, _) -> e
+          | 1, EPair (_, e) -> e
+          | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
+        in
+        Expr.select_root subtree
+      | _ -> 
+        let node : Expr.z_node =
+          match tree.node with
+          | EUnOp_L (op, r_child) -> EUnOp_L (op, unwrap r_child n)
+          | EBinOp_L (l_child, op, r_child) ->
+              EBinOp_L (unwrap l_child n, op, r_child)
+          | EBinOp_R (l_child, op, r_child) ->
+              EBinOp_R (l_child, op, unwrap r_child n)
+          | ELet_L (var, l_child, r_child) ->
+              ELet_L (var, unwrap l_child n, r_child)
+          | ELet_R (var, l_child, r_child) ->
+              ELet_R (var, l_child, unwrap r_child n)
+          | EIf_L (l, c, r) -> EIf_L (unwrap l n, c, r)
+          | EIf_C (l, c, r) -> EIf_C (l, unwrap c n, r)
+          | EIf_R (l, c, r) -> EIf_R (l, c, unwrap r n)
+          | EFun_R (var, typ, child) -> EFun_R (var, typ, unwrap child n)
+          | EFix_R (var, typ, child) -> EFix_R (var, typ, unwrap child n)
+          | EPair_L (l_child, r_child) -> EPair_L (unwrap l_child n, r_child)
+          | EPair_R (l_child, r_child) -> EPair_R (l_child, unwrap r_child n)
+          | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
+        in
+        { id = tree.id; node }
+  in
   let act_on (tree : Expr.z_t) : Expr.z_t =
     match action with
     | Construct shape -> construct shape tree
+    | Unwrap n -> unwrap tree n
     | Move (Child n) -> move_child n tree
     | Move Parent -> move_parent tree
   in
   act_on tree
+
+
 
 (* let%test_module "Test perform_action" =
    (module struct

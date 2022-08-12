@@ -609,6 +609,86 @@ let cursor_info_to_actions (info : t) : Action.t list =
       in
       construct_var_aux 0 info.vars_in_scope
     in
+    let handle_unwrap _ = 
+      match info.current_term with
+      | ENode e ->
+        begin match e.node with
+        | EHole | ENil | EVar _ | EInt _ | EBool _ -> []
+        | EUnOp _ -> [ Unwrap 0 ]
+        | EBinOp (_, (OpPlus | OpMinus | OpTimes | OpDiv), _) -> [ Unwrap 0; Unwrap 1 ]
+        | EBinOp (_, (OpGt | OpGe | OpLt | OpLe | OpEq | OpNe), _) -> []
+        | EBinOp (_, OpCons, _) -> [Unwrap 1]
+        | ELet (x, edef, ebody) ->
+          let t_def = 
+            match Typing.synthesis info.typ_ctx edef with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let t_body =
+            match Typing.synthesis (Context.extend info.typ_ctx (x, t_def)) ebody with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let def_consistent = Type.consistent exp_ty t_def in
+          let body_consistent = Type.consistent exp_ty t_body in
+          if def_consistent && body_consistent
+          then [ Unwrap 0; Unwrap 1 ]
+          else if def_consistent
+          then [ Unwrap 0 ]
+          else if body_consistent
+          then [ Unwrap 1 ]
+          else []
+        | EIf (econd, ethen, eelse) ->
+          let t_cond = 
+            match Typing.synthesis info.typ_ctx econd with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")  
+          in
+          let t_body = 
+            match Typing.synthesis info.typ_ctx ethen with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")  
+          in
+          let cond_consistent = Type.consistent exp_ty t_cond in
+          let body_consistent = Type.consistent exp_ty t_body in
+          if cond_consistent && body_consistent
+          then [ Unwrap 0; Unwrap 1; Unwrap 2 ]
+          else if cond_consistent
+          then [ Unwrap 0 ]
+          else if body_consistent
+          then [ Unwrap 1; Unwrap 2 ]
+          else []
+        | EFun (x, ty, e) | EFix (x, ty, e) ->
+          let ty = Type.strip ty in
+          let t = 
+            match Typing.synthesis (Context.extend info.typ_ctx (x, ty)) e with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          if Type.consistent exp_ty t then [ Unwrap 1 ] else []
+        | EPair (e1, e2) | EBinOp (e1, OpAp, e2) ->
+          let t1 = 
+            match Typing.synthesis info.typ_ctx e1 with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let t2 = 
+            match Typing.synthesis info.typ_ctx e2 with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let l_consistent = Type.consistent exp_ty t1 in
+          let r_consistent = Type.consistent exp_ty t2 in
+          if l_consistent && r_consistent
+          then [ Unwrap 0; Unwrap 1 ]
+          else if l_consistent
+          then [ Unwrap 0 ]
+          else if r_consistent
+          then [ Unwrap 1 ]
+          else []
+        end
+      | TNode _ -> []
+    in
     let remaining_nodes = max_num_nodes - info.num_nodes in
     let actions = 
       if remaining_nodes = 0 then
@@ -627,6 +707,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_fun_fix ();
           construct_pair ();
           construct_var ();
+          handle_unwrap ();
         ]
     in
     List.concat actions
