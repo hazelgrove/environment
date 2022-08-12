@@ -38,6 +38,7 @@ type node =
 and t = {
   id : int; (* An unique ID assigned to each node *)
   node : node; (* Node type and its children *)
+  starter : bool; (* Whether this is a part of the starter code *)
 }
 [@@deriving sexp]
 
@@ -78,6 +79,7 @@ type z_node =
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
   node : z_node; (* Node type and its children *)
+  starter : bool; (* Whether this is a part of the starter code *)
 }
 [@@deriving sexp]
 
@@ -91,9 +93,9 @@ type value =
   | VError
 
 (* Given a pure node, generate a node with an id *)
-let make_node (node : node) : t = { id = Id.generate (); node }
-let make_z_node (node : z_node) : z_t = { id = Id.generate (); node }
-let make_dummy_node (node : node) : t = { id = -1; node }
+let make_node (node : node) : t = { id = Id.generate (); node; starter=false; }
+let make_z_node (node : z_node) : z_t = { id = Id.generate (); node; starter=false; }
+let make_dummy_node (node : node) : t = { id = -1; node; starter=false; }
 
 (*
    Strip the meta data from the nodes to form a pure expression
@@ -174,7 +176,7 @@ let rec from_val (v : value) : p_t =
   | _ -> raise (Failure "Cannot be changed to expr")
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)
-let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node }
+let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node; starter=e.starter }
 
 let unop_equal (u1 : unop) (u2 : unop) : bool =
   match (u1, u2) with OpNeg, OpNeg -> true
@@ -244,7 +246,6 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
   | _ -> false
 
 let rec unzip (tree : z_t) : t =
-  let id = tree.id in
   let node =
     match tree.node with
     | Cursor arg -> arg
@@ -266,7 +267,7 @@ let rec unzip (tree : z_t) : t =
     | EFix_R (var_n, var_t, child) -> EFix (var_n, var_t, unzip child)
     | EFix_L (var_n, var_t, child) -> EFix (var_n, Type.unzip var_t, child)
   in
-  { id; node }
+  { id=tree.id; node; starter=tree.starter }
 (*unzip child type*)
 
 

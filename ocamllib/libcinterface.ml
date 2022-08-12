@@ -95,6 +95,7 @@ let load_starter_code_c (assignment : int) (index : int) : string =
         {
           id=e.id;
           node=Expr.EFun_R (x, ty, find_fun_body e);
+          starter=true;
         }
       in
       e
@@ -107,6 +108,7 @@ let load_starter_code_c (assignment : int) (index : int) : string =
         {
           id=e.id;
           node=ELet_L (x, find_fun_body edef, ebody);
+          starter=true;
         }
       in
       e

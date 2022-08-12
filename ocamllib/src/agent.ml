@@ -40,11 +40,12 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | Arrow_R (tl, tr) -> Arrow_R (tl, construct_shape tr)
         | Prod_R (tl, tr) -> Prod_R (tl, construct_shape tr)
         | List_L tl -> List_L (construct_shape tl)
-        | Cursor subtr -> build_type { id = tree.id; node = subtr } shape
+        | Cursor subtr -> build_type (Type.unzip tree) shape
       in
       {
+        tree with
         id = (match tree.node with Cursor _ -> Id.generate () | _ -> tree.id);
-        node;
+        node = node;
       }
     in
     let rec move_child (n : int) (tree : Type.z_t) : Type.z_t =
@@ -52,7 +53,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       let move_n_child = move_child n in
       (*helper variable to simplify downstream code*)
       let node : Type.z_node =
-        match (n, type_tree.node) with
+        match (n, tree.node) with
         | _, Arrow_L (tl, tr) -> Arrow_L (move_n_child tl, tr)
         | _, Prod_L (tl, tr) -> Prod_L (move_n_child tl, tr)
         | _, Arrow_R (tl, tr) -> Arrow_R (tl, move_n_child tr)
@@ -67,20 +68,20 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         (*other values are invalid *)
       in
-      { id = type_tree.id; node }
+      { tree with node = node; }
     in
     let move_parent (tree : Type.z_t) : Type.z_t =
       let node =
         match tree.node with
         (*if child of current tree is the cursor move upwards*)
-        | Arrow_L ({ id; node = Cursor subt }, tr) ->
-            Type.Cursor (TArrow ({ id; node = subt }, tr))
-        | Arrow_R (tl, { id; node = Cursor subt }) ->
-            Type.Cursor (TArrow (tl, { id; node = subt }))
-        | Prod_L ({ id; node = Cursor subt }, tr) ->
-            Type.Cursor (TProd ({ id; node = subt }, tr))
-        | Prod_R (tl, { id; node = Cursor subt }) ->
-            Type.Cursor (TProd (tl, { id; node = subt }))
+        | Arrow_L ({ node = Cursor subt; _ } as subtr, tr) ->
+            Type.Cursor (TArrow ({(Type.unzip subtr) with node = subt }, tr))
+        | Arrow_R (tl, ({ node = Cursor subt; _ } as subtr)) ->
+            Type.Cursor (TArrow (tl, { (Type.unzip subtr) with node = subt;}))
+        | Prod_L ({ node = Cursor subt; _ } as subtr, tr) ->
+            Type.Cursor (TProd ({ (Type.unzip subtr) with node = subt; }, tr))
+        | Prod_R (tl, ({ node = Cursor subt; _ } as subtr)) ->
+            Type.Cursor (TProd (tl, { (Type.unzip subtr) with node = subt; }))
         (* else recurse *)
         | Arrow_L (tl, tr) -> Arrow_L (act_on_type tl, tr)
         | Prod_L (tl, tr) -> Prod_L (act_on_type tl, tr)
@@ -93,7 +94,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | Cursor _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         (* for when cursor is reached (shouldnt happen)*)
       in
-      { id = tree.id; node }
+      { tree with node = node; }
     in
     (* actual switch statement that uses action to determine which subfuncc to call *)
     match action with
@@ -179,9 +180,10 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EPair_L (l_child, r_child) -> EPair_L (construct_shape l_child, r_child)
       | EPair_R (l_child, r_child) -> EPair_R (l_child, construct_shape r_child)
       (* at cursor, build the correct expression *)
-      | Cursor subtree -> build_expr shape { id = tree.id; node = subtree }
+      | Cursor subtree -> build_expr shape (Expr.unzip tree)
     in
     {
+      tree with
       id = (match tree.node with Cursor _ -> Id.generate () | _ -> tree.id);
       node;
     }
@@ -240,9 +242,9 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EPair_R (l_child, r_child) -> EPair_R (l_child, move_n_child r_child)
       (*Once cursor is reached, use dedicated func to move to appropriate subtree*)
       | Cursor subtree ->
-          shuffle_cursor n_child { id = tree.id; node = subtree }
+          shuffle_cursor n_child (Expr.unzip tree)
     in
-    { id = tree.id; node }
+    { tree with node = node; }
   in
   let rec move_parent (tree : Expr.z_t) : Expr.z_t =
     (*Handles move-parent operations.
@@ -251,55 +253,55 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         Otherwise, continue recursing into the tree *)
     let node : Expr.z_node =
       match tree.node with
-      | EUnOp_L (op, { id; node = Cursor arg }) ->
-          Cursor (EUnOp (op, { id; node = arg }))
+      | EUnOp_L (op, ({ node = Cursor arg; _ } as subtr)) ->
+          Cursor (EUnOp (op, { (Expr.unzip subtr) with node = arg; }))
       | EUnOp_L (op, arg) -> EUnOp_L (op, move_parent arg)
-      | EBinOp_L ({ id; node = Cursor arg }, op, r_child) ->
-          Cursor (EBinOp ({ id; node = arg }, op, r_child))
+      | EBinOp_L ( ({ node = Cursor arg; _ } as subtr), op, r_child) ->
+          Cursor (EBinOp ({ (Expr.unzip subtr) with node = arg; }, op, r_child))
       | EBinOp_L (l_child, op, r_child) ->
           EBinOp_L (move_parent l_child, op, r_child)
-      | EBinOp_R (l_child, op, { id; node = Cursor arg }) ->
-          Cursor (EBinOp (l_child, op, { id; node = arg }))
+      | EBinOp_R (l_child, op,  ({ node = Cursor arg; _ } as subtr)) ->
+          Cursor (EBinOp (l_child, op, { (Expr.unzip subtr) with node = arg; }))
       | EBinOp_R (l_child, op, r_child) ->
           EBinOp_R (l_child, op, move_parent r_child)
-      | EPair_L ({ id; node = Cursor arg }, r_child) ->
-          Cursor (EPair ({ id; node = arg }, r_child))
+      | EPair_L ( ({ node = Cursor arg; _ } as subtr), r_child) ->
+          Cursor (EPair ({ (Expr.unzip subtr) with node = arg; }, r_child))
       | EPair_L (l_child, r_child) -> EPair_L (move_parent l_child, r_child)
-      | EPair_R (l_child, { id; node = Cursor arg }) ->
-          Cursor (EPair (l_child, { id; node = arg }))
+      | EPair_R (l_child,  ({ node = Cursor arg; _ } as subtr)) ->
+          Cursor (EPair (l_child, { (Expr.unzip subtr) with node = arg; }))
       | EPair_R (l_child, r_child) -> EPair_R (l_child, move_parent r_child)
-      | ELet_L (var, { id; node = Cursor arg }, r_child) ->
-          Cursor (ELet (var, { id; node = arg }, r_child))
+      | ELet_L (var,  ({ node = Cursor arg; _ } as subtr), r_child) ->
+          Cursor (ELet (var, { (Expr.unzip subtr) with node = arg; }, r_child))
       | ELet_L (var, l_child, r_child) ->
           ELet_L (var, move_parent l_child, r_child)
-      | ELet_R (var, l_child, { id; node = Cursor arg }) ->
-          Cursor (ELet (var, l_child, { id; node = arg }))
+      | ELet_R (var, l_child,  ({ node = Cursor arg; _ } as subtr)) ->
+          Cursor (ELet (var, l_child, { (Expr.unzip subtr) with node = arg; }))
       | ELet_R (var, l_child, r_child) ->
           ELet_R (var, l_child, move_parent r_child)
-      | EIf_L ({ id; node = Cursor arg }, c, r) ->
-          Cursor (EIf ({ id; node = arg }, c, r))
+      | EIf_L ( ({ node = Cursor arg; _ } as subtr), c, r) ->
+          Cursor (EIf ({ (Expr.unzip subtr) with node = arg; }, c, r))
       | EIf_L (l, c, r) -> EIf_L (move_parent l, c, r)
-      | EIf_C (l, { id; node = Cursor arg }, r) ->
-          Cursor (EIf (l, { id; node = arg }, r))
+      | EIf_C (l,  ({ node = Cursor arg; _ } as subtr), r) ->
+          Cursor (EIf (l, { (Expr.unzip subtr) with node = arg; }, r))
       | EIf_C (l, c, r) -> EIf_C (l, move_parent c, r)
-      | EIf_R (l, c, { id; node = Cursor arg }) ->
-          Cursor (EIf (l, c, { id; node = arg }))
+      | EIf_R (l, c,  ({ node = Cursor arg; _ } as subtr)) ->
+          Cursor (EIf (l, c, { (Expr.unzip subtr) with node = arg; }))
       | EIf_R (l, c, r) -> EIf_R (l, c, move_parent r)
-      | EFun_L (var, { id; node = Cursor typ }, arg) ->
-          Cursor (EFun (var, { id; node = typ }, arg))
+      | EFun_L (var,  ({ node = Cursor arg; _ } as subtr), ebody) ->
+          Cursor (EFun (var, { (Type.unzip subtr) with node = arg; }, ebody))
       | EFun_L (var, typ, arg) -> EFun_L (var, act_on_type typ, arg)
-      | EFix_L (var, { id; node = Cursor typ }, arg) ->
-          Cursor (EFix (var, { id; node = typ }, arg))
+      | EFix_L (var,  ({ node = Cursor arg; _ } as subtr), ebody) ->
+          Cursor (EFix (var, { (Type.unzip subtr) with node = arg; }, ebody))
       | EFix_L (var, typ, arg) -> EFix_L (var, act_on_type typ, arg)
-      | EFun_R (var, typ, { id; node = Cursor arg }) ->
-          Cursor (EFun (var, typ, { id; node = arg }))
+      | EFun_R (var, typ,  ({ node = Cursor arg; _ } as subtr)) ->
+          Cursor (EFun (var, typ, { (Expr.unzip subtr) with node = arg; }))
       | EFun_R (var, typ, child) -> EFun_R (var, typ, move_parent child)
-      | EFix_R (var, typ, { id; node = Cursor arg }) ->
-          Cursor (EFix (var, typ, { id; node = arg }))
+      | EFix_R (var, typ, ({ node = Cursor arg; _ } as subtr)) ->
+          Cursor (EFix (var, typ, { (Expr.unzip subtr) with node = arg; }))
       | EFix_R (var, typ, child) -> EFix_R (var, typ, move_parent child)
       | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
     in
-    { id = tree.id; node }
+    { tree with node=node; }
   in
   let rec unwrap (tree : Expr.z_t) (n : int) : Expr.z_t = 
     match tree.node with
@@ -342,7 +344,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EPair_R (l_child, r_child) -> EPair_R (l_child, unwrap r_child n)
           | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         in
-        { id = tree.id; node }
+        { tree with node=node; }
   in
   let act_on (tree : Expr.z_t) : Expr.z_t =
     match action with

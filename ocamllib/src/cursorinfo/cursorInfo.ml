@@ -30,7 +30,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
     match current_term.node with
     (* TODO: Add exp_ty & actual_ty *)
     | Cursor t ->
-        let t : Type.t = { id = current_term.id; node = t } in
+        let t : Type.t = { (Type.unzip current_term) with node = t } in
         (* No variables for types, so vars_in_scope & typ_ctx are [] *)
         {
           current_term = TNode t;
@@ -55,7 +55,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
       ~(typ_ctx : Context.t) ~(exp_ty : Type.p_t) ~(index : int) =
     match current_term.node with
     | Cursor e -> 
-        let e : Expr.t = { id = current_term.id; node = e } in
+        let e : Expr.t = { (Expr.unzip current_term) with node = e; } in
         begin match synthesis typ_ctx e with
         | Some t ->
             let parent_term =
@@ -233,7 +233,7 @@ let%test_module "Test get_cursor_info" =
       && i.num_nodes = i'.num_nodes
 
     let check e i = equal (get_cursor_info (ZENode e)) i
-    let e : Expr.z_t = { id = -1; node = Expr.Cursor EHole }
+    let e : Expr.z_t = { id = -1; node = Expr.Cursor EHole; starter = false }
     (* ^<HOLE> *)
 
     let i =
@@ -250,7 +250,7 @@ let%test_module "Test get_cursor_info" =
 
     let%test _ = check e i
 
-    let e : Expr.z_t = { id = -1; node = Expr.Cursor (EInt 1) }
+    let e : Expr.z_t = { id = -1; node = Expr.Cursor (EInt 1); starter = false }
     (* ^1 *)
 
     let i =
@@ -270,7 +270,8 @@ let%test_module "Test get_cursor_info" =
     let e : Expr.z_t =
       {
         id = -1;
-        node = Expr.EUnOp_L (OpNeg, { id = -1; node = Expr.Cursor (EBool true) });
+        node = Expr.EUnOp_L (OpNeg, { id = -1; node = Expr.Cursor (EBool true); starter = false });
+        starter = false
       }
     (* -(^true) *)
 
@@ -305,7 +306,8 @@ let%test_module "Test get_cursor_info" =
           Expr.ELet_R
             ( 0,
               Expr.make_dummy_node (EInt 1),
-              { id = -1; node = Expr.Cursor (EVar 0) } );
+              { id = -1; node = Expr.Cursor (EVar 0); starter = false } );
+        starter = false
       }
     (* let x0 = 1 in ^x0 *)
 
@@ -343,8 +345,11 @@ let%test_module "Test get_cursor_info" =
                             ( Expr.make_z_node (Expr.Cursor (EVar 1)),
                               OpAp,
                               Expr.make_dummy_node (EInt 2) );
+                        starter = false
                       } );
+                starter = false
               } );
+        starter = false
       }
     (* 
       let x0 = 1 in 
@@ -374,6 +379,7 @@ let%test_module "Test get_cursor_info" =
             ( Expr.make_z_node (Cursor EHole),
               Expr.make_dummy_node EHole,
               Expr.make_dummy_node EHole );
+        starter = false
       }
     (* if ^<HOLE> then <HOLE> else <HOLE> *)
 
@@ -399,6 +405,7 @@ let%test_module "Test get_cursor_info" =
             ( Expr.make_dummy_node EHole,
               Expr.make_z_node (Cursor (EBool true)),
               Expr.make_dummy_node (EInt 1) );
+        starter = false
       }
     (* if <HOLE> then ^true else 1 *)
 
@@ -463,7 +470,12 @@ let cursor_info_to_actions (info : t) : Action.t list =
   let open Action in
   let handle_move _ =
     let handle_parent _ =
-      match info.parent_term with Some _ -> [ Move Parent ] | None -> []
+      match info.parent_term with 
+      | Some (ZENode tree) -> 
+        if tree.starter then [] else [ Move Parent ] 
+      | Some (ZTNode tree) -> 
+        if tree.starter then [] else [ Move Parent ] 
+      | None -> []
     in
     let handle_child _ =
       match info.current_term with

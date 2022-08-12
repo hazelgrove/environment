@@ -215,7 +215,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
     | EHole -> EHole
     | ENil -> ENil
   in
-  { id = node.id; node = new_node }
+  { node with node=new_node; }
 
 (* let%test_module "Test Expr.from_list" =
    (module struct

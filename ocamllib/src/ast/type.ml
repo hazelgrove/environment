@@ -19,6 +19,7 @@ type node =
 and t = {
   id : int; (* An unique ID assigned to each node *)
   node : node; (* Node type and its children *)
+  starter : bool; (* Whether this is a part of the starter code *)
 }
 [@@deriving sexp]
 
@@ -42,12 +43,13 @@ type z_node =
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
   node : z_node; (* Node type and its children *)
+  starter : bool; (* Whether this is a part of the starter code *)
 }
 [@@deriving sexp]
 
-let make_node (node : node) : t = { id = Id.generate (); node }
-let make_z_node (node : z_node) : z_t = { id = Id.generate (); node }
-let make_dummy_node (node : node) : t = { id = -1; node }
+let make_node (node : node) : t = { id = Id.generate (); node; starter=false; }
+let make_z_node (node : z_node) : z_t = { id = Id.generate (); node; starter=false; }
+let make_dummy_node (node : node) : t = { id = -1; node; starter=false; }
 
 let rec strip (e : t) : p_t =
   match e.node with
@@ -119,10 +121,9 @@ let%test_module "Test Typ.size" =
     let%test _ = check (Arrow (Arrow (Int, Int), Prod (Bool, Hole))) 7
   end)
 
-let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node }
+let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node; starter = e.starter; }
 
 let rec unzip (tree : z_t) : t =
-  let id = tree.id in
   let node : node =
     match tree.node with
     | Cursor subtree -> subtree
@@ -132,4 +133,4 @@ let rec unzip (tree : z_t) : t =
     | Prod_R (tl, tr) -> TProd (tl, unzip tr)
     | List_L tl -> TList (unzip tl)
   in
-  { id; node }
+  { id=tree.id; node; starter=tree.starter; }
