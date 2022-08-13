@@ -32,9 +32,30 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
      - the code for the assignment
 *)
 let load_starter_code (directory : string) (assignment : int) (index : int) :
-    Expr.t =
+    Expr.z_t =
   let filename =
     directory ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index
     ^ ".ml"
   in
-  ParserUtils.parse_file filename
+  let e = ParserUtils.parse_file filename in
+  let rec find_fun_body (e : Expr.t) : Expr.z_t = 
+    match e.node with
+    | Expr.EFun (x, ty, e) ->
+      let e : Expr.z_t = 
+        {
+          id=e.id;
+          node=Expr.EFun_R (x, ty, find_fun_body e);
+          starter=true;
+        }
+      in
+      e
+    | _ -> Expr.select_root e
+  in
+  match e.node with
+  | ELet (x, edef, ebody) ->
+    {
+      id=e.id;
+      node=ELet_L (x, find_fun_body edef, ebody);
+      starter=true;
+    }
+  | _ -> raise (Failure "Starter code in incorect format")
