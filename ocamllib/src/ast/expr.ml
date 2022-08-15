@@ -96,6 +96,7 @@ type value =
 let make_node (node : node) : t = { id = Id.generate (); node; starter=false; }
 let make_z_node (node : z_node) : z_t = { id = Id.generate (); node; starter=false; }
 let make_dummy_node (node : node) : t = { id = -1; node; starter=false; }
+let make_dummy_z_node (node : z_node) : z_t = { id = -1; node; starter=false; }
 
 (*
    Strip the meta data from the nodes to form a pure expression
@@ -177,6 +178,9 @@ let rec from_val (v : value) : p_t =
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)
 let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node; starter=e.starter }
+
+(* Migrate the metadata from Expr.t to Expr.z_t *)
+let zip_migrate (e : t) (node : z_node) : z_t = { id = e.id; node = node; starter=e.starter }
 
 let unop_equal (u1 : unop) (u2 : unop) : bool =
   match (u1, u2) with OpNeg, OpNeg -> true

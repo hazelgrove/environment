@@ -7,7 +7,7 @@
 
 (executable
  (name libcinterface)
- (libraries environment)
+ (libraries environment dataUtils)
  (modes
   (native shared_object))
 )
