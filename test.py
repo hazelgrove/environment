@@ -11,6 +11,7 @@ from agent.base import GNNBase
 from agent.arguments import get_args
 from agent.wrapper import FlattenObservation, Obs
 from agent.distributions import QKV
+from agent.batch import collate
 import ipdb
 
 
@@ -19,21 +20,26 @@ def main():
     
     env = ASTEnv(
                 max_num_nodes=50,
-                num_node_descriptor=50,
+                num_node_descriptor=33,
                 num_assignments=1,
                 code_per_assignment=[1],
-                num_actions=54,
+                num_actions=57,
             )
     obs_space = Obs(**env.observation_space.spaces)
     env = FlattenObservation(env)
     
-    env.reset()
-    breakpoint()
-    env.step(53)
-    env.step(0)
-    env.step(2)
-    _, _, done, _ = env.step(54)
-    print(done)
+    obs = env.reset()
+    inputs = torch.tensor([obs, obs])
+    
+    inputs = Obs(
+            *torch.split(
+                inputs,
+                [get_size(space) for space in astuple(obs_space)],
+                dim=-1,
+            )
+        )
+    base = GNNBase()
+    base(asdict(inputs))
     
 
 if __name__ == "__main__":

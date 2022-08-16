@@ -8,6 +8,7 @@ import torch_geometric.nn as gnn
 from torch_geometric.data import Batch, Data
 
 from agent.utils import init
+from agent.batch import collate, separate
 
 
 class Flatten(nn.Module):
@@ -284,10 +285,6 @@ class GNNBase(NNBase):
         edge_index = edges[:, :, :2]
         edge_attr = edges[:, :, 2]
         assignment = inputs["assignment"]
-        
-        num_nodes = torch.count_nonzero(x + 1, dim=1)
-        num_edges = torch.count_nonzero(edge_index + 1, dim=1)[:, 0]
-        
         edge_index = edge_index.transpose(-2, -1)
 
         # Convert inputs to long
@@ -317,37 +314,23 @@ class GNNBase(NNBase):
             edge_attr = torch.concat((edge_attr, assignment), dim=-1)
         else:
             raise NotImplementedError
-
-        data_list = []
-        for i in range(batch_size):
-            data_list.append(
-                Data(
-                    x=x[i, : num_nodes[i]],
-                    edge_index=edge_index[i, :, : num_edges[i]],
-                    edge_attr=edge_attr[i, : num_edges[i], :],
-                )
-            )
-        data = Batch.from_data_list(data_list)
-
-        # Pass through GNN & get info on current node
-        data.x = self.main(data.x, data.edge_index, data.edge_attr)
         
-        # Get position at cursor & variables in scope
-        out = torch.zeros((batch_size, self.hidden_size))
-        data_list = data.to_data_list()
-        for i in range(batch_size):
-            out[i] = data_list[i].x[inputs["cursor_position"][i]]
-        out = out.to(self.device)
-            
-        vars = torch.zeros((batch_size, self.max_num_vars, self.hidden_size))
+        x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
+
+        # Pass through GNN
+        x = self.main(x, edge_index, edge_attr)
+        x = separate(x, batch_size)
+        
+        # Get node representation at cursor
+        out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
+        
+        # Get node representation at variables in scope
+        vars = x[torch.arange(batch_size).reshape(-1, 1).expand(batch_size, self.max_num_vars), inputs["vars_in_scope"]]
         num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
-        for i in range(batch_size):
-            if num_vars[i] > 0:
-                vars[i] = torch.concat((
-                    data_list[i].x[inputs["vars_in_scope"][i, :num_vars[i]]],
-                    torch.zeros((self.max_num_vars - num_vars[i], self.hidden_size), device=self.device),
-                ), dim=0)
-        vars = vars.to(self.device)
+        mask = torch.zeros(batch_size, self.max_num_vars, device=vars.device)
+        mask[torch.arange(batch_size), num_vars] = 1
+        mask = mask.cumsum(dim=1).reshape(batch_size, -1, 1)
+        vars = vars * (1 - mask)
         
         return self.critic_linear(out), out, vars
     
