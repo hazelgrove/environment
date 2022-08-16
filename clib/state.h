@@ -3,7 +3,7 @@
 
 #define MAX_NUM_NODES 50
 #define MAX_NUM_TESTS 10
-#define NUM_ACTIONS 57
+#define NUM_ACTIONS 58
 #define MAX_TREE_LENGTH 10000
 #define MAX_NUM_VARS 10
 

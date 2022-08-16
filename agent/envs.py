@@ -129,7 +129,7 @@ class PLEnv(Env):
                 num_node_descriptor=33,
                 num_assignments=1,
                 code_per_assignment=[1],
-                num_actions=57,
+                num_actions=58,
             )
             env.seed(seed + rank)
             

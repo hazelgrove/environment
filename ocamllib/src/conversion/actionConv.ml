@@ -47,7 +47,7 @@ let action_list =
     Construct If_C;
     Construct If_R;
     Construct Fun;
-    (* Construct Fix; *)
+    Construct Fix;
     Construct Pair_L;
     Construct Pair_R;
     Construct TypInt;

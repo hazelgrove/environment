@@ -123,10 +123,11 @@ class Bernoulli(nn.Module):
     
 
 class QKV(nn.Module):
-    def __init__(self, num_fixed_actions, embedding_size) -> None:
+    def __init__(self, num_fixed_actions, embedding_size, num_arguments=1) -> None:
         super().__init__()
         
         self.k = torch.nn.Parameter(torch.empty((num_fixed_actions, embedding_size)))
+        self.k_arg = torch.nn.Parameter(torch.empty((num_arguments, embedding_size)))
         
         self.reset_parameters()
         
@@ -138,7 +139,9 @@ class QKV(nn.Module):
         q = q.reshape((B, 1, D))
         
         k = self.k.expand((B, -1, -1))
-        k = torch.concat((k, k_var), dim=1)
+        k_arg = self.k_arg.expand((B, -1, -1))
+        
+        k = torch.concat((k, k_arg, k_var), dim=1)
         
         attn = torch.bmm(q, k.transpose(-2, -1)) / math.sqrt(D)
         attn = attn.transpose(-2, -1).reshape((B, -1)) # attn : B x (N + N_var)

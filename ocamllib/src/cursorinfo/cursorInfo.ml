@@ -587,7 +587,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
     let construct_fun_fix _ =
       (* TODO: Allow changing type annotations? *)
       if Type.consistent exp_ty (Type.Arrow (Type.Hole, actual_ty)) && !(Var.num_vars) < Var.max_num_vars
-      then [ Construct Fun; (*Construct Fix*) ]
+      then [ (* Construct Fun; Construct Fix *) ]
       else []
     in
     let construct_pair _ =
