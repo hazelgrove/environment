@@ -1,5 +1,4 @@
 let x0 x1 = 
-    if x1 > 2 then
-        x1 * 2
-    else
-        x1 - 1
+    let x3 = -2 - 1 in
+    let x2 = 2 + 1 in
+    0 - 0

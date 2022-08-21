@@ -325,7 +325,7 @@ class GNNBase(NNBase):
         out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
         
         # Get node representation at variables in scope
-        inputs["vars_in_scope"] = inputs["vars_in_scope"][:, 1:] # Remove variable for argument
+        inputs["vars_in_scope"] = inputs["vars_in_scope"][:, :-1] # Remove variable for argument
         vars = x[torch.arange(batch_size).reshape(-1, 1).expand(batch_size, self.max_num_vars - 1), inputs["vars_in_scope"]]
         num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
         mask = torch.zeros(batch_size, self.max_num_vars - 1, device=vars.device)

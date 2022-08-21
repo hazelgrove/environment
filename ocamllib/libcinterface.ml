@@ -88,7 +88,7 @@ let load_starter_code_c (assignment : int) (index : int) : string =
   Id.reset ();
   let e = Utils.load_starter_code "data" assignment index in
   (* Randomly change code by 1 step *)
-  let e = Generator.generate e 1 in
+  (* let e = Generator.generate e 1 in *)
   Expr.add_vars (Expr.unzip e);
   Utils.serialize e
 
