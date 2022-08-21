@@ -20,11 +20,22 @@ type binop =
   | OpAp
 [@@deriving sexp]
 
+type const = 
+  | Bool of bool
+  | Int of int
+  | Nil
+[@@deriving sexp]
+
+type pattern = 
+  | PConst of const
+  | PVar of Var.t
+  | PWild
+[@@deriving sexp]
+
 (* Expression with metadata *)
 type node =
   | EVar of Var.t
-  | EInt of int
-  | EBool of bool
+  | EConst of const
   | EUnOp of unop * t
   | EBinOp of t * binop * t
   | ELet of Var.t * t * t
@@ -33,7 +44,7 @@ type node =
   | EFix of Var.t * Type.t * t
   | EPair of t * t
   | EHole
-  | ENil
+  | EMatch of t * ((pattern * t) list)
 
 and t = {
   id : int; (* An unique ID assigned to each node *)
@@ -45,8 +56,7 @@ and t = {
 (* Pure expression *)
 type p_t =
   | Var of Var.t
-  | IntLit of int
-  | BoolLit of bool
+  | Const of const
   | UnOp of unop * p_t
   | BinOp of p_t * binop * p_t
   | Let of Var.t * p_t * p_t
@@ -55,7 +65,7 @@ type p_t =
   | Fix of Var.t * Type.p_t * p_t
   | Pair of p_t * p_t
   | Hole
-  | Nil
+  | Match of p_t * ((pattern * p_t) list)
 [@@deriving sexp]
 
 (* Zippered Expressions *)
@@ -85,11 +95,9 @@ and z_t = {
 
 (* Values *)
 type value =
-  | VInt of int
-  | VBool of bool
+  | VConst of const
   | VFun of Var.t * Type.p_t * p_t
   | VPair of value * value
-  | VNil
   | VError
 
 (* Given a pure node, generate a node with an id *)
@@ -104,8 +112,7 @@ let make_dummy_z_node (node : z_node) : z_t = { id = -1; node; starter=false; }
 let rec strip (e : t) : p_t =
   match e.node with
   | EVar x -> Var x
-  | EInt n -> IntLit n
-  | EBool b -> BoolLit b
+  | EConst c -> Const c
   | EUnOp (op, e) -> UnOp (op, strip e)
   | EBinOp (e1, op, e2) -> BinOp (strip e1, op, strip e2)
   | ELet (x, e1, e2) -> Let (x, strip e1, strip e2)
@@ -114,13 +121,11 @@ let rec strip (e : t) : p_t =
   | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
-  | ENil -> Nil
 
 let rec add_metadata (e : p_t) : t =
   match e with
   | Var x -> make_node (EVar x)
-  | IntLit n -> make_node (EInt n)
-  | BoolLit b -> make_node (EBool b)
+  | Const c -> make_node (EConst c)
   | UnOp (op, e) -> make_node (EUnOp (op, add_metadata e))
   | BinOp (e1, op, e2) ->
       make_node (EBinOp (add_metadata e1, op, add_metadata e2))
@@ -131,7 +136,6 @@ let rec add_metadata (e : p_t) : t =
   | Fix (x, t, e) -> make_node (EFix (x, Type.add_metadata t, add_metadata e))
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
   | Hole -> make_node EHole
-  | Nil -> make_node ENil
 
 (*
     Return the size of the AST
@@ -142,7 +146,7 @@ let rec add_metadata (e : p_t) : t =
 *)
 let rec size (e : t) : int =
   match e.node with
-  | EVar _ | EInt _ | EBool _ | EHole | ENil -> 1
+  | EVar _ | EConst _ | EHole -> 1
   | EUnOp (_, e) -> 1 + size e
   | EBinOp (e1, _, e2) | EPair (e1, e2) -> 1 + size e1 + size e2
   | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
@@ -169,11 +173,9 @@ let%test_module "Test Expr.size" =
 (* Get the expression form of a value *)
 let rec from_val (v : value) : p_t =
   match v with
-  | VInt n -> IntLit n
-  | VBool b -> BoolLit b
+  | VConst c -> Const c
   | VFun (x, typ, e) -> Fun (x, typ, e)
   | VPair (e1, e2) -> Pair (from_val e1, from_val e2)
-  | VNil -> Nil
   | _ -> raise (Failure "Cannot be changed to expr")
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)
@@ -293,6 +295,14 @@ let rec add_vars (e : t) : unit =
       Var.num_vars := !(Var.num_vars) + 1;
       add_vars child
   | _ -> ()  
+
+
+let const_equal (c1 : const) (c2 : const) : bool =
+  match c1, c2 with
+  | Int a, Int b -> a = b
+  | Bool a, Bool b -> a = b
+  | Nil, Nil -> true
+  | _ -> false
 
 
 (* Each edge is represented as (index of start node, index of end node, edge type) *)

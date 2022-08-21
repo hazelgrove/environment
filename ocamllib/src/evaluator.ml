@@ -18,7 +18,7 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
   (* Substitute if condition is not met *)
   let subx_unless cond = if cond then Fun.id else subx in
   match e2 with
-  | BoolLit _ | IntLit _ | Nil | Hole -> e2
+  | Const _ | Hole -> e2
   | Var y -> if Var.equal x y then e1 else e2
   | UnOp (op, e) -> UnOp (op, subx e)
   | BinOp (e_l, op, e_r) -> BinOp (subx e_l, op, subx e_r)
@@ -28,6 +28,13 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
       Let (y, subx e_def, subx_unless (Var.equal x y) e_body)
   | Fix (y, ty, e_body) -> Fix (y, ty, subx_unless (Var.equal x y) e_body)
   | Pair (e_l, e_r) -> Pair (subx e_l, subx e_r)
+  | Match (e, rules) -> 
+    let sub_rule (pattern : Expr.pattern) (e : Expr.p_t) : (Expr.pattern * Expr.p_t) = 
+      match pattern with
+      | PConst _ -> (pattern, subx e)
+      | PVar y -> (pattern, subx_unless (Var.equal x y) e)
+    in
+    Match (subx e, List.map sub_rule rules)
 
 (*
   Evalutate the expression e
@@ -65,10 +72,8 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
   then raise (RuntimeError "Stack overflow")
   else
     match e with
-    | IntLit n -> VInt n
-    | BoolLit b -> VBool b
+    | EConst c -> VConst c
     | Fun (x, ty, e_body) -> VFun (x, ty, e_body)
-    | Nil -> VNil
     | UnOp (op, e) -> (
         let v = eval e stack in
         match op with OpNeg -> VInt (-1 * expecting_int v))
@@ -110,6 +115,19 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
     | Fix (x, ty, e_body) ->
         let unrolled = subst (Fix (x, ty, e_body)) x e_body in
         eval unrolled stack
+    | Match (e, rules) ->
+        let v = eval e stack in
+        let rec iter_rules rules =
+          match rules with
+          | [] -> raise (RuntimeError "No matching rule")
+          | (pattern, e_rule) :: tl ->
+              begin match pattern with
+              | PConst c -> if Expr.const_equal c v then eval e_rule stack else iter_rules tl
+              | PVar x -> eval (subst (Expr.from_val v) x e_rule) stack
+              | PWild -> eval e_rule stack
+              end
+        in
+        iter_rules rules
     | Var _ -> raise (SyntaxError "Variable not bound")
     | Hole -> raise (SyntaxError "Hole in expression")
 
