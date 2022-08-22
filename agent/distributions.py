@@ -141,7 +141,7 @@ class QKV(nn.Module):
         k = self.k.expand((B, -1, -1))
         k_arg = self.k_arg.expand((B, -1, -1))
         
-        k = torch.concat((k, k_arg, k_var), dim=1)
+        k = torch.concat((k, k_var), dim=1)
         
         attn = torch.bmm(q, k.transpose(-2, -1)) / math.sqrt(D)
         attn = attn.transpose(-2, -1).reshape((B, -1)) # attn : B x (N + N_var)
