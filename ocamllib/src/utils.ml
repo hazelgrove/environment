@@ -121,7 +121,7 @@ let load_starter_code (directory : string) (assignment : int) (index : int) :
         }
       in
       e
-    | _ -> Expr.select_root e
+    | _ -> select_root_random e
   in
   match e.node with
   | ELet (x, edef, ebody) ->

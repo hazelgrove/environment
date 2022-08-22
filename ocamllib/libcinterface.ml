@@ -79,16 +79,16 @@ let run_unit_tests_c (root : int) : bool =
 
 (* load_assignment function that will be called by C *)
 let load_tests_c (assignment : int) : unit =
-  let unit_tests = Utils.load_tests "data/var_selection" assignment in
+  let unit_tests = Utils.load_tests "data/random_action" assignment in
   pass_unit_tests (list_to_tests unit_tests)
 
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (assignment : int) (index : int) : string =
   Var.reset ();
   Id.reset ();
-  let e = Utils.load_starter_code "data/var_selection" assignment index in
+  let e = Utils.load_starter_code "data/random_action" assignment index in
   (* Randomly change code by 1 step *)
-  (* let e = Generator.generate e 1 in *)
+  let e = Generator.generate e 1 in
   Expr.add_vars (Expr.unzip e);
   Utils.serialize e
 

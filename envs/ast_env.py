@@ -95,9 +95,9 @@ class ASTEnv(gym.Env):
         )
         
         # TODO: Currently hardcodes reset to correct cursor position
-        self.step(2)
-        self.step(2)
-        self.step(1)
+        # self.step(2)
+        # self.step(2)
+        # self.step(1)
 
         return self.get_state()
 
