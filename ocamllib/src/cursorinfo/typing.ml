@@ -38,8 +38,12 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
   match e.node with
   (*match epxression based on type (and operation for unops and binops)*)
   | EVar x -> Context.lookup context x
-  | EInt _ -> Some Int
-  | EBool _ -> Some Bool
+  | EConst c -> 
+    begin match c with
+    | Int _ -> Some Int
+    | Bool _ -> Some Bool
+    | Nil -> Some (List Hole)
+    end
   | EUnOp (OpNeg, arg) ->
       (* negation: if child is int, expr has same type *)
       if analysis context arg Int then Some Int else None
@@ -93,7 +97,49 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       then Some vart
       else None
   | EHole -> Some Hole
-  | ENil -> Some (List Hole)
+  | EMatch (escrut, rules) -> 
+    begin match synthesis context escrut with
+    | Some tscrut -> 
+        let rec rule_common_type acc rules =
+            match rules with
+            | [] -> Some acc
+            | (p, e) :: tl -> 
+                match p with
+                | Expr.PConst c ->
+                    let t = 
+                        match c with
+                        | Int _ -> Type.Int
+                        | Bool _ -> Type.Bool
+                        | Nil -> Type.List Hole
+                    in
+                    if Type.consistent t tscrut then 
+                        match synthesis context e with
+                        | Some t -> 
+                            begin match get_common_type acc t with
+                            | Some t -> rule_common_type t tl
+                            | None -> None
+                            end
+                        | None -> None
+                    else
+                        None
+                | Expr.PVar var ->
+                    begin match synthesis (Context.extend context (var, tscrut)) e with
+                    | Some t -> rule_common_type t tl
+                    | None -> None
+                    end
+                | Expr.PWild -> 
+                    begin match synthesis context e with
+                    | Some t -> 
+                        begin match get_common_type acc t with
+                        | Some t -> rule_common_type t tl
+                        | None -> None
+                        end
+                    | None -> None
+                    end              
+        in
+        rule_common_type Hole rules
+    | None -> None
+    end
 
 and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
   (* given an epxression and an expected type,

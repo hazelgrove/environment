@@ -8,8 +8,11 @@ open Expr
 let rec to_string (e : p_t) : string =
   match e with
   | Var x -> Var.to_string x ^ " "
-  | IntLit n -> string_of_int n ^ " "
-  | BoolLit b -> string_of_bool b ^ " "
+  | Const c -> 
+    match c with
+    | Int n -> string_of_int n ^ " "
+    | Bool b -> string_of_bool b ^ " "
+    | Nil -> "[] "
   | UnOp (_, e) -> "(-" ^ to_string e ^ ") "
   | BinOp (e1, op, e2) ->
       let op_string =
@@ -50,7 +53,6 @@ let rec to_string (e : p_t) : string =
         ^ to_string e ^ ") "
   | Pair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
   | Hole -> "<HOLE> "
-  | Nil -> "[] "
 
 and resolve_fun (e : p_t) : string =
   match e with

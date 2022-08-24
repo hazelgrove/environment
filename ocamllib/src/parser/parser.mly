@@ -10,6 +10,7 @@
 %token CON
 %token LPAREN RPAREN LBRAC RBRAC
 %token EOF
+%token MATCH WITH BAR WILD
 
 %{ 
     open Expr
@@ -77,11 +78,15 @@ expr:
 | LBRAC es = separated_list(SEMI, expr) RBRAC
     { let rec resolve_list es =
         match es with
-            | hd :: [] -> Expr.make_node (EBinOp(hd, OpCons, Expr.make_node ENil))
+            | hd :: [] -> Expr.make_node (EBinOp(hd, OpCons, Expr.make_node (EConst Nil)))
             | hd :: tl -> Expr.make_node (EBinOp(hd, OpCons, resolve_list tl))
             | _ -> raise (Failure "Incorrect syntax")
     in
     resolve_list es
+    }
+| MATCH escrut = expr WITH rules = rule+
+    {
+        Expr.make_node (EMatch (escrut, rules))
     }
 
 boolean: 
@@ -134,13 +139,13 @@ simple:
 | x = ID
     { Expr.make_node (EVar x) }
 | TRUE
-    { Expr.make_node (EBool true) }
+    { Expr.make_node (EConst (Bool true)) }
 | FALSE
-    { Expr.make_node (EBool false) }
+    { Expr.make_node (EConst (Bool false)) }
 | n = INT
-    { Expr.make_node (EInt n) }
+    { Expr.make_node (EConst (Int n)) }
 | LBRAC RBRAC
-    { Expr.make_node ENil }
+    { Expr.make_node (EConst Nil) }
 | LPAREN e = expr RPAREN
     { e }
 | LPAREN e1 = expr COMMA e2 = expr RPAREN
@@ -153,6 +158,24 @@ arg:
     { (x, t) }
 | LPAREN x = ID RPAREN
     { (x, Type.make_node THole) }
+
+rule:
+| BAR p = pattern RIGHTARROW e = expr
+    { (p, e) }
+
+pattern:
+| x = ID
+    { PVar x }
+| TRUE
+    { PConst (Bool true) }
+| FALSE
+    { PConst (Bool false) }
+| n = INT
+    { PConst (Int n) }
+| LBRAC RBRAC
+    { PConst Nil }
+| WILD
+    { PWild }
 
 tyann: 
 | OFTYPE t = ty 

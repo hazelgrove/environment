@@ -121,6 +121,7 @@ let rec strip (e : t) : p_t =
   | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
+  | EMatch (e, rules) -> Match (strip e, List.map (fun (p, e) -> (p, strip e)) rules)
 
 let rec add_metadata (e : p_t) : t =
   match e with
@@ -136,6 +137,7 @@ let rec add_metadata (e : p_t) : t =
   | Fix (x, t, e) -> make_node (EFix (x, Type.add_metadata t, add_metadata e))
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
   | Hole -> make_node EHole
+  | Match (e, rules) -> make_node (EMatch (add_metadata e, List.map (fun (p, e) -> (p, add_metadata e)) rules))
 
 (*
     Return the size of the AST
@@ -153,19 +155,22 @@ let rec size (e : t) : int =
   | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
   | EFix (_, ty, ebody) | EFun (_, ty, ebody) ->
       1 + 1 + Type.size ty + size ebody
+  | EMatch (e, rules) -> 
+    let f = fun acc -> fun (_, e) -> acc + 1 + size e in
+    1 + size e + List.fold_left f 0 rules
 
 let%test_module "Test Expr.size" =
   (module struct
     let check e n = size (add_metadata e) = n
 
-    let%test _ = check (IntLit 10) 1
+    let%test _ = check (Const (Int 10)) 1
     let%test _ = check (UnOp (OpNeg, BinOp (Hole, OpPlus, Var 0))) 4
 
     let%test _ =
       check
         (Let
            ( 0,
-             If (BoolLit true, IntLit 3, IntLit 4),
+             If (Const (Bool true), Const (Int 3), Const (Int 4)),
              Fun (1, Prod (Int, Int), BinOp (Var 1, OpAp, Var 0)) ))
         14
   end)
@@ -204,11 +209,17 @@ let binop_equal (b1 : binop) (b2 : binop) : bool =
       true
   | _ -> false
 
+let const_equal (c1 : const) (c2 : const) : bool =
+  match c1, c2 with
+  | Int a, Int b -> a = b
+  | Bool a, Bool b -> a = b
+  | Nil, Nil -> true
+  | _ -> false
+
 let rec equal (t1 : t) (t2 : t) : bool =
   match (t1.node, t2.node) with
   | EVar varn1, EVar varn2 -> Var.equal varn1 varn2
-  | EInt val1, EInt val2 -> val1 = val2
-  | EBool val1, EBool val2 -> val1 = val2
+  | EConst c1, EConst c2 -> const_equal c1 c2
   | EUnOp (u1, sub1), EUnOp (u2, sub2) -> unop_equal u1 u2 && equal sub1 sub2
   | EBinOp (subl1, b1, subr1), EBinOp (subl2, b2, subr2) ->
       binop_equal b1 b2 && equal subl1 subl2 && equal subr1 subr2
@@ -221,7 +232,7 @@ let rec equal (t1 : t) (t2 : t) : bool =
       Var.equal var1 var2 && Type.equal t1 t2 && equal sub1 sub2
   | EPair (subl1, subr1), EPair (subl2, subr2) ->
       equal subl1 subl2 && equal subr1 subr2
-  | EHole, EHole | ENil, ENil -> true
+  | EHole, EHole -> true
   | _ -> false
 
 let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
@@ -295,14 +306,6 @@ let rec add_vars (e : t) : unit =
       Var.num_vars := !(Var.num_vars) + 1;
       add_vars child
   | _ -> ()  
-
-
-let const_equal (c1 : const) (c2 : const) : bool =
-  match c1, c2 with
-  | Int a, Int b -> a = b
-  | Bool a, Bool b -> a = b
-  | Nil, Nil -> true
-  | _ -> false
 
 
 (* Each edge is represented as (index of start node, index of end node, edge type) *)

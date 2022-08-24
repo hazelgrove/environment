@@ -41,6 +41,10 @@ rule read =
   | "rec"   { REC }
   | "int"   { TINT }
   | "bool"  { TBOOL }
+  | "match" { MATCH }
+  | "with"  { WITH }
+  | "|"     { BAR }
+  | "_"     { WILD }
   | "->"    { RIGHTARROW }
   | id as x { ID (int_of_string (String.sub x 1 (String.length x - 1))) }
   | eof     { EOF }
