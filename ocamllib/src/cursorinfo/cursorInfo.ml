@@ -9,7 +9,7 @@ type t = {
   parent_term : Syntax.z_t option;
   (* parent of current term (use to decide whether we can go up)  *)
   vars_in_scope : (Var.t * int) list;
-  (* variables in scope *)
+  (* variables in scope: (variable_name, index of node) *)
   typ_ctx : Context.t;
   (*mapping of vars in scope to types (use to determine vars in scope)    *)
   expected_ty : Type.p_t option;

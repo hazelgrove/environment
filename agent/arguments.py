@@ -20,6 +20,11 @@ def get_args():
         action="store_true",
         help="Whether to render the environment"
     )
+    parser.add_argument(
+        "--save-dir",
+        default="None",
+        help="Directory to save checkpoints"
+    )
     args = parser.parse_args()
 
     return args
