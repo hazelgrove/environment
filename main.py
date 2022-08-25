@@ -63,8 +63,14 @@ class Trainer:
                     max_episode_steps)
     
     @classmethod
-    def main(cls, log_name, render):
+    def main(cls, log_name, render, save_dir):
         params, logger = get_logger(log_name)
+        save_dir = os.path.join(save_dir, log_name)
+    
+        try:
+            os.makedirs(save_dir)
+        except OSError:
+            raise RuntimeError("Save directory already exists")
         
         # Only use one process if we are rendering
         if render:
@@ -176,22 +182,16 @@ class Trainer:
             rollouts.after_update()
 
             # save for every interval-th episode or for the last epoch
-            # if (
-            #     j % args.save_interval == 0 or j == num_updates - 1
-            # ) and args.save_dir != "":
-            #     save_path = args.save_dir
-            #     try:
-            #         os.makedirs(save_path)
-            #     except OSError:
-            #         pass
-
-            #     torch.save(
-            #         [
-            #             actor_critic,
-            #             getattr(utils.get_vec_normalize(envs), "obs_rms", None),
-            #         ],
-            #         os.path.join(save_path, args.env_name + ".pt"),
-            #     )
+            if (
+                j % params["save_interval"] == 0 or j == num_updates - 1
+            ) and save_dir != "":
+                torch.save(
+                    [
+                        actor_critic,
+                        getattr(utils.get_vec_normalize(envs), "obs_rms", None),
+                    ],
+                    os.path.join(save_dir, params["env_name"] + ".pt"),
+                )
             
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (j + 1) * params["num_processes"] * params["num_steps"]
@@ -304,7 +304,8 @@ class GNNTrainer(Trainer):
 
 if __name__ == "__main__":
     args = get_args()
+    
     if args.gnn:
-        GNNTrainer.main(args.log_name, render=args.render)
+        GNNTrainer.main(args.log_name, render=args.render, save_dir=args.save_dir)
     else:
-        Trainer.main(args.log_name, render=args.render)
+        Trainer.main(args.log_name, render=args.render, save_dir=args.save_dir)
