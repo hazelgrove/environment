@@ -44,6 +44,8 @@ typedef struct
 
     int vars_in_scope[MAX_NUM_VARS];
 
+    int args_in_scope[MAX_NUM_VARS][2];
+
     char zast[MAX_TREE_LENGTH];
 
     /*
@@ -70,6 +72,11 @@ typedef struct
     The number of variables in scope
     */
     int num_vars;
+
+    /*
+    The number of arguments in scope
+    */
+    int num_args;
 
     /*
     The index of the assignment

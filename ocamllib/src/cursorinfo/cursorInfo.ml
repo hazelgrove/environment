@@ -10,6 +10,8 @@ type t = {
   (* parent of current term (use to decide whether we can go up)  *)
   vars_in_scope : (Var.t * int) list;
   (* variables in scope: (variable_name, index of node) *)
+  args_in_scope : (int * int) list;
+  (* arguments in scope: (function_index, argument_index) *)
   typ_ctx : Context.t;
   (*mapping of vars in scope to types (use to determine vars in scope)    *)
   expected_ty : Type.p_t option;
@@ -36,6 +38,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           current_term = TNode t;
           parent_term;
           vars_in_scope = [];
+          args_in_scope = [];
           typ_ctx = [];
           expected_ty = None;
           actual_ty = None;
@@ -51,7 +54,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~index:(index + Type.size t1 + 1)
   in
   let rec get_cursor_info_expr ~(current_term : Expr.z_t)
-      ~(parent_term : Expr.z_t option) ~(vars : (Var.t * int) list)
+      ~(parent_term : Expr.z_t option) ~(vars : (Var.t * int) list) ~(args : (int * int) list)
       ~(typ_ctx : Context.t) ~(exp_ty : Type.p_t) ~(index : int) =
     match current_term.node with
     | Cursor e -> 
@@ -67,6 +70,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
               current_term = Syntax.ENode e;
               parent_term;
               vars_in_scope = vars;
+              args_in_scope = args;
               typ_ctx;
               expected_ty = Some exp_ty;
               actual_ty = Some t;
@@ -78,21 +82,21 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         end
     | EUnOp_L (OpNeg, e) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
     | EBinOp_L
         ( e,
           ( OpPlus | OpMinus | OpTimes | OpDiv | OpGt | OpGe | OpLt | OpLe
           | OpEq | OpNe ),
           _ ) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
     | EBinOp_R
         ( e1,
           ( OpPlus | OpMinus | OpTimes | OpDiv | OpGt | OpGe | OpLt | OpLe
           | OpEq | OpNe ),
           e2 ) ->
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty:Type.Int
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Int
           ~index:(index + Expr.size e1 + 1)
     | EBinOp_L (e1, OpCons, e2) ->
         let exp_ty =
@@ -102,7 +106,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | _ -> raise (TypeError "Expected a list type")
         in
         get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty ~index:(index + 1)
+          ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
     | EBinOp_R (e1, OpCons, e2) ->
         let exp_ty =
           match synthesis typ_ctx e1 with
@@ -110,7 +114,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None -> raise (TypeError "Type cannot be inferred")
         in
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty
+          ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
     | EBinOp_L (e1, OpAp, e2) ->
         let exp_ty =
@@ -119,7 +123,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None -> raise (TypeError "Type cannot be inferred")
         in
         get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty ~index:(index + 1)
+          ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
     | EBinOp_R (e1, OpAp, e2) ->
         let exp_ty =
           match synthesis typ_ctx e1 with
@@ -128,11 +132,11 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | _ -> raise (TypeError "Type cannot be inferred")
         in
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty
+          ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
     | ELet_L (_, edef, ebody) ->
         get_cursor_info_expr ~current_term:edef ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty:Type.Hole ~index:(index + 2)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Hole ~index:(index + 2)
     | ELet_R (x, edef, ebody) ->
         let x_type =
           match synthesis typ_ctx edef with
@@ -142,12 +146,13 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:ebody
           ~parent_term:(Some current_term)
           ~vars:((x, index + 1) :: vars)
+           ~args
           ~typ_ctx:(Context.extend typ_ctx (x, x_type))
           ~exp_ty
           ~index:(index + Expr.size edef + 2)
     | EIf_L (econd, _, _) ->
         get_cursor_info_expr ~current_term:econd
-          ~parent_term:(Some current_term) ~vars ~typ_ctx ~exp_ty:Type.Bool
+          ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty:Type.Bool
           ~index:(index + 1)
     | EIf_C (econd, ethen, eelse) ->
         let exp_ty =
@@ -161,7 +166,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None -> raise (TypeError "Conflicting types between expected type and type of else branch")
         in
         get_cursor_info_expr ~current_term:ethen
-          ~parent_term:(Some current_term) ~vars ~typ_ctx ~exp_ty
+          ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size econd + 1)
     | EIf_R (econd, ethen, eelse) ->
         let exp_ty =
@@ -175,7 +180,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None -> raise (TypeError "Conflicting types between expected type and type of then branch")
         in
         get_cursor_info_expr ~current_term:eelse
-          ~parent_term:(Some current_term) ~vars ~typ_ctx ~exp_ty
+          ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size econd + Expr.size ethen + 1)
     | EFun_L (_, t, _) | EFix_L (_, t, _) ->
         get_cursor_info_type ~current_term:t
@@ -187,8 +192,21 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | Type.Hole -> Type.Hole
           | _ -> raise (TypeError "Expected a function type")
         in
+        let arg = 
+          match parent_term with
+          (* If it's one of multiple arguments, fun_index does not change, arg_index + 1 *)
+          | Some {node=EFun_R _; _} -> 
+            let (fun_index, arg_index) = List.nth args 0 in
+            (fun_index, arg_index + 1)
+          | _ ->
+            begin match args with
+            | [] -> (0, 0)
+            | (fun_index, _) :: tl -> (fun_index + 1, 0)
+            end
+        in
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
-          ~vars:((x, index + 1) :: vars)
+          ~vars
+          ~args: (arg :: args)
           ~typ_ctx:(Context.extend typ_ctx (x, Type.strip t))
           ~exp_ty
           ~index:(index + Type.size t + 2)
@@ -200,7 +218,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | _ -> raise (TypeError "Expected a function type")
         in
         get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty ~index:(index + 1)
+          ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
     | EPair_R (e1, e2) ->
         let exp_ty =
           match exp_ty with
@@ -209,12 +227,12 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | _ -> raise (TypeError "Expected a function type")
         in
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
-          ~vars ~typ_ctx ~exp_ty
+          ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
   in
   match tree with
   | ZENode e ->
-      get_cursor_info_expr ~current_term:e ~parent_term:None ~vars:[]
+      get_cursor_info_expr ~current_term:e ~parent_term:None ~vars:[] ~args:[]
         ~typ_ctx:[] ~exp_ty:Type.Hole ~index:0
   | ZTNode t -> get_cursor_info_type ~current_term:t ~parent_term:None ~index:0
 
@@ -226,6 +244,7 @@ let%test_module "Test get_cursor_info" =
          | Some _, Some _ | None, None -> true
          | _ -> false)
       && i.vars_in_scope = i'.vars_in_scope
+      && i.args_in_scope = i'.args_in_scope
       && i.typ_ctx = i'.typ_ctx
       && i.expected_ty = i'.expected_ty
       && i.actual_ty = i'.actual_ty
@@ -241,6 +260,7 @@ let%test_module "Test get_cursor_info" =
         current_term = ENode (Expr.make_dummy_node Expr.EHole);
         parent_term = None;
         vars_in_scope = [];
+        args_in_scope = [];
         typ_ctx = [];
         expected_ty = Some Type.Hole;
         actual_ty = Some Type.Hole;
@@ -258,6 +278,7 @@ let%test_module "Test get_cursor_info" =
         current_term = ENode (Expr.make_dummy_node (EInt 1));
         parent_term = None;
         vars_in_scope = [];
+        args_in_scope = [];
         typ_ctx = [];
         expected_ty = Some Type.Hole;
         actual_ty = Some Type.Int;
@@ -280,6 +301,7 @@ let%test_module "Test get_cursor_info" =
         current_term = ENode (Expr.make_dummy_node (Expr.EBool true));
         parent_term = Some (ZENode e);
         vars_in_scope = [];
+        args_in_scope = [];
         typ_ctx = [];
         expected_ty = Some Type.Int;
         actual_ty = Some Type.Bool;
@@ -292,6 +314,7 @@ let%test_module "Test get_cursor_info" =
     (* Remove checks on current & parent terms *)
     let equal i i' =
       i.vars_in_scope = i'.vars_in_scope
+      && i.args_in_scope = i'.args_in_scope
       && i.typ_ctx = i'.typ_ctx
       && i.expected_ty = i'.expected_ty
       && i.actual_ty = i'.actual_ty
@@ -316,6 +339,7 @@ let%test_module "Test get_cursor_info" =
         current_term = ENode (Expr.make_dummy_node EHole);
         parent_term = None;
         vars_in_scope = [ (0, 1) ];
+        args_in_scope = [];
         typ_ctx = [ (0, Type.Int) ];
         expected_ty = Some Type.Hole;
         actual_ty = Some Type.Int;
@@ -362,6 +386,7 @@ let%test_module "Test get_cursor_info" =
         current_term = ENode (Expr.make_dummy_node EHole);
         parent_term = None;
         vars_in_scope = [ (1, 4); (0, 1) ];
+        args_in_scope = [];
         typ_ctx = [ (1, Type.Bool); (0, Type.Int) ];
         expected_ty = Some (Type.Arrow (Type.Int, Type.Hole));
         actual_ty = Some Type.Bool;
@@ -388,6 +413,7 @@ let%test_module "Test get_cursor_info" =
         current_term = ENode (Expr.make_dummy_node EHole);
         parent_term = None;
         vars_in_scope = [];
+        args_in_scope = [];
         typ_ctx = [];
         expected_ty = Some Type.Bool;
         actual_ty = Some Type.Hole;
@@ -414,6 +440,7 @@ let%test_module "Test get_cursor_info" =
         current_term = ENode (Expr.make_dummy_node EHole);
         parent_term = None;
         vars_in_scope = [];
+        args_in_scope = [];
         typ_ctx = [];
         expected_ty = Some Type.Int;
         actual_ty = Some Type.Bool;

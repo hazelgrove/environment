@@ -151,6 +151,15 @@ CAMLprim value get_unit_tests(value bigarray)
     return Val_unit;
 }
 
+CAMLprim value get_args_in_scope(value bigarray)
+{
+    int dim1 = Caml_ba_array_val(bigarray)->dim[0];
+    int dim2 = Caml_ba_array_val(bigarray)->dim[1];
+    copy_2d(Caml_ba_data_val(bigarray), dim1, dim2, (int *)curr_state.args_in_scope);
+    curr_state.num_args = dim1;
+    return Val_unit;
+}
+
 CAMLprim value get_actions(value bigarray)
 {
     int dim = Caml_ba_array_val(bigarray)->dim[0];

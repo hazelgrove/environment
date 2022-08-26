@@ -21,6 +21,9 @@ external pass_edges : (int32, int32_elt, c_layout) Array2.t -> unit
 external pass_vars_in_scope : (int32, int32_elt, c_layout) Array1.t -> unit
   = "get_vars_in_scope"
 
+external pass_args_in_scope : (int32, int32_elt, c_layout) Array2.t -> unit
+  = "get_vars_in_scope"
+
 (* Get unit tests from C *)
 external get_unit_tests : unit -> (int32, int32_elt, c_layout) Array2.t
   = "pass_unit_tests"
@@ -67,11 +70,12 @@ let get_cursor_info_c (ser_zast : string) : int =
   in
   pass_actions (list_to_array1 actions);
   pass_vars_in_scope (list_to_array1 vars_in_scope);
+  pass_args_in_scope (list_to_array2 cursorInfo.args_in_scope);
   cursorInfo.cursor_position
 
 (* run_unittests function that will be called by C *)
 let run_unit_tests_c (root : int) : bool =
-  let tests = tests_to_list (get_unit_tests ()) in
+  let tests = array2_to_list (get_unit_tests ()) in
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
   let e = ExprConv.from_list ~nodes ~edges ~root in
@@ -80,7 +84,7 @@ let run_unit_tests_c (root : int) : bool =
 (* load_assignment function that will be called by C *)
 let load_tests_c (assignment : int) : unit =
   let unit_tests = Utils.load_tests "data/random_action" assignment in
-  pass_unit_tests (list_to_tests unit_tests)
+  pass_unit_tests (list_to_array2 unit_tests)
 
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (assignment : int) (index : int) : string =

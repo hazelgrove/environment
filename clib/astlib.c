@@ -130,6 +130,13 @@ void init_c()
         curr_state.vars_in_scope[i] = -1;
     }
 
+    curr_state.num_args = 0;
+    for (int i = 0; i < MAX_NUM_VARS; i++)
+    {
+        curr_state.args_in_scope[i][0] = -1;
+        curr_state.args_in_scope[i][1] = -1;
+    }
+
     curr_state.assignment = -1;
     curr_state.code = -1;
 
@@ -178,6 +185,11 @@ void copy_ast(State *astdst, const State *astsrc)
     for (int i = 0; i < MAX_NUM_VARS; i++)
     {
         astdst->vars_in_scope[i] = astsrc->vars_in_scope[i];
+    }
+    for (int i = 0; i < MAX_NUM_VARS; i++)
+    {
+        astdst->args_in_scope[i][0] = astsrc->args_in_scope[i][0];
+        astdst->args_in_scope[i][1] = astsrc->args_in_scope[i][1];
     }
     astdst->cursor = astsrc->cursor;
     astdst->num_nodes = astsrc->num_nodes;

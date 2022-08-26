@@ -65,12 +65,13 @@ class Trainer:
     @classmethod
     def main(cls, log_name, render, save_dir):
         params, logger = get_logger(log_name)
-        save_dir = os.path.join(save_dir, log_name)
-    
-        try:
-            os.makedirs(save_dir)
-        except OSError:
-            raise RuntimeError("Save directory already exists")
+        
+        if log_name != "test":
+            save_dir = os.path.join(save_dir, log_name)
+            try:
+                os.makedirs(save_dir)
+            except OSError:
+                raise RuntimeError("Save directory already exists")
         
         # Only use one process if we are rendering
         if render:
@@ -184,7 +185,7 @@ class Trainer:
             # save for every interval-th episode or for the last epoch
             if (
                 j % params["save_interval"] == 0 or j == num_updates - 1
-            ) and save_dir != "":
+            ) and log_name != "test":
                 torch.save(
                     [
                         actor_critic,
