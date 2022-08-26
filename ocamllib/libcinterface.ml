@@ -22,7 +22,7 @@ external pass_vars_in_scope : (int32, int32_elt, c_layout) Array1.t -> unit
   = "get_vars_in_scope"
 
 external pass_args_in_scope : (int32, int32_elt, c_layout) Array2.t -> unit
-  = "get_vars_in_scope"
+  = "get_args_in_scope"
 
 (* Get unit tests from C *)
 external get_unit_tests : unit -> (int32, int32_elt, c_layout) Array2.t
@@ -68,9 +68,14 @@ let get_cursor_info_c (ser_zast : string) : int =
       (fun (_, index) -> index + 1)
       cursorInfo.vars_in_scope
   in
+  let args_in_scope =
+    List.map
+      (fun (_, fun_index, arg_index) -> (fun_index, arg_index))
+      cursorInfo.args_in_scope
+  in
   pass_actions (list_to_array1 actions);
   pass_vars_in_scope (list_to_array1 vars_in_scope);
-  pass_args_in_scope (list_to_array2 cursorInfo.args_in_scope);
+  pass_args_in_scope (list_to_array2 args_in_scope);
   cursorInfo.cursor_position
 
 (* run_unittests function that will be called by C *)
@@ -91,9 +96,9 @@ let load_starter_code_c (assignment : int) (index : int) : string =
   Var.reset ();
   Id.reset ();
   let e = Utils.load_starter_code "data/random_action" assignment index in
+  Expr.add_vars (Expr.unzip e);
   (* Randomly change code *)
   let e = Generator.generate e 4 in
-  Expr.add_vars (Expr.unzip e);
   Utils.serialize e
 
 (* For debugging use *)

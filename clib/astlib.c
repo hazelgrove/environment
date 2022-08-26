@@ -77,7 +77,7 @@ void print_curr_state(State *ast)
     }
     printf("\n");
     printf("Permitted Actions: ");
-    for (int i = 0; i < NUM_ACTIONS + MAX_NUM_VARS; i++)
+    for (int i = 0; i < NUM_ACTIONS + MAX_NUM_VARS * 2; i++)
     {
         if (curr_state.permitted_actions[i] == 1)
             printf("%d ", i);
@@ -112,7 +112,7 @@ void init_c()
         curr_state.edges[i][2] = -1;
     }
 
-    for (int i = 0; i < NUM_ACTIONS + MAX_NUM_VARS; i++)
+    for (int i = 0; i < NUM_ACTIONS + MAX_NUM_VARS * 2; i++)
     {
         curr_state.permitted_actions[i] = 0;
     }
@@ -173,7 +173,7 @@ void copy_ast(State *astdst, const State *astsrc)
         astdst->edges[i][1] = astsrc->edges[i][1];
         astdst->edges[i][2] = astsrc->edges[i][2];
     }
-    for (int i = 0; i < NUM_ACTIONS + MAX_NUM_VARS; i++)
+    for (int i = 0; i < NUM_ACTIONS + MAX_NUM_VARS * 2; i++)
     {
         astdst->permitted_actions[i] = astsrc->permitted_actions[i];
     }
@@ -196,6 +196,7 @@ void copy_ast(State *astdst, const State *astsrc)
     astdst->num_edges = astsrc->num_edges;
     astdst->num_tests = astsrc->num_tests;
     astdst->num_vars = astsrc->num_vars;
+    astdst->num_args = astsrc->num_args;
     astdst->assignment = astsrc->assignment;
     astdst->code = astsrc->code;
 }

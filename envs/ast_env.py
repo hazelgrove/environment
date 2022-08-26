@@ -30,7 +30,7 @@ class ASTEnv(gym.Env):
             ("edges", (ctypes.c_int * (max_num_nodes * 3)) * 3),
             ("tests", (ctypes.c_int * max_num_tests) * 2),
             ("nodes", ctypes.c_int * max_num_nodes),
-            ("permitted_actions", ctypes.c_int * (num_actions + max_num_vars)),
+            ("permitted_actions", ctypes.c_int * (num_actions + max_num_vars * 2)),
             ("vars_in_scope", ctypes.c_int * max_num_vars),
             ("args_in_scope", ctypes.c_int * max_num_vars * 2),
             ("zast", ctypes.c_char * max_tree_length),
@@ -61,7 +61,7 @@ class ASTEnv(gym.Env):
             {
                 "nodes": gym.spaces.MultiDiscrete(node_nvec),
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
-                "permitted_actions": gym.spaces.MultiBinary(num_actions + max_num_vars),
+                "permitted_actions": gym.spaces.MultiBinary(num_actions + max_num_vars * 2),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(vars_nvec),
                 "args_in_scope": gym.spaces.MultiDiscrete(args_nvec),

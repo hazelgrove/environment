@@ -2,6 +2,7 @@
 
 type shape =
   | Var of Var.t
+  | Arg of Var.t
   | Hole
   | Nil
   | Int of int

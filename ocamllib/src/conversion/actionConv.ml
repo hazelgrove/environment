@@ -66,7 +66,9 @@ let action_list =
 let num_actions = List.length action_list
 
 let tag_to_action (action : int) : t =
-  if action >= num_actions
+  if action >= num_actions + Var.max_num_vars
+  then Construct (Arg (action - num_actions - Var.max_num_vars))
+  else if action >= num_actions
   then Construct (Var (action - num_actions))
   else
     try List.nth action_list action
@@ -81,6 +83,7 @@ let action_to_tag (action : t) : int =
   in
   match action with
   | Construct (Var x) -> x + num_actions
+  | Construct (Arg x) -> x + num_actions + Var.max_num_vars
   | _ -> find action action_list 0
 
 (*
@@ -89,7 +92,7 @@ let action_to_tag (action : t) : int =
 let to_list (action_list : t list) : bool list =
   let action_list = List.map action_to_tag action_list in
   let action_list = List.sort compare action_list in
-  let bool_list = Array.make (num_actions + Var.max_num_vars) false in
+  let bool_list = Array.make (num_actions + Var.max_num_vars * 2) false in
   let rec to_bool (action_list : int list) (bool_list : bool Array.t) =
     match action_list with
     | [] -> bool_list

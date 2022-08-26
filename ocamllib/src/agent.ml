@@ -133,6 +133,11 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         let info = CursorInfo.get_cursor_info (Syntax.ZENode tree) in
         let (varname, _) = List.nth info.vars_in_scope index in
         EVar varname
+      | Arg index -> 
+        free_vars subtree;
+        let info = CursorInfo.get_cursor_info (Syntax.ZENode tree) in
+        let (varname, _, _) = List.nth info.args_in_scope index in
+        EVar varname
       | Hole -> free_vars subtree; EHole
       | Nil -> free_vars subtree; ENil
       | Int value -> free_vars subtree; EInt value

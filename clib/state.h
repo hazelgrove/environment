@@ -40,7 +40,7 @@ typedef struct
 
     For the n-th action, permistted_actions[n] is 1 if it is permitted, and 0 otherwise.
     */
-    int permitted_actions[NUM_ACTIONS + MAX_NUM_VARS];
+    int permitted_actions[NUM_ACTIONS + MAX_NUM_VARS * 2];
 
     int vars_in_scope[MAX_NUM_VARS];
 

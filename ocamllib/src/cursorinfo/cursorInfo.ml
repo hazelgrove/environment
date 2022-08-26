@@ -10,8 +10,8 @@ type t = {
   (* parent of current term (use to decide whether we can go up)  *)
   vars_in_scope : (Var.t * int) list;
   (* variables in scope: (variable_name, index of node) *)
-  args_in_scope : (int * int) list;
-  (* arguments in scope: (function_index, argument_index) *)
+  args_in_scope : (Var.t * int * int) list;
+  (* arguments in scope: (variable_name, function_index, argument_index) *)
   typ_ctx : Context.t;
   (*mapping of vars in scope to types (use to determine vars in scope)    *)
   expected_ty : Type.p_t option;
@@ -54,7 +54,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~index:(index + Type.size t1 + 1)
   in
   let rec get_cursor_info_expr ~(current_term : Expr.z_t)
-      ~(parent_term : Expr.z_t option) ~(vars : (Var.t * int) list) ~(args : (int * int) list)
+      ~(parent_term : Expr.z_t option) ~(vars : (Var.t * int) list) ~(args : (Var.t * int * int) list)
       ~(typ_ctx : Context.t) ~(exp_ty : Type.p_t) ~(index : int) =
     match current_term.node with
     | Cursor e -> 
@@ -196,12 +196,12 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           match parent_term with
           (* If it's one of multiple arguments, fun_index does not change, arg_index + 1 *)
           | Some {node=EFun_R _; _} -> 
-            let (fun_index, arg_index) = List.nth args 0 in
-            (fun_index, arg_index + 1)
+            let (_, fun_index, arg_index) = List.nth args 0 in
+            (x, fun_index, arg_index + 1)
           | _ ->
             begin match args with
-            | [] -> (0, 0)
-            | (fun_index, _) :: tl -> (fun_index + 1, 0)
+            | [] -> (x, 0, 0)
+            | (_, fun_index, _) :: tl -> (x, fun_index + 1, 0)
             end
         in
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
@@ -646,7 +646,20 @@ let cursor_info_to_actions (info : t) : Action.t list =
             raise (Failure "Not in typing context")
           end
       in
-      construct_var_aux 0 info.vars_in_scope
+      let rec construct_arg_aux n lst = 
+        match lst with
+        | [] -> []
+        | (var, _, _) :: tl -> 
+          begin match Context.lookup info.typ_ctx var with
+          | Some t -> 
+            if Type.consistent t exp_ty
+            then (Construct (Arg n)) :: (construct_arg_aux (n + 1) tl)
+            else construct_arg_aux (n + 1) tl
+          | None ->
+            raise (Failure "Not in typing context")
+          end
+      in
+      (construct_var_aux 0 info.vars_in_scope) @ (construct_arg_aux 0 info.args_in_scope)
     in
     let handle_unwrap _ = 
       match info.current_term with
