@@ -121,7 +121,7 @@ class Env:
 
 class PLEnv(Env):
     @staticmethod
-    def make_env(seed, rank, max_episode_steps):
+    def make_env(seed, rank, max_episode_steps, perturbation):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
@@ -130,6 +130,7 @@ class PLEnv(Env):
                 num_assignments=1,
                 code_per_assignment=[1],
                 num_actions=58,
+                perturbation=perturbation,
             )
             env.seed(seed + rank)
             
@@ -146,9 +147,10 @@ class PLEnv(Env):
         num_processes,
         device,
         max_episode_steps,
+        perturbation,
     ):
         envs = [
-            PLEnv.make_env(seed, i, max_episode_steps)
+            PLEnv.make_env(seed, i, max_episode_steps, perturbation)
             for i in range(num_processes)
         ]
 

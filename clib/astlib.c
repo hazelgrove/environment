@@ -44,9 +44,9 @@ Input:
 Mutates:
     - ast
 */
-void init_assignment(State *ast, int assignment, int code)
+void init_assignment(State *ast, int assignment, int code, int n)
 {
-    load_starter_code(assignment, code);
+    load_starter_code(assignment, code, n);
     get_ast();
     load_tests(assignment);
 

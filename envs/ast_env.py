@@ -20,6 +20,7 @@ class ASTEnv(gym.Env):
         num_assignments: int,
         code_per_assignment: List[int],
         num_actions: int,
+        perturbation: int = 0,
         max_num_tests: int = 10,
         max_tree_length: int = 10000,
         max_num_vars: int = 10,
@@ -47,6 +48,7 @@ class ASTEnv(gym.Env):
         self.max_num_nodes = max_num_nodes
         self.num_actions = num_actions
         self.max_num_vars = max_num_vars
+        self.perturbation = perturbation
 
         # Plus one to account for -1
         node_nvec = (num_node_descriptor + max_num_vars + 1) * np.ones(max_num_nodes)
@@ -91,7 +93,7 @@ class ASTEnv(gym.Env):
         
         self.state = State()
         self.astclib.init_assignment(
-            ctypes.byref(self.state), ctypes.c_int(assignment), ctypes.c_int(code)
+            ctypes.byref(self.state), ctypes.c_int(assignment), ctypes.c_int(code), ctypes.c_int(self.perturbation)
         )
         
         # TODO: Currently hardcodes reset to correct cursor position

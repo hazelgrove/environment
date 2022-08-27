@@ -83,12 +83,12 @@ let load_tests_c (assignment : int) : unit =
   pass_unit_tests (list_to_tests unit_tests)
 
 (* load_assignment function that will be called by C *)
-let load_starter_code_c (assignment : int) (index : int) : string =
+let load_starter_code_c (assignment : int) (index : int) (n : int) : string =
   Var.reset ();
   Id.reset ();
   let e = Utils.load_starter_code "data/random_action" assignment index in
-  (* Randomly change code *)
-  let e = Generator.generate e 4 in
+  (* Randomly change code by n steps *)
+  let e = Generator.generate e n in
   Expr.add_vars (Expr.unzip e);
   Utils.serialize e
 
