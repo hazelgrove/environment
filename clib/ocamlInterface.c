@@ -75,7 +75,7 @@ void load_tests(int assignment)
     caml_callback(*load_tests_closure, Val_int(assignment));
 }
 
-void load_starter_code(int assignment, int index)
+void load_starter_code(int assignment, int index, int n)
 {
     static const value *load_starter_code_closure = NULL;
     if (load_starter_code_closure == NULL)
@@ -84,7 +84,7 @@ void load_starter_code(int assignment, int index)
         if (load_starter_code_closure == NULL)
             exit(1);
     }
-    strcpy(curr_state.zast, strdup(String_val(caml_callback2(*load_starter_code_closure, Val_int(assignment), Val_int(index)))));
+    strcpy(curr_state.zast, strdup(String_val(caml_callback3(*load_starter_code_closure, Val_int(assignment), Val_int(index), Val_int(n)))));
 }
 
 /*

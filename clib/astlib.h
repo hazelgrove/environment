@@ -49,7 +49,7 @@ Input:
 Mutates:
     - ast
 */
-void init_assignment(State *ast, int assignemnt, int index);
+void init_assignment(State *ast, int assignemnt, int index, int n);
 
 /*
 Print the current state as a line of code
@@ -87,7 +87,7 @@ External functions from ocaml interface
 extern void change_zast(int action);
 extern void get_ast();
 extern int run_unit_tests();
-extern void load_starter_code(int assignment, int index);
+extern void load_starter_code(int assignment, int index, int n);
 extern void load_tests(int assignment);
 extern void print_code();
 extern void get_cursor_info();

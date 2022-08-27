@@ -306,6 +306,7 @@ class GNNTrainer(Trainer):
 if __name__ == "__main__":
     args = get_args()
     
+    
     if args.gnn:
         GNNTrainer.main(args.log_name, render=args.render, save_dir=args.save_dir)
     else:
