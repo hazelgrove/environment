@@ -137,6 +137,13 @@ CAMLprim value get_edges(value bigarray)
     return Val_unit;
 }
 
+CAMLprim value get_starter(value bigarray)
+{
+    int dim = Caml_ba_array_val(bigarray)->dim[0];
+    copy_1d(Caml_ba_data_val(bigarray), dim, curr_state.starter);
+    return Val_unit;
+}
+
 CAMLprim value pass_unit_tests(value unit)
 {
     return caml_ba_alloc_dims(CAML_BA_INT32 | CAML_BA_C_LAYOUT, 2, curr_state.tests, curr_state.num_tests, 2);

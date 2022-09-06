@@ -35,6 +35,8 @@ typedef struct
     */
     int nodes[MAX_NUM_NODES];
 
+    int starter[MAX_NUM_NODES];
+
     /*
     Actions permitted in the current AST.
 

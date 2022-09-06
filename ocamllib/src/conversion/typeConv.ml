@@ -134,3 +134,9 @@ let rec to_string (tree : p_t) : string =
   | Prod (t1, t2) -> to_string t1 ^ "* " ^ to_string t2
   | List t1 -> to_string t1 ^ " list"
   | Hole -> "? "
+
+let rec get_starter_list (ty : t) : bool list = 
+  match ty.node with
+  | TInt | TBool | THole -> [ty.starter]
+  | TArrow (t1, t2) | TProd (t1, t2) -> ty.starter :: get_starter_list t1 @ get_starter_list t2
+  | TList t' -> ty.starter :: get_starter_list t'

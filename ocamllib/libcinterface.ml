@@ -18,6 +18,10 @@ external get_edges : unit -> (int32, int32_elt, c_layout) Array2.t
 external pass_edges : (int32, int32_elt, c_layout) Array2.t -> unit
   = "get_edges"
 
+(* Pass starter array to C *)
+external pass_starter : (int32, int32_elt, c_layout) Array1.t -> unit
+  = "get_starter"
+
 external pass_vars_in_scope : (int32, int32_elt, c_layout) Array1.t -> unit
   = "get_vars_in_scope"
 
@@ -45,14 +49,15 @@ let change_zast_c (ser_zast : string) (action : int) : string =
 (* Update the observation for the given zast *)
 let get_ast_c (ser_zast : string) : unit =
   let zast = Utils.deserialize ser_zast in
-  let (nodes, edges), _ = ExprConv.to_list zast in
+  let nodes, edges = ExprConv.to_list zast in
+  let starter = List.map (fun b -> if b then 1 else 0) (Expr.unzip zast) in
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
-  ()
+  pass_starter (list_to_array1 starter)
 
 let get_cursor_info_c (ser_zast : string) : int =
   let zast = Utils.deserialize ser_zast in
-  let (nodes, edges), cursorInfo = ExprConv.to_list zast in
+  let cursorInfo = CursorInfo.get_cursor_info (Syntax.ZENode zast) in
   let actions =
     try (
       cursorInfo |> CursorInfo.cursor_info_to_actions |> ActionConv.to_list

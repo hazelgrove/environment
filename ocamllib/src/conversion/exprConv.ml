@@ -242,7 +242,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
              EBinOp (EBinOp (EInt 2, OpTimes, EVar "x"), OpPlus, EInt 1) )
    end) *)
 
-let to_list (e : z_t) : graph * CursorInfo.t =
+let to_list (e : z_t) : graph =
   let add_node (nodes : int list) (tag : int) : int list * int =
     let new_nodes = nodes @ [ tag ] in
     (new_nodes, List.length nodes)
@@ -310,7 +310,7 @@ let to_list (e : z_t) : graph * CursorInfo.t =
         (add_subtree eelse nodes edges vars root 3, root, vars)
   in
   let graph, _, _ = to_list_aux (unzip e) [] [] [] in
-  (graph, CursorInfo.get_cursor_info (Syntax.ZENode e))
+  graph
 
 (* let%test_module "Test to_list" =
    (module struct
@@ -348,3 +348,19 @@ let to_list (e : z_t) : graph * CursorInfo.t =
                                   EBinOp (EVar "y", OpMinus, EInt 1) ) ) ) ) ),
               EBinOp (EVar "x", OpAp, EInt 2) ))
    end) *)
+
+let rec get_starter_list (e : Expr.t) : bool list = 
+  match e.node with
+  | EVar _ | EInt _ | EBool _ | EHole | ENil -> [e.starter]
+  | EUnOp (_, arg) -> e.starter :: (get_starter_list arg)
+  | EBinOp (arg1, _, arg2) | EPair (arg1, arg2) ->
+      e.starter :: ((get_starter_list arg1) @ (get_starter_list arg2))
+  | EFun (x, ty, body) | EFix (x, ty, body) ->
+      [e.starter; e.starter] @ (TypeConv.get_starter_list ty) @ (get_starter_list body)
+  | ELet (x, edef, ebody) ->
+      [e.starter; e.starter] @ (get_starter_list edef) @ (get_starter_list ebody)
+  | EIf (econd, ethen, eelse) ->
+      e.starter :: 
+      @ (get_starter_list econd)
+      @ (get_starter_list ethen)
+      @ (get_starter_list eelse)

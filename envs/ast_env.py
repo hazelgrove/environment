@@ -30,6 +30,7 @@ class ASTEnv(gym.Env):
             ("edges", (ctypes.c_int * (max_num_nodes * 3)) * 3),
             ("tests", (ctypes.c_int * max_num_tests) * 2),
             ("nodes", ctypes.c_int * max_num_nodes),
+            ("starter", ctypes.c_int * max_num_nodes),
             ("permitted_actions", ctypes.c_int * (num_actions + max_num_vars)),
             ("vars_in_scope", ctypes.c_int * max_num_vars),
             ("zast", ctypes.c_char * max_tree_length),
@@ -58,6 +59,7 @@ class ASTEnv(gym.Env):
             {
                 "nodes": gym.spaces.MultiDiscrete(node_nvec),
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
+                "starter": gym.spaces.MultiDiscrete(node_nvec),
                 "permitted_actions": gym.spaces.MultiBinary(num_actions + max_num_vars),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(vars_nvec),
@@ -113,6 +115,7 @@ class ASTEnv(gym.Env):
         state = {
             "nodes": np.ctypeslib.as_array(self.state.nodes),
             "edges": np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
+            "starter": np.ctypeslib.as_array(self.state.starter),
             "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
             "cursor_position": self.state.cursor,
             "vars_in_scope": np.ctypeslib.as_array(self.state.vars_in_scope),
@@ -124,6 +127,7 @@ class ASTEnv(gym.Env):
     def pad_states(self, state):
         for i in range(self.state.num_nodes, self.max_num_nodes):
             state["nodes"][i] = -1
+            state["starter"][i] = -1
 
         for i in range(self.state.num_edges, self.max_num_nodes * 3):
             state["edges"][i][0] = -1
@@ -137,6 +141,7 @@ class ASTEnv(gym.Env):
         for i in range(self.max_num_nodes):
             if state["nodes"][i] == -1:
                 state["nodes"] = state["nodes"][:i]
+                state["starter"] = state["starter"][:i]
                 break
 
         for i in range(self.max_num_nodes * 3):

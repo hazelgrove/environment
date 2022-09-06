@@ -283,9 +283,10 @@ class GNNBase(NNBase):
         x = inputs["nodes"]
         edges = inputs["edges"].reshape((batch_size, -1, 3))
         edge_index = edges[:, :, :2]
-        edge_attr = edges[:, :, 2]
-        assignment = inputs["assignment"]
         edge_index = edge_index.transpose(-2, -1)
+        edge_attr = edges[:, :, 2]
+        starter = inputs["starter"]
+        assignment = inputs["assignment"]
 
         # Convert inputs to long
         x = x.long()
@@ -314,6 +315,10 @@ class GNNBase(NNBase):
             edge_attr = torch.concat((edge_attr, assignment), dim=-1)
         else:
             raise NotImplementedError
+        
+        # Append information on whether node can be changed
+        starter = starter.reshape((batch_size, -1, 1))
+        x = torch.concat((x, starter), dim=-1)
         
         x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
 
