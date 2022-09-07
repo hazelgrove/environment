@@ -4,9 +4,20 @@
 This project focuses on using reinforcement learning to mutate a partially-correct/complete piece of coding homework to a complete and highly scored (e.g. test inputs all give correct output) homework submission. Our domain uses code written in the functional programming language, OCaml. This project extracts and preprocesses data from a large database of homework submission, transforming them into an abstract syntax tree (AST) and passing the through a graph neural network (GNN). 
 
 ## Build instructions
-This project uses Docker for building. The scripts for building and running Docker are in `run.sh`. You can build the project by running the following commands in the terminal, given that you have correctly set up `run_logger` in `.env`:
+To set up, follow the following steps:
+1. Set up [run-logger](https://run-logger.readthedocs.io/en/latest/index.html).
+2. Configure your `.env` file so that the environment variable `GRAPHQL_ENDPOINT` is the server you have set up. 
 ```
-$ bash run.sh <DOCKER_IMAGE_NAME> <DESCRIPTION_ON_LOGGER>
+GRAPHQL_ENDPOINT=server.com:1200/v1/graphql
+```
+3. Create a docker volume called `rl_checkpoint` by using the command
+```
+$ docker volume create rl_checkpoint
+```
+
+Now, you can build the project with docker by running the following commands in the terminal:
+```
+$ bash run.sh <DOCKER_IMAGE_NAME> <DOCKER_VOLUME_MOUNT_DIR> <DESCRIPTION_ON_LOGGER>
 ```
 
 ## Code Overview

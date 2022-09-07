@@ -361,6 +361,6 @@ let rec get_starter_list (e : Expr.t) : bool list =
       [e.starter; e.starter] @ (get_starter_list edef) @ (get_starter_list ebody)
   | EIf (econd, ethen, eelse) ->
       e.starter :: 
-      @ (get_starter_list econd)
+      (get_starter_list econd)
       @ (get_starter_list ethen)
       @ (get_starter_list eelse)

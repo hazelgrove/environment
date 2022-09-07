@@ -50,7 +50,7 @@ let change_zast_c (ser_zast : string) (action : int) : string =
 let get_ast_c (ser_zast : string) : unit =
   let zast = Utils.deserialize ser_zast in
   let nodes, edges = ExprConv.to_list zast in
-  let starter = List.map (fun b -> if b then 1 else 0) (Expr.unzip zast) in
+  let starter = List.map (fun b -> if b then 1 else 0) (zast |> Expr.unzip |> ExprConv.get_starter_list) in
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
   pass_starter (list_to_array1 starter)

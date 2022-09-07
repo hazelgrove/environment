@@ -17,6 +17,7 @@ class Obs:
     cursor_position: T
     vars_in_scope: T
     assignment: T
+    starter: T
 
     def to_space(self):
         return gym.spaces.Dict(**asdict(self))
