@@ -16,6 +16,7 @@ class Obs:
     permitted_actions: T
     cursor_position: T
     vars_in_scope: T
+    args_in_scope: T
     assignment: T
     starter: T
 

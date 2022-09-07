@@ -42,9 +42,11 @@ typedef struct
 
     For the n-th action, permistted_actions[n] is 1 if it is permitted, and 0 otherwise.
     */
-    int permitted_actions[NUM_ACTIONS + MAX_NUM_VARS];
+    int permitted_actions[NUM_ACTIONS + MAX_NUM_VARS * 2];
 
     int vars_in_scope[MAX_NUM_VARS];
+
+    int args_in_scope[MAX_NUM_VARS][2];
 
     char zast[MAX_TREE_LENGTH];
 
@@ -72,6 +74,11 @@ typedef struct
     The number of variables in scope
     */
     int num_vars;
+
+    /*
+    The number of arguments in scope
+    */
+    int num_args;
 
     /*
     The index of the assignment

@@ -12,12 +12,12 @@ GRAPHQL_ENDPOINT=server.com:1200/v1/graphql
 ```
 3. Create a docker volume called `rl_checkpoint` by using the command
 ```
-$ docker volume create rl_checkpoint
+docker volume create rl_checkpoint
 ```
 
 Now, you can build the project with docker by running the following commands in the terminal:
 ```
-$ bash run.sh <DOCKER_IMAGE_NAME> <DOCKER_VOLUME_MOUNT_DIR> <DESCRIPTION_ON_LOGGER>
+bash run.sh <DOCKER_IMAGE_NAME> <DOCKER_VOLUME_MOUNT_DIR> <DESCRIPTION_ON_LOGGER>
 ```
 
 ## Code Overview

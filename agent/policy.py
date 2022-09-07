@@ -94,7 +94,7 @@ class Policy(nn.Module):
 
 
 class GNNPolicy(Policy):
-    def __init__(self, obs_space, action_space, num_fixed_actions, base_kwargs=None, device=None):
+    def __init__(self, obs_space, action_space, num_fixed_actions, max_num_vars=10, base_kwargs=None, device=None):
         super(Policy, self).__init__()
 
         self.obs_space = Obs(**obs_space.spaces)
@@ -103,7 +103,7 @@ class GNNPolicy(Policy):
             base_kwargs = {}
         self.base = GNNBase(device=device, **base_kwargs)
         
-        self.qkv = QKV(num_fixed_actions=num_fixed_actions, embedding_size=self.base.output_size)
+        self.qkv = QKV(num_fixed_actions=num_fixed_actions, embedding_size=self.base.output_size, max_num_vars=max_num_vars)
         self.dist = MaskedCategorical()
         self.device = device
 
@@ -117,7 +117,8 @@ class GNNPolicy(Policy):
         )
         value, actor_features, vars = self.base(asdict(inputs))
         
-        actor_features = self.qkv(actor_features, vars)
+        args_in_scope = inputs.args_in_scope.reshape(inputs.args_in_scope.shape[0], -1, 2)
+        actor_features = self.qkv(actor_features, vars, args_in_scope)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
@@ -151,7 +152,8 @@ class GNNPolicy(Policy):
         )
         value, actor_features, vars = self.base(asdict(inputs))
         
-        actor_features = self.qkv(actor_features, vars)
+        args_in_scope = inputs.args_in_scope.reshape(inputs.args_in_scope.shape[0], -1, 2)
+        actor_features = self.qkv(actor_features, vars, args_in_scope)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         action_log_probs = dist.log_probs(action)

@@ -32,14 +32,16 @@ class ASTEnv(gym.Env):
             ("tests", (ctypes.c_int * max_num_tests) * 2),
             ("nodes", ctypes.c_int * max_num_nodes),
             ("starter", ctypes.c_int * max_num_nodes),
-            ("permitted_actions", ctypes.c_int * (num_actions + max_num_vars)),
+            ("permitted_actions", ctypes.c_int * (num_actions + max_num_vars * 2)),
             ("vars_in_scope", ctypes.c_int * max_num_vars),
+            ("args_in_scope", ctypes.c_int * max_num_vars * 2),
             ("zast", ctypes.c_char * max_tree_length),
             ("cursor", ctypes.c_int),
             ("num_nodes", ctypes.c_int),
             ("num_edges", ctypes.c_int),
             ("num_tests", ctypes.c_int),
             ("num_vars", ctypes.c_int),
+            ("num_args", ctypes.c_int),
             ("assignment", ctypes.c_int),
             ("code", ctypes.c_int),
         ]
@@ -55,16 +57,18 @@ class ASTEnv(gym.Env):
         node_nvec = (num_node_descriptor + max_num_vars + 1) * np.ones(max_num_nodes)
         edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes * 3, 3))
         vars_nvec = (max_num_nodes + 1) * np.ones(max_num_vars)
+        args_nvec = (max_num_nodes + 1) * np.ones((max_num_vars, 2))
 
         self.action_space = gym.spaces.Discrete(num_actions + max_num_vars)
         self.observation_space = gym.spaces.Dict(
             {
                 "nodes": gym.spaces.MultiDiscrete(node_nvec),
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
+                "permitted_actions": gym.spaces.MultiBinary(num_actions + max_num_vars * 2),
                 "starter": gym.spaces.MultiDiscrete(node_nvec),
-                "permitted_actions": gym.spaces.MultiBinary(num_actions + max_num_vars),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(vars_nvec),
+                "args_in_scope": gym.spaces.MultiDiscrete(args_nvec),
                 "assignment": gym.spaces.Discrete(num_assignments),
             }
         )
@@ -121,6 +125,7 @@ class ASTEnv(gym.Env):
             "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
             "cursor_position": self.state.cursor,
             "vars_in_scope": np.ctypeslib.as_array(self.state.vars_in_scope),
+            "args_in_scope": np.ctypeslib.as_array(self.state.args_in_scope).reshape(-1, 2),
             "assignment": self.state.assignment,
         }
 
@@ -136,6 +141,9 @@ class ASTEnv(gym.Env):
 
         for i in range(self.state.num_vars, self.max_num_vars):
             state["vars_in_scope"][i] = -1
+            
+        for i in range(self.state.num_args, self.max_num_vars):
+            state["args_in_scope"][i][0] = -1
 
         return state
 
@@ -154,6 +162,11 @@ class ASTEnv(gym.Env):
         for i in range(self.max_num_vars):
             if state["vars_in_scope"][i] == -1:
                 state["vars_in_scope"] = state["vars_in_scope"][:i]
+                break
+                
+        for i in range(self.max_num_vars):
+            if state["args_in_scope"][i][0] == -1:
+                state["args_in_scope"] = state["args_in_scope"][:i]
                 break
 
         return state
