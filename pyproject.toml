@@ -28,6 +28,7 @@ torch-sparse = [
 ]
 torch-geometric = "^2.0.4"
 GitPython = "^3.1.27"
+PyYAML = "^6.0"
 
 [tool.poetry.dev-dependencies]
 ipython = "^8.0.1"

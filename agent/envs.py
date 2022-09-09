@@ -18,7 +18,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnvWrapper
 from stable_baselines3.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
-from agent.wrapper import FlattenObservation
+from agent.wrapper import FlattenObservation, RenderWrapper
 from envs.ast_env import ASTEnv
 
 try:
@@ -121,7 +121,7 @@ class Env:
 
 class PLEnv(Env):
     @staticmethod
-    def make_env(seed, rank, max_episode_steps, perturbation):
+    def make_env(seed, rank, max_episode_steps, perturbation, render=False, render_mode=None):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
@@ -135,6 +135,8 @@ class PLEnv(Env):
             env.seed(seed + rank)
             
             env = FlattenObservation(env)
+            # if render:
+            #     env = RenderWrapper(env, mode=render_mode)
             env = TimeLimit(env, max_episode_steps=max_episode_steps)
             env = Monitor(env)
             return env
@@ -148,9 +150,14 @@ class PLEnv(Env):
         device,
         max_episode_steps,
         perturbation,
+        render=False,
+        render_mode=None,
     ):
+        if render and num_processes > 1:
+            raise ValueError("Rendering is not supported for multiple processes")
+        
         envs = [
-            PLEnv.make_env(seed, i, max_episode_steps, perturbation)
+            PLEnv.make_env(seed, i, max_episode_steps, perturbation, render, render_mode)
             for i in range(num_processes)
         ]
 

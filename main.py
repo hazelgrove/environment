@@ -190,7 +190,7 @@ class Trainer:
             ) and save_dir != "test":
                 torch.save(
                     [
-                        actor_critic,
+                        actor_critic.state_dict(),
                         getattr(utils.get_vec_normalize(envs), "obs_rms", None),
                     ],
                     os.path.join(save_dir, params["env_name"] + ".pt"),
@@ -307,7 +307,6 @@ class GNNTrainer(Trainer):
 
 if __name__ == "__main__":
     args = get_args()
-    
     
     if args.gnn:
         GNNTrainer.main(args.log_name, render=args.render, save_dir=args.save_dir)
