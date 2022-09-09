@@ -11,7 +11,7 @@ torch = [
     {platform = 'linux', url = "https://download.pytorch.org/whl/cu115/torch-1.11.0%2Bcu115-cp38-cp38-linux_x86_64.whl"}
 ]
 numpy = "^1.22.3"
-run-logger = "^0.1.0"
+run-logger = "0.1.0"
 atari-py = "^0.3.0"
 ale-py = "0.7.4"
 stable-baselines3 = "^1.5.0"
@@ -28,7 +28,7 @@ torch-sparse = [
 ]
 torch-geometric = "^2.0.4"
 GitPython = "^3.1.27"
-PyYAML = "^6.0"
+PyYAML = "^5.4.1"
 
 [tool.poetry.dev-dependencies]
 ipython = "^8.0.1"

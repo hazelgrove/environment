@@ -2,6 +2,8 @@ open Bigarray
 open Environment
 open ArrayUtils
 
+exception SyntaxError of string
+
 (* Get nodes array from C *)
 external get_nodes : unit -> (int32, int32_elt, c_layout) Array1.t
   = "pass_nodes"
@@ -52,7 +54,10 @@ let change_zast_c (ser_zast : string) (action : int) : string =
 (* Update the observation for the given zast *)
 let get_ast_c (ser_zast : string) : unit =
   let zast = Utils.deserialize ser_zast in
-  let nodes, edges = ExprConv.to_list zast in
+  let nodes, edges = 
+    try ExprConv.to_list zast with
+      SyntaxError e -> raise (SyntaxError (e ^ "\n" ^ (zast |> Expr.unzip |> Expr.strip |> ExprConv.to_string)))
+  in
   let starter = List.map (fun b -> if b then 1 else 0) (zast |> Expr.unzip |> ExprConv.get_starter_list) in
   pass_nodes (list_to_array1 nodes);
   pass_edges (list_to_edge edges);
