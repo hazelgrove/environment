@@ -70,8 +70,8 @@ let array2_to_list (arr : (int32, int32_elt, c_layout) Array2.t) :
   tests_to_list_aux arr (Array2.dim1 arr)
 
 (* Convert OCaml unit tests to Bigarray *)
-let list_to_array2 (l : (int * int) list) : (int32, int32_elt, c_layout) Array2.t
-    =
+let list_to_array2 (l : (int * int) list) :
+    (int32, int32_elt, c_layout) Array2.t =
   let tests = Array2.create Int32 c_layout (List.length l) 2 in
   let rec list_to_test_aux (l : (int * int) list)
       (arr : (int32, int32_elt, c_layout) Array2.t) (count : int) : unit =

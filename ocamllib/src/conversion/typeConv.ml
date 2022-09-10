@@ -75,7 +75,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
         TList (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1))
     | THole -> THole
   in
-  { node with node = new_node; }
+  { node with node = new_node }
 
 (* let%test_module "Test TypeConv.from_list" =
    (module struct
@@ -135,8 +135,9 @@ let rec to_string (tree : p_t) : string =
   | List t1 -> to_string t1 ^ " list"
   | Hole -> "? "
 
-let rec get_starter_list (ty : t) : bool list = 
+let rec get_starter_list (ty : t) : bool list =
   match ty.node with
-  | TInt | TBool | THole -> [ty.starter]
-  | TArrow (t1, t2) | TProd (t1, t2) -> ty.starter :: get_starter_list t1 @ get_starter_list t2
+  | TInt | TBool | THole -> [ ty.starter ]
+  | TArrow (t1, t2) | TProd (t1, t2) ->
+      (ty.starter :: get_starter_list t1) @ get_starter_list t2
   | TList t' -> ty.starter :: get_starter_list t'

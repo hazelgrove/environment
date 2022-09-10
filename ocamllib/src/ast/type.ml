@@ -47,9 +47,12 @@ and z_t = {
 }
 [@@deriving sexp]
 
-let make_node (node : node) : t = { id = Id.generate (); node; starter=false; }
-let make_z_node (node : z_node) : z_t = { id = Id.generate (); node; starter=false; }
-let make_dummy_node (node : node) : t = { id = -1; node; starter=false; }
+let make_node (node : node) : t = { id = Id.generate (); node; starter = false }
+
+let make_z_node (node : z_node) : z_t =
+  { id = Id.generate (); node; starter = false }
+
+let make_dummy_node (node : node) : t = { id = -1; node; starter = false }
 
 let rec strip (e : t) : p_t =
   match e.node with
@@ -121,7 +124,8 @@ let%test_module "Test Typ.size" =
     let%test _ = check (Arrow (Arrow (Int, Int), Prod (Bool, Hole))) 7
   end)
 
-let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node; starter = e.starter; }
+let select_root (e : t) : z_t =
+  { id = e.id; node = Cursor e.node; starter = e.starter }
 
 let rec unzip (tree : z_t) : t =
   let node : node =
@@ -133,4 +137,4 @@ let rec unzip (tree : z_t) : t =
     | Prod_R (tl, tr) -> TProd (tl, unzip tr)
     | List_L tl -> TList (unzip tl)
   in
-  { id=tree.id; node; starter=tree.starter; }
+  { id = tree.id; node; starter = tree.starter }

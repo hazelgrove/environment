@@ -6,19 +6,14 @@ type t = int [@@deriving sexp]
 let max_num_vars : int = 10
 let num_vars : int ref = ref 0
 let used_vars : bool Array.t = Array.make max_num_vars false
-
 let undef_var : t = -1
 
 let get_new_var _ : t =
-  let new_var = 
-    let rec find n = 
-      if n < max_num_vars then
-        if used_vars.(n) then
-          find (n + 1)
-        else
-          n
-      else
-        raise (Failure "No free variables")
+  let new_var =
+    let rec find n =
+      if n < max_num_vars
+      then if used_vars.(n) then find (n + 1) else n
+      else raise (Failure "No free variables")
     in
     find 0
   in
@@ -26,11 +21,11 @@ let get_new_var _ : t =
   num_vars := !num_vars + 1;
   new_var
 
-let free_var (x : t) : unit = 
+let free_var (x : t) : unit =
   used_vars.(x) <- false;
   num_vars := !num_vars - 1
 
-let reset _ : unit = 
+let reset _ : unit =
   num_vars := 0;
   Array.fill used_vars 0 max_num_vars false
 

@@ -64,7 +64,9 @@ class ASTEnv(gym.Env):
             {
                 "nodes": gym.spaces.MultiDiscrete(node_nvec),
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
-                "permitted_actions": gym.spaces.MultiBinary(num_actions + max_num_vars * 2),
+                "permitted_actions": gym.spaces.MultiBinary(
+                    num_actions + max_num_vars * 2
+                ),
                 "starter": gym.spaces.MultiDiscrete(node_nvec),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(vars_nvec),
@@ -75,7 +77,7 @@ class ASTEnv(gym.Env):
 
         self.astclib = ctypes.CDLL("./clib/astclib.so")  # Used to call C functions
         self.state = None
-        
+
         self.code_per_assignment = code_per_assignment
 
         self.astclib.init_c()
@@ -90,18 +92,21 @@ class ASTEnv(gym.Env):
 
         # Change state to Python dict
         state = self.get_state()
-        
+
         return state, reward, done, {}
 
     def reset(self):
         assignment = self.observation_space.spaces["assignment"].sample()
         code = random.randint(0, self.code_per_assignment[assignment] - 1)
-        
+
         self.state = State()
         self.astclib.init_assignment(
-            ctypes.byref(self.state), ctypes.c_int(assignment), ctypes.c_int(code), ctypes.c_int(self.perturbation)
+            ctypes.byref(self.state),
+            ctypes.c_int(assignment),
+            ctypes.c_int(code),
+            ctypes.c_int(self.perturbation),
         )
-        
+
         # TODO: Currently hardcodes reset to correct cursor position
         # self.step(2)
         # self.step(2)
@@ -125,7 +130,9 @@ class ASTEnv(gym.Env):
             "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
             "cursor_position": self.state.cursor,
             "vars_in_scope": np.ctypeslib.as_array(self.state.vars_in_scope),
-            "args_in_scope": np.ctypeslib.as_array(self.state.args_in_scope).reshape(-1, 2),
+            "args_in_scope": np.ctypeslib.as_array(self.state.args_in_scope).reshape(
+                -1, 2
+            ),
             "assignment": self.state.assignment,
         }
 
@@ -141,7 +148,7 @@ class ASTEnv(gym.Env):
 
         for i in range(self.state.num_vars, self.max_num_vars):
             state["vars_in_scope"][i] = -1
-            
+
         for i in range(self.state.num_args, self.max_num_vars):
             state["args_in_scope"][i][0] = -1
 
@@ -163,7 +170,7 @@ class ASTEnv(gym.Env):
             if state["vars_in_scope"][i] == -1:
                 state["vars_in_scope"] = state["vars_in_scope"][:i]
                 break
-                
+
         for i in range(self.max_num_vars):
             if state["args_in_scope"][i][0] == -1:
                 state["args_in_scope"] = state["args_in_scope"][:i]

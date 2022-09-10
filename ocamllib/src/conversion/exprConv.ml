@@ -102,7 +102,12 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
     match (e1, e2) with
     | EUnOp (op1, _), EUnOp (op2, _) -> op1 = op2
     | EBinOp (_, op1, _), EBinOp (_, op2, _) -> op1 = op2
-    | EIf _, EIf _ | ELet _, ELet _ | EFun _, EFun _ | EFix _, EFix _ | EPair _, EPair _ -> true
+    | EIf _, EIf _
+    | ELet _, ELet _
+    | EFun _, EFun _
+    | EFix _, EFix _
+    | EPair _, EPair _ ->
+        true
     | _ -> false
 
 (* Convert each unique AST node to an integer *)
@@ -112,7 +117,7 @@ let node_to_tag (e : t) : int =
   | _ ->
       let rec find_node x lst c =
         match lst with
-        | [] -> raise (Failure ("Invalid node"))
+        | [] -> raise (Failure "Invalid node")
         | hd :: tl -> if node_list_equal x hd then c else find_node x tl (c + 1)
       in
       find_node e.node node_list 0 + TypeConv.num_nodes
@@ -215,7 +220,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
     | EHole -> EHole
     | ENil -> ENil
   in
-  { node with node=new_node; }
+  { node with node = new_node }
 
 (* let%test_module "Test Expr.from_list" =
    (module struct
@@ -309,7 +314,11 @@ let to_list (e : z_t) : graph =
         let nodes, edges = add_subtree ethen nodes edges vars root 2 in
         (add_subtree eelse nodes edges vars root 3, root, vars)
   in
-  let graph, _, _ = to_list_aux (unzip e) [] [] [] in
+  let graph, _, _ =
+    try to_list_aux (unzip e) [] [] []
+    with SyntaxError err ->
+      raise (SyntaxError (err ^ "\n" ^ (e |> unzip |> strip |> to_string)))
+  in
   graph
 
 (* let%test_module "Test to_list" =
@@ -349,18 +358,18 @@ let to_list (e : z_t) : graph =
               EBinOp (EVar "x", OpAp, EInt 2) ))
    end) *)
 
-let rec get_starter_list (e : Expr.t) : bool list = 
+let rec get_starter_list (e : Expr.t) : bool list =
   match e.node with
-  | EVar _ | EInt _ | EBool _ | EHole | ENil -> [e.starter]
-  | EUnOp (_, arg) -> e.starter :: (get_starter_list arg)
+  | EVar _ | EInt _ | EBool _ | EHole | ENil -> [ e.starter ]
+  | EUnOp (_, arg) -> e.starter :: get_starter_list arg
   | EBinOp (arg1, _, arg2) | EPair (arg1, arg2) ->
-      e.starter :: ((get_starter_list arg1) @ (get_starter_list arg2))
+      e.starter :: (get_starter_list arg1 @ get_starter_list arg2)
   | EFun (x, ty, body) | EFix (x, ty, body) ->
-      [e.starter; e.starter] @ (TypeConv.get_starter_list ty) @ (get_starter_list body)
+      [ e.starter; e.starter ]
+      @ TypeConv.get_starter_list ty
+      @ get_starter_list body
   | ELet (x, edef, ebody) ->
-      [e.starter; e.starter] @ (get_starter_list edef) @ (get_starter_list ebody)
+      [ e.starter; e.starter ] @ get_starter_list edef @ get_starter_list ebody
   | EIf (econd, ethen, eelse) ->
-      e.starter :: 
-      (get_starter_list econd)
-      @ (get_starter_list ethen)
-      @ (get_starter_list eelse)
+      (e.starter :: get_starter_list econd)
+      @ get_starter_list ethen @ get_starter_list eelse

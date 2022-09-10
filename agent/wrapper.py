@@ -66,16 +66,16 @@ class RenderWrapper(gym.Wrapper):
         super().__init__(env)
         self.env = env
         self.mode = mode
-        
+
         self.env.reset()
-    
+
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         self.env.render(mode=self.mode)
-            
+
         return obs, reward, done, info
-    
+
     def reset(self):
         self.env.render(mode=self.mode)
-        
+
         return self.env.reset()

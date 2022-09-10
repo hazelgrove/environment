@@ -4,6 +4,7 @@ import torch
 from agent import utils
 from agent.envs import Env, PLEnv
 
+
 class Evaluator:
     @staticmethod
     def get_envs(env_name, seed, num_processes, device, max_episode_steps):
@@ -15,10 +16,17 @@ class Evaluator:
             device,
             True,
         )
-    
+
     @classmethod
     def evaluate(
-        cls, actor_critic, obs_rms, env_name, seed, num_processes, device, max_episode_steps
+        cls,
+        actor_critic,
+        obs_rms,
+        env_name,
+        seed,
+        num_processes,
+        device,
+        max_episode_steps,
     ):
         eval_envs = cls.get_envs(
             env_name,
@@ -70,7 +78,8 @@ class Evaluator:
                 len(eval_episode_rewards), np.mean(eval_episode_rewards)
             )
         )
-        
+
+
 class PLEvaluator(Evaluator):
     @staticmethod
     def get_envs(env_name, seed, num_processes, log_dir, device, max_episode_steps):

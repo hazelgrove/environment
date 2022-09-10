@@ -54,12 +54,13 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~index:(index + Type.size t1 + 1)
   in
   let rec get_cursor_info_expr ~(current_term : Expr.z_t)
-      ~(parent_term : Expr.z_t option) ~(vars : (Var.t * int) list) ~(args : (Var.t * int * int) list)
-      ~(typ_ctx : Context.t) ~(exp_ty : Type.p_t) ~(index : int) =
+      ~(parent_term : Expr.z_t option) ~(vars : (Var.t * int) list)
+      ~(args : (Var.t * int * int) list) ~(typ_ctx : Context.t)
+      ~(exp_ty : Type.p_t) ~(index : int) =
     match current_term.node with
-    | Cursor e -> 
-        let e : Expr.t = { (Expr.unzip current_term) with node = e; } in
-        begin match synthesis typ_ctx e with
+    | Cursor e -> (
+        let e : Expr.t = { (Expr.unzip current_term) with node = e } in
+        match synthesis typ_ctx e with
         | Some t ->
             let parent_term =
               match parent_term with
@@ -77,9 +78,11 @@ let get_cursor_info (tree : Syntax.z_t) : t =
               cursor_position = index;
               num_nodes = Syntax.zsize tree;
             }
-        | None -> 
-          raise (TypeError ("Incorrect type: " ^ (Core.Sexp.to_string (Expr.sexp_of_z_t current_term))))
-        end
+        | None ->
+            raise
+              (TypeError
+                 ("Incorrect type: "
+                 ^ Core.Sexp.to_string (Expr.sexp_of_z_t current_term))))
     | EUnOp_L (OpNeg, e) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
@@ -146,14 +149,14 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:ebody
           ~parent_term:(Some current_term)
           ~vars:((x, index + 1) :: vars)
-           ~args
+          ~args
           ~typ_ctx:(Context.extend typ_ctx (x, x_type))
           ~exp_ty
           ~index:(index + Expr.size edef + 2)
     | EIf_L (econd, _, _) ->
         get_cursor_info_expr ~current_term:econd
-          ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty:Type.Bool
-          ~index:(index + 1)
+          ~parent_term:(Some current_term) ~vars ~args ~typ_ctx
+          ~exp_ty:Type.Bool ~index:(index + 1)
     | EIf_C (econd, ethen, eelse) ->
         let exp_ty =
           let t_else =
@@ -163,7 +166,11 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           in
           match Typing.get_common_type exp_ty t_else with
           | Some t -> t
-          | None -> raise (TypeError "Conflicting types between expected type and type of else branch")
+          | None ->
+              raise
+                (TypeError
+                   "Conflicting types between expected type and type of else \
+                    branch")
         in
         get_cursor_info_expr ~current_term:ethen
           ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty
@@ -177,7 +184,11 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           in
           match Typing.get_common_type exp_ty t_then with
           | Some t -> t
-          | None -> raise (TypeError "Conflicting types between expected type and type of then branch")
+          | None ->
+              raise
+                (TypeError
+                   "Conflicting types between expected type and type of then \
+                    branch")
         in
         get_cursor_info_expr ~current_term:eelse
           ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty
@@ -192,21 +203,19 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | Type.Hole -> Type.Hole
           | _ -> raise (TypeError "Expected a function type")
         in
-        let arg = 
+        let arg =
           match parent_term with
           (* If it's one of multiple arguments, fun_index does not change, arg_index + 1 *)
-          | Some {node=EFun_R _; _} -> 
-            let (_, fun_index, arg_index) = List.nth args 0 in
-            (x, fun_index, arg_index + 1)
-          | _ ->
-            begin match args with
-            | [] -> (x, 0, 0)
-            | (_, fun_index, _) :: tl -> (x, fun_index + 1, 0)
-            end
+          | Some { node = EFun_R _; _ } ->
+              let _, fun_index, arg_index = List.nth args 0 in
+              (x, fun_index, arg_index + 1)
+          | _ -> (
+              match args with
+              | [] -> (x, 0, 0)
+              | (_, fun_index, _) :: tl -> (x, fun_index + 1, 0))
         in
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
-          ~vars
-          ~args: (arg :: args)
+          ~vars ~args:(arg :: args)
           ~typ_ctx:(Context.extend typ_ctx (x, Type.strip t))
           ~exp_ty
           ~index:(index + Type.size t + 2)
@@ -291,8 +300,11 @@ let%test_module "Test get_cursor_info" =
     let e : Expr.z_t =
       {
         id = -1;
-        node = Expr.EUnOp_L (OpNeg, { id = -1; node = Expr.Cursor (EBool true); starter = false });
-        starter = false
+        node =
+          Expr.EUnOp_L
+            ( OpNeg,
+              { id = -1; node = Expr.Cursor (EBool true); starter = false } );
+        starter = false;
       }
     (* -(^true) *)
 
@@ -330,7 +342,7 @@ let%test_module "Test get_cursor_info" =
             ( 0,
               Expr.make_dummy_node (EInt 1),
               { id = -1; node = Expr.Cursor (EVar 0); starter = false } );
-        starter = false
+        starter = false;
       }
     (* let x0 = 1 in ^x0 *)
 
@@ -369,16 +381,16 @@ let%test_module "Test get_cursor_info" =
                             ( Expr.make_z_node (Expr.Cursor (EVar 1)),
                               OpAp,
                               Expr.make_dummy_node (EInt 2) );
-                        starter = false
+                        starter = false;
                       } );
-                starter = false
+                starter = false;
               } );
-        starter = false
+        starter = false;
       }
-    (* 
-      let x0 = 1 in 
-        let x1 = false in
-          x1 ^2 
+    (*
+       let x0 = 1 in
+         let x1 = false in
+           x1 ^2
     *)
 
     let i =
@@ -404,7 +416,7 @@ let%test_module "Test get_cursor_info" =
             ( Expr.make_z_node (Cursor EHole),
               Expr.make_dummy_node EHole,
               Expr.make_dummy_node EHole );
-        starter = false
+        starter = false;
       }
     (* if ^<HOLE> then <HOLE> else <HOLE> *)
 
@@ -431,7 +443,7 @@ let%test_module "Test get_cursor_info" =
             ( Expr.make_dummy_node EHole,
               Expr.make_z_node (Cursor (EBool true)),
               Expr.make_dummy_node (EInt 1) );
-        starter = false
+        starter = false;
       }
     (* if <HOLE> then ^true else 1 *)
 
@@ -497,11 +509,9 @@ let cursor_info_to_actions (info : t) : Action.t list =
   let open Action in
   let handle_move _ =
     let handle_parent _ =
-      match info.parent_term with 
-      | Some (ZENode tree) -> 
-        if tree.starter then [] else [ Move Parent ] 
-      | Some (ZTNode tree) -> 
-        if tree.starter then [] else [ Move Parent ] 
+      match info.parent_term with
+      | Some (ZENode tree) -> if tree.starter then [] else [ Move Parent ]
+      | Some (ZTNode tree) -> if tree.starter then [] else [ Move Parent ]
       | None -> []
     in
     let handle_child _ =
@@ -588,18 +598,18 @@ let cursor_info_to_actions (info : t) : Action.t list =
             else if r_consistent
             then [ Construct (BinOp_R OpCons) ]
             else []
-        | Type.Hole ->
-            begin match actual_ty with
-            | Type.List _ | Type.Hole -> 
-              [ Construct (BinOp_L OpCons); Construct (BinOp_R OpCons) ]
-            | _ -> 
-              [Construct (BinOp_L OpCons)]
-            end
+        | Type.Hole -> (
+            match actual_ty with
+            | Type.List _ | Type.Hole ->
+                [ Construct (BinOp_L OpCons); Construct (BinOp_R OpCons) ]
+            | _ -> [ Construct (BinOp_L OpCons) ])
         | _ -> []
       in
       construct_arith_comp () @ construct_ap () @ construct_cons ()
     in
-    let construct_let _ = if !(Var.num_vars) < Var.max_num_vars then [ Construct Let_L ] else [] in
+    let construct_let _ =
+      if !Var.num_vars < Var.max_num_vars then [ Construct Let_L ] else []
+    in
     let construct_if _ =
       let cond_consistent = Type.consistent actual_ty Type.Bool in
       let body_consistent = Type.consistent actual_ty exp_ty in
@@ -613,7 +623,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
     in
     let construct_fun_fix _ =
       (* TODO: Allow changing type annotations? *)
-      if Type.consistent exp_ty (Type.Arrow (Type.Hole, actual_ty)) && !(Var.num_vars) < Var.max_num_vars
+      if Type.consistent exp_ty (Type.Arrow (Type.Hole, actual_ty))
+         && !Var.num_vars < Var.max_num_vars
       then [ (* Construct Fun; Construct Fix *) ]
       else []
     in
@@ -633,122 +644,132 @@ let cursor_info_to_actions (info : t) : Action.t list =
       else []
     in
     let construct_var _ =
-      let rec construct_var_aux n lst = 
+      let rec construct_var_aux n lst =
         match lst with
         | [] -> []
-        | (var, _) :: tl ->
-          begin match Context.lookup info.typ_ctx var with
-          | Some t -> 
-            if Type.consistent t exp_ty
-            then (Construct (Var n)) :: (construct_var_aux (n + 1) tl)
-            else construct_var_aux (n + 1) tl
-          | None ->
-            raise (Failure "Not in typing context")
-          end
+        | (var, _) :: tl -> (
+            match Context.lookup info.typ_ctx var with
+            | Some t ->
+                if Type.consistent t exp_ty
+                then Construct (Var n) :: construct_var_aux (n + 1) tl
+                else construct_var_aux (n + 1) tl
+            | None -> raise (Failure "Not in typing context"))
       in
-      let rec construct_arg_aux n lst = 
+      let rec construct_arg_aux n lst =
         match lst with
         | [] -> []
-        | (var, _, _) :: tl -> 
-          begin match Context.lookup info.typ_ctx var with
-          | Some t -> 
-            if Type.consistent t exp_ty
-            then (Construct (Arg n)) :: (construct_arg_aux (n + 1) tl)
-            else construct_arg_aux (n + 1) tl
-          | None ->
-            raise (Failure "Not in typing context")
-          end
+        | (var, _, _) :: tl -> (
+            match Context.lookup info.typ_ctx var with
+            | Some t ->
+                if Type.consistent t exp_ty
+                then Construct (Arg n) :: construct_arg_aux (n + 1) tl
+                else construct_arg_aux (n + 1) tl
+            | None -> raise (Failure "Not in typing context"))
       in
-      (construct_var_aux 0 info.vars_in_scope) @ (construct_arg_aux 0 info.args_in_scope)
+      construct_var_aux 0 info.vars_in_scope
+      @ construct_arg_aux 0 info.args_in_scope
     in
-    let handle_unwrap _ = 
+    let handle_unwrap _ =
       match info.current_term with
-      | ENode e ->
-        begin match e.node with
-        | EHole | ENil | EVar _ | EInt _ | EBool _ -> []
-        | EUnOp _ -> [ Unwrap 0 ]
-        | EBinOp (_, (OpPlus | OpMinus | OpTimes | OpDiv), _) -> [ Unwrap 0; Unwrap 1 ]
-        | EBinOp (_, (OpGt | OpGe | OpLt | OpLe | OpEq | OpNe), _) -> []
-        | EBinOp (_, OpCons, _) -> [Unwrap 1]
-        | ELet (x, edef, ebody) ->
-          let t_def = 
-            match Typing.synthesis info.typ_ctx edef with
-            | Some t -> t
-            | None -> raise (TypeError "Invalid type")
-          in
-          let t_body =
-            match Typing.synthesis (Context.extend info.typ_ctx (x, t_def)) ebody with
-            | Some t -> t
-            | None -> raise (TypeError "Invalid type")
-          in
-          let def_consistent = Type.consistent exp_ty t_def in
-          let body_consistent = Type.consistent exp_ty t_body in
-          if def_consistent && body_consistent
-          then [ Unwrap 0; Unwrap 1 ]
-          else if def_consistent
-          then [ Unwrap 0 ]
-          else if body_consistent
-          then [ Unwrap 1 ]
-          else []
-        | EIf (econd, ethen, eelse) ->
-          let t_cond = 
-            match Typing.synthesis info.typ_ctx econd with
-            | Some t -> t
-            | None -> raise (TypeError "Invalid type")  
-          in
-          let t_body = 
-            match Typing.synthesis info.typ_ctx ethen with
-            | Some t -> t
-            | None -> raise (TypeError "Invalid type")  
-          in
-          let cond_consistent = Type.consistent exp_ty t_cond in
-          let body_consistent = Type.consistent exp_ty t_body in
-          if cond_consistent && body_consistent
-          then [ Unwrap 0; Unwrap 1; Unwrap 2 ]
-          else if cond_consistent
-          then [ Unwrap 0 ]
-          else if body_consistent
-          then [ Unwrap 1; Unwrap 2 ]
-          else []
-        | EFun (x, ty, e) | EFix (x, ty, e) ->
-          let ty = Type.strip ty in
-          let t = 
-            match Typing.synthesis (Context.extend info.typ_ctx (x, ty)) e with
-            | Some t -> t
-            | None -> raise (TypeError "Invalid type")
-          in
-          if Type.consistent exp_ty t then [ Unwrap 1 ] else []
-        | EPair (e1, e2) | EBinOp (e1, OpAp, e2) ->
-          let t1 = 
-            match Typing.synthesis info.typ_ctx e1 with
-            | Some t -> t
-            | None -> raise (TypeError "Invalid type")
-          in
-          let t2 = 
-            match Typing.synthesis info.typ_ctx e2 with
-            | Some t -> t
-            | None -> raise (TypeError "Invalid type")
-          in
-          let l_consistent = Type.consistent exp_ty t1 in
-          let r_consistent = Type.consistent exp_ty t2 in
-          if l_consistent && r_consistent
-          then [ Unwrap 0; Unwrap 1 ]
-          else if l_consistent
-          then [ Unwrap 0 ]
-          else if r_consistent
-          then [ Unwrap 1 ]
-          else []
-        end
+      | ENode e -> (
+          match e.node with
+          | EHole | ENil | EVar _ | EInt _ | EBool _ -> []
+          | EUnOp _ -> [ Unwrap 0 ]
+          | EBinOp (_, (OpPlus | OpMinus | OpTimes | OpDiv), _) ->
+              [ Unwrap 0; Unwrap 1 ]
+          | EBinOp (_, (OpGt | OpGe | OpLt | OpLe | OpEq | OpNe), _) -> []
+          | EBinOp (_, OpCons, _) -> [ Unwrap 1 ]
+          | ELet (x, edef, ebody) ->
+              let t_def =
+                match Typing.synthesis info.typ_ctx edef with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let t_body =
+                match
+                  Typing.synthesis
+                    (Context.extend info.typ_ctx (x, t_def))
+                    ebody
+                with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let def_consistent = Type.consistent exp_ty t_def in
+              let body_consistent = Type.consistent exp_ty t_body in
+              if def_consistent && body_consistent
+              then [ Unwrap 0; Unwrap 1 ]
+              else if def_consistent
+              then [ Unwrap 0 ]
+              else if body_consistent
+              then [ Unwrap 1 ]
+              else []
+          | EIf (econd, ethen, eelse) ->
+              let t_cond =
+                match Typing.synthesis info.typ_ctx econd with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let t_body =
+                match Typing.synthesis info.typ_ctx ethen with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let cond_consistent = Type.consistent exp_ty t_cond in
+              let body_consistent = Type.consistent exp_ty t_body in
+              if cond_consistent && body_consistent
+              then [ Unwrap 0; Unwrap 1; Unwrap 2 ]
+              else if cond_consistent
+              then [ Unwrap 0 ]
+              else if body_consistent
+              then [ Unwrap 1; Unwrap 2 ]
+              else []
+          | EFun (x, ty, e) | EFix (x, ty, e) ->
+              let ty = Type.strip ty in
+              let t =
+                match
+                  Typing.synthesis (Context.extend info.typ_ctx (x, ty)) e
+                with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              if Type.consistent exp_ty t then [ Unwrap 1 ] else []
+          | EPair (e1, e2) | EBinOp (e1, OpAp, e2) ->
+              let t1 =
+                match Typing.synthesis info.typ_ctx e1 with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let t2 =
+                match Typing.synthesis info.typ_ctx e2 with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let l_consistent = Type.consistent exp_ty t1 in
+              let r_consistent = Type.consistent exp_ty t2 in
+              if l_consistent && r_consistent
+              then [ Unwrap 0; Unwrap 1 ]
+              else if l_consistent
+              then [ Unwrap 0 ]
+              else if r_consistent
+              then [ Unwrap 1 ]
+              else [])
       | TNode _ -> []
     in
     let remaining_nodes = max_num_nodes - info.num_nodes in
-    let actions = 
-      if remaining_nodes = 0 then
-        [construct_atom (); construct_var ();]
-      else if remaining_nodes = 1 then
-        [construct_atom (); construct_var (); construct_unop ();]
-      else if remaining_nodes = 2 then
-        [construct_atom (); construct_var (); construct_unop (); construct_binop (); construct_pair ();]
+    let actions =
+      if remaining_nodes = 0
+      then [ construct_atom (); construct_var () ]
+      else if remaining_nodes = 1
+      then [ construct_atom (); construct_var (); construct_unop () ]
+      else if remaining_nodes = 2
+      then
+        [
+          construct_atom ();
+          construct_var ();
+          construct_unop ();
+          construct_binop ();
+          construct_pair ();
+        ]
       else
         [
           construct_atom ();
@@ -766,9 +787,9 @@ let cursor_info_to_actions (info : t) : Action.t list =
   in
   let handle_type _ = [] in
   match info.current_term with
-  | ENode _ -> List.concat [handle_move (); handle_expr ();]
-  | TNode _ -> List.concat [handle_move (); handle_type ();]
-  
+  | ENode _ -> List.concat [ handle_move (); handle_expr () ]
+  | TNode _ -> List.concat [ handle_move (); handle_type () ]
+
 (*
    let%test_module "Test cursor_info_to_actions" =
      (module struct

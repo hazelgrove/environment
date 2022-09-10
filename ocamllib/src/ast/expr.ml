@@ -93,10 +93,13 @@ type value =
   | VError
 
 (* Given a pure node, generate a node with an id *)
-let make_node (node : node) : t = { id = Id.generate (); node; starter=false; }
-let make_z_node (node : z_node) : z_t = { id = Id.generate (); node; starter=false; }
-let make_dummy_node (node : node) : t = { id = -1; node; starter=false; }
-let make_dummy_z_node (node : z_node) : z_t = { id = -1; node; starter=false; }
+let make_node (node : node) : t = { id = Id.generate (); node; starter = false }
+
+let make_z_node (node : z_node) : z_t =
+  { id = Id.generate (); node; starter = false }
+
+let make_dummy_node (node : node) : t = { id = -1; node; starter = false }
+let make_dummy_z_node (node : z_node) : z_t = { id = -1; node; starter = false }
 
 (*
    Strip the meta data from the nodes to form a pure expression
@@ -177,10 +180,12 @@ let rec from_val (v : value) : p_t =
   | _ -> raise (Failure "Cannot be changed to expr")
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)
-let select_root (e : t) : z_t = { id = e.id; node = Cursor e.node; starter=e.starter }
+let select_root (e : t) : z_t =
+  { id = e.id; node = Cursor e.node; starter = e.starter }
 
 (* Migrate the metadata from Expr.t to Expr.z_t *)
-let zip_migrate (e : t) (node : z_node) : z_t = { id = e.id; node = node; starter=e.starter }
+let zip_migrate (e : t) (node : z_node) : z_t =
+  { id = e.id; node; starter = e.starter }
 
 let unop_equal (u1 : unop) (u2 : unop) : bool =
   match (u1, u2) with OpNeg, OpNeg -> true
@@ -271,29 +276,29 @@ let rec unzip (tree : z_t) : t =
     | EFix_R (var_n, var_t, child) -> EFix (var_n, var_t, unzip child)
     | EFix_L (var_n, var_t, child) -> EFix (var_n, Type.unzip var_t, child)
   in
-  { id=tree.id; node; starter=tree.starter }
+  { id = tree.id; node; starter = tree.starter }
 (*unzip child type*)
 
-
-let rec add_vars (e : t) : unit = 
+let rec add_vars (e : t) : unit =
   match e.node with
-  | EUnOp (unop, child) ->
-      add_vars child
-  | EBinOp (l_child, _, r_child) 
-  | EPair (l_child, r_child) ->
-      add_vars l_child; add_vars r_child
+  | EUnOp (unop, child) -> add_vars child
+  | EBinOp (l_child, _, r_child) | EPair (l_child, r_child) ->
+      add_vars l_child;
+      add_vars r_child
   | ELet (x, l_child, r_child) ->
       Var.used_vars.(x) <- true;
-      Var.num_vars := !(Var.num_vars) + 1;
-      add_vars l_child; add_vars r_child
+      Var.num_vars := !Var.num_vars + 1;
+      add_vars l_child;
+      add_vars r_child
   | EIf (l_child, c_child, r_child) ->
-      add_vars l_child; add_vars c_child; add_vars r_child
+      add_vars l_child;
+      add_vars c_child;
+      add_vars r_child
   | EFun (x, _, child) | EFix (x, _, child) ->
       Var.used_vars.(x) <- true;
-      Var.num_vars := !(Var.num_vars) + 1;
+      Var.num_vars := !Var.num_vars + 1;
       add_vars child
-  | _ -> ()  
-
+  | _ -> ()
 
 (* Each edge is represented as (index of start node, index of end node, edge type) *)
 (* let%test_module "Test Expr.unzip" =

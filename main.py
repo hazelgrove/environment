@@ -2,7 +2,6 @@ import os
 import time
 from collections import deque
 from cProfile import run
-from gym import Env
 
 import ipdb
 import numpy as np
@@ -10,7 +9,7 @@ import torch
 
 from agent import utils
 from agent.arguments import get_args
-from agent.envs import PLEnv, Env
+from agent.envs import Env, PLEnv
 from agent.policy import GNNPolicy, Policy
 from agent.ppo import PPO
 from agent.storage import RolloutStorage
@@ -23,12 +22,10 @@ class Trainer:
     def get_policy(envs, params, device):
         base_kwargs = params["base"]
         policy = Policy(
-            envs.observation_space,
-            envs.action_space,
-            base_kwargs=base_kwargs
+            envs.observation_space, envs.action_space, base_kwargs=base_kwargs
         )
         return policy
-    
+
     @staticmethod
     def get_env(params, device):
         envs = Env.make_vec_envs(
@@ -39,9 +36,9 @@ class Trainer:
             device,
             False,
         )
-        
+
         return envs
-        
+
     @staticmethod
     def evaluate(
         actor_critic,
@@ -53,19 +50,21 @@ class Trainer:
         device,
         max_episode_steps,
     ):
-        Evaluator.evaluate(actor_critic,
-                    obs_rms,
-                    env_name,
-                    seed,
-                    num_processes,
-                    eval_log_dir,
-                    device,
-                    max_episode_steps)
-    
+        Evaluator.evaluate(
+            actor_critic,
+            obs_rms,
+            env_name,
+            seed,
+            num_processes,
+            eval_log_dir,
+            device,
+            max_episode_steps,
+        )
+
     @classmethod
     def main(cls, log_name, render, save_dir):
         params, logger = get_logger(log_name)
-        
+
         if log_name != "test":
             save_dir = os.path.join(save_dir, log_name)
             try:
@@ -74,7 +73,7 @@ class Trainer:
                 raise RuntimeError("Save directory already exists")
         else:
             save_dir = "test"
-        
+
         # Only use one process if we are rendering
         if render:
             params["num_processes"] = 1
@@ -82,7 +81,11 @@ class Trainer:
         torch.manual_seed(params["seed"])
         torch.cuda.manual_seed_all(params["seed"])
 
-        if params["cuda"] and torch.cuda.is_available() and params["cuda_deterministic"]:
+        if (
+            params["cuda"]
+            and torch.cuda.is_available()
+            and params["cuda_deterministic"]
+        ):
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
         print(f"Cuda Availability: {torch.cuda.is_available()}")
@@ -109,18 +112,24 @@ class Trainer:
         )
 
         obs = envs.reset()
-        
+
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
         episode_rewards = deque(maxlen=10)
 
         start = time.time()
-        num_updates = int(params["num_env_steps"]) // params["num_steps"] // params["num_processes"]
+        num_updates = (
+            int(params["num_env_steps"])
+            // params["num_steps"]
+            // params["num_processes"]
+        )
         for j in range(num_updates):
             if params["use_linear_lr_decay"]:
                 # decrease learning rate linearly
-                utils.update_linear_schedule(agent.optimizer, j, num_updates, params["ppo"]["lr"])
+                utils.update_linear_schedule(
+                    agent.optimizer, j, num_updates, params["ppo"]["lr"]
+                )
 
             for step in range(params["num_steps"]):
                 # Sample actions
@@ -139,12 +148,12 @@ class Trainer:
                 if render:
                     print(f"Action: {action}")
                     breakpoint()
-                obs, reward, done, infos = envs.step(action.reshape((-1, )))
-                
+                obs, reward, done, infos = envs.step(action.reshape((-1,)))
+
                 if render:
                     envs.render(mode="human")
                     print()
-                
+
                 for info in infos:
                     if "episode" in info.keys():
                         episode_rewards.append(info["episode"]["r"])
@@ -195,11 +204,13 @@ class Trainer:
                     ],
                     os.path.join(save_dir, params["env_name"] + ".pt"),
                 )
-            
+
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
-                total_num_steps = (j + 1) * params["num_processes"] * params["num_steps"]
+                total_num_steps = (
+                    (j + 1) * params["num_processes"] * params["num_steps"]
+                )
                 end = time.time()
-                
+
                 grad_norm = 0
                 parameters = [
                     p
@@ -210,10 +221,10 @@ class Trainer:
                     param_norm = p.grad.detach().data.norm(2)
                     grad_norm += param_norm.item() ** 2
                 grad_norm = grad_norm**0.5
-                
+
                 fps = int(total_num_steps / (end - start))
                 mean_episode_reward = np.mean(episode_rewards)
-                
+
                 print(
                     "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
                         j,
@@ -271,21 +282,18 @@ class GNNTrainer(Trainer):
             base_kwargs=base_kwargs,
             device=device,
         )
-        
+
         return policy
-    
+
     @staticmethod
     def get_env(params, device):
         env_kwargs = params["env"]
         envs = PLEnv.make_vec_envs(
-            params["seed"],
-            params["num_processes"],
-            device,
-            **env_kwargs
+            params["seed"], params["num_processes"], device, **env_kwargs
         )
-        
+
         return envs
-        
+
     @staticmethod
     def evaluate(
         actor_critic,
@@ -296,18 +304,20 @@ class GNNTrainer(Trainer):
         device,
         max_episode_steps,
     ):
-        PLEvaluator.evaluate(actor_critic,
-                    obs_rms,
-                    env_name,
-                    seed,
-                    num_processes,
-                    device,
-                    max_episode_steps)
-        
+        PLEvaluator.evaluate(
+            actor_critic,
+            obs_rms,
+            env_name,
+            seed,
+            num_processes,
+            device,
+            max_episode_steps,
+        )
+
 
 if __name__ == "__main__":
     args = get_args()
-    
+
     if args.gnn:
         GNNTrainer.main(args.log_name, render=args.render, save_dir=args.save_dir)
     else:
