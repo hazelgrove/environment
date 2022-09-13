@@ -51,7 +51,7 @@ def run(
 ):
     with open(config_path, "r") as file:
         params = yaml.safe_load(file)
-        
+
     _log(
         name=name,
         repo=Repo("."),

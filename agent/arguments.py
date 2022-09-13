@@ -6,9 +6,7 @@ import torch
 def get_args():
     parser = argparse.ArgumentParser(description="RL")
     parser.add_argument("--log-name", default="None", help="Name for the log")
-    parser.add_argument(
-        "--sweep", action="store_true", help="Whether to use sweeps"
-    )
+    parser.add_argument("--sweep", action="store_true", help="Whether to use sweeps")
     parser.add_argument(
         "--render", action="store_true", help="Whether to render the environment"
     )
