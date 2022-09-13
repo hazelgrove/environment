@@ -6,7 +6,7 @@ This project focuses on using reinforcement learning to mutate a partially-corre
 ## Build instructions
 To set up, follow the following steps:
 1. Set up [run-logger](https://run-logger.readthedocs.io/en/latest/index.html).
-2. Configure your `.env` file so that the environment variable `GRAPHQL_ENDPOINT` is the server you have set up. 
+2. Configure your `.env` file so that the environment variable `GRAPHQL_ENDPOINT` is the server you have set up. Start `direnv` by running `direnv allow`. 
 ```
 GRAPHQL_ENDPOINT=server.com:1200/v1/graphql
 ```
