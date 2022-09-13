@@ -12,8 +12,8 @@ change-deps:
 	opam switch export opam.export
 
 astclib: $(CLIB)/astlib.c
-	gcc -shared -Wall -Werror -fPIC -o $(CLIB)/astclib.so \
-	$(CLIB)/astlib.c $(CLIB)/ocamlInterface.c _build/default/$(OCAMLLIB)/libcinterface.so -lcurses \
+	gcc -shared -Wall -Werror -fPIC -o ./$(CLIB)/astclib.so \
+	./$(CLIB)/astlib.c ./$(CLIB)/ocamlInterface.c ./_build/default/$(OCAMLLIB)/libcinterface.so -lcurses \
 	-L./_build/default/$(OCAMLLIB)/ -lcinterface \
 	-Wl,-rpath,./_build/default/$(OCAMLLIB)/
 

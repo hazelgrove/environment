@@ -3,7 +3,11 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 from git import Repo
+from run_logger import initialize
+
+from agent import base
 
 
 def get_charts():
@@ -103,7 +107,9 @@ def get_charts():
     ]
 
 
-def get_metadata(repo: Repo):
+def get_metadata():
+    repo = Repo.init(os.getcwd())
+
     return dict(
         reproducibility=dict(
             command_line=f'python {" ".join(sys.argv)}',
@@ -113,3 +119,15 @@ def get_metadata(repo: Repo):
             remotes=[*repo.remote().urls],
         ),
     )
+
+
+def get_logger(name):
+    params, logger = initialize(
+        graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+        charts=get_charts(),
+        config="params.yaml",
+        load_id=None,
+        name=name,
+        metadata=get_metadata(),
+    )
+    return params, logger

@@ -74,7 +74,7 @@ void copy_ast(State *astdst, const State *astsrc);
 /*
 Initiate the OCaml code and set default values of curr_state
 */
-void init_c();
+void init_c(int seed);
 
 /*
 Shut down the OCaml Code
@@ -91,5 +91,6 @@ extern void load_starter_code(int assignment, int index, int n);
 extern void load_tests(int assignment);
 extern void print_code();
 extern void get_cursor_info();
+extern void init(int seed);
 
 #endif

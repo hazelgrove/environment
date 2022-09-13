@@ -22,13 +22,16 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
     let cursor_info = CursorInfo.get_cursor_info (Syntax.ZENode e) in
     let permitted_actions = CursorInfo.cursor_info_to_actions cursor_info in
 
-    Random.self_init ();
     let action = Random.int (List.length permitted_actions) in
     let action = List.nth permitted_actions action in
 
     match action with
-    | Construct Hole | Construct Nil | Construct (Int _) | Construct (Bool _)
-      -> (
+    | Construct Hole
+    | Construct Nil
+    | Construct (Int _)
+    | Construct (Bool _)
+    | Construct (Var _)
+    | Construct (Arg _) -> (
         match cursor_info.current_term with
         | ENode e' ->
             (* Forbid actions from erasing subtrees *)

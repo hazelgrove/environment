@@ -24,6 +24,7 @@ class ASTEnv(gym.Env):
         max_num_tests: int = 10,
         max_tree_length: int = 10000,
         max_num_vars: int = 10,
+        seed: int = 0,
     ):
         super(ASTEnv, self).__init__()
 
@@ -75,12 +76,14 @@ class ASTEnv(gym.Env):
             }
         )
 
-        self.astclib = ctypes.CDLL("./clib/astclib.so")  # Used to call C functions
+        self.astclib = ctypes.CDLL(
+            "/RL_env/clib/astclib.so"
+        )  # Used to call C functions
         self.state = None
 
         self.code_per_assignment = code_per_assignment
 
-        self.astclib.init_c()
+        self.astclib.init_c(ctypes.c_int(seed))
 
     def step(self, action: int):
         self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))

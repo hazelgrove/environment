@@ -135,6 +135,7 @@ class PLEnv(Env):
                 code_per_assignment=[1],
                 num_actions=58,
                 perturbation=perturbation,
+                seed=seed,
             )
             env.seed(seed + rank)
 

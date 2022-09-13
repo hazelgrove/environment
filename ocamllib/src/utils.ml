@@ -92,7 +92,6 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
 (* Ranodmly select a root of the tree as the cursor position *)
 let select_root_random (e : Expr.t) : Expr.z_t =
   let size = Expr.size e in
-  Random.self_init ();
   let index = Random.int size in
   select_root_index e index
 

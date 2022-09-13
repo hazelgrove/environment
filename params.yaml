@@ -8,11 +8,11 @@ log_interval: 1
 eval: False
 eval_interval: 0
 save_interval: 100
-num_env_steps: 2.0e+6
+num_env_steps: 5.0e+6
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 3
-  perturbation: 1
+  max_episode_steps: 6
+  perturbation: 4
 base: 
   hidden_size: 32
   gnn_layer_size: [128, 64, 64]

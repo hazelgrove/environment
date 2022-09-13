@@ -87,6 +87,22 @@ void load_starter_code(int assignment, int index, int n)
     strcpy(curr_state.zast, strdup(String_val(caml_callback3(*load_starter_code_closure, Val_int(assignment), Val_int(index), Val_int(n)))));
 }
 
+void print_code()
+{
+    static const value *print_code_closure = NULL;
+    if (print_code_closure == NULL)
+        print_code_closure = caml_named_value("print_code");
+    caml_callback(*print_code_closure, Val_int(0));
+}
+
+void init(int seed)
+{
+    static const value *init_closure = NULL;
+    if (init_closure == NULL)
+        init_closure = caml_named_value("init");
+    caml_callback(*init_closure, Val_int(seed));
+}
+
 /*
 Copy nodes from src to dest
 */
@@ -186,12 +202,4 @@ CAMLprim value get_vars_in_scope(value bigarray)
     for (int i = dim; i < MAX_NUM_VARS; i++)
         curr_state.vars_in_scope[i] = -1;
     return Val_unit;
-}
-
-void print_code()
-{
-    static const value *print_code_closure = NULL;
-    if (print_code_closure == NULL)
-        print_code_closure = caml_named_value("print_code");
-    caml_callback(*print_code_closure, Val_int(0));
 }

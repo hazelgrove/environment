@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import ipdb
 import numpy as np
@@ -195,7 +195,7 @@ class GNNBase(NNBase):
         embedding_dim: int = 512,
         assignment_aggr: str = "add",
         max_num_vars: int = 10,
-        device=None,
+        device: Optional[torch.device] = None,
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)
 
@@ -278,7 +278,7 @@ class GNNBase(NNBase):
 
         self.train()
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         batch_size = inputs["nodes"].shape[0]
 
         # Get corresponding data from inputs

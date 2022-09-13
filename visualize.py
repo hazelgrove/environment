@@ -13,6 +13,7 @@ def main(log_name):
 
     with open("params.yaml", "r") as file:
         params = yaml.safe_load(file)
+    params["seed"] = params["seed"][0]
 
     torch.manual_seed(params["seed"])
     torch.cuda.manual_seed_all(params["seed"])

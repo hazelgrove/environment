@@ -90,13 +90,15 @@ void print_curr_state(State *ast)
 /*
 Initiate the OCaml code and set default values of curr_state
 */
-void init_c()
+void init_c(int seed)
 {
     // Build a stub argv[] to satisfy caml_Startup()
     char *argv[2];
     argv[0] = "";
     argv[1] = NULL;
     caml_startup(argv);
+
+    init(seed);
 
     curr_state.num_nodes = 0;
     for (int i = 0; i < MAX_NUM_NODES; i++)
