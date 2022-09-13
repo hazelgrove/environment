@@ -121,8 +121,6 @@ let load_starter_code_c (assignment : int) (index : int) (n : int) : string =
   (* Randomly change code by n steps *)
   let e = Generator.generate e n in
   Expr.add_vars (Expr.unzip e);
-  (* Randomly change code *)
-  let e = Generator.generate e 4 in
   Utils.serialize e
 
 (* For debugging use *)

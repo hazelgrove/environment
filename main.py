@@ -20,8 +20,8 @@ def _log(
     name: str,
     repo: Repo,
     graphql_endpoint: str,
-    sweep_id: Optional[int],
     save_dir: str,
+    sweep_id: Optional[int] = None,
     **kwargs
 ):
     logger = RunLogger(graphql_endpoint)
@@ -43,6 +43,25 @@ def _log(
     )
 
 
+def run(
+    name: str,
+    config_path: str,
+    graphql_endpoint: str,
+    save_dir: str,
+):
+    with open(config_path, "r") as file:
+        params = yaml.safe_load(file)
+        
+    _log(
+        name=name,
+        repo=Repo("."),
+        graphql_endpoint=graphql_endpoint,
+        save_dir=save_dir,
+        sweep_id=None,
+        **params,
+    )
+
+
 def trainable(config: dict):
     return _log(**config)
 
@@ -54,7 +73,7 @@ def sweep(
     save_dir: str,
     random_search: bool = False,
 ):
-    with open("params.yaml", "r") as file:
+    with open(config_path, "r") as file:
         params = yaml.safe_load(file)
 
     sweep_id = create_sweep(
@@ -96,9 +115,17 @@ def sweep(
 if __name__ == "__main__":
     args = get_args()
 
-    sweep(
-        args.log_name,
-        config_path="params.yaml",
-        graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
-        save_dir=args.save_dir,
-    )
+    if args.sweep:
+        sweep(
+            name=args.log_name,
+            config_path="params.yaml",
+            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+            save_dir=args.save_dir,
+        )
+    else:
+        run(
+            name=args.log_name,
+            config_path="params.yaml",
+            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+            save_dir=args.save_dir,
+        )

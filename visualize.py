@@ -2,18 +2,18 @@ import os
 
 import torch
 import yaml
+from run_logger import RunLogger, get_load_params
 
-from agent.arguments import get_args
+from agent.arguments import get_args_visualizer
 from agent.envs import PLEnv
 from agent.policy import GNNPolicy
 
 
-def main(log_name):
-    path = os.path.join("save", log_name, "ASTEnv.pt")
+def main(log_name, run_id):
+    logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
+    params = get_load_params(run_id, logger)
 
-    with open("params.yaml", "r") as file:
-        params = yaml.safe_load(file)
-    params["seed"] = params["seed"][0]
+    path = os.path.join("save", log_name, str(run_id) + ".pt")
 
     torch.manual_seed(params["seed"])
     torch.cuda.manual_seed_all(params["seed"])
@@ -44,6 +44,7 @@ def main(log_name):
     actor_critic.eval()
 
     obs = env.reset()
+    env.render()
     while True:
         with torch.no_grad():
             (_, action, _, _,) = actor_critic.act(
@@ -52,6 +53,7 @@ def main(log_name):
                 None,
             )
         print(f"Action: {action}")
+        breakpoint()
         obs, reward, done, info = env.step(action.reshape((-1,)))
 
         if done[0]:
@@ -61,10 +63,9 @@ def main(log_name):
 
         env.render()
         print()
-        breakpoint()
 
 
 if __name__ == "__main__":
-    args = get_args()
+    args = get_args_visualizer()
 
-    main(args.log_name)
+    main(args.log_name, args.run_id)

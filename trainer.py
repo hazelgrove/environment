@@ -118,7 +118,7 @@ class Trainer:
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
-        episode_rewards = deque(maxlen=10)
+        episode_rewards = deque(maxlen=1000)
 
         start = time.time()
         num_updates = (
@@ -204,7 +204,7 @@ class Trainer:
                         actor_critic.state_dict(),
                         getattr(utils.get_vec_normalize(envs), "obs_rms", None),
                     ],
-                    os.path.join(save_dir, params["run_id"] + ".pt"),
+                    os.path.join(save_dir, str(params["run_id"]) + ".pt"),
                 )
 
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
@@ -228,7 +228,7 @@ class Trainer:
                 mean_episode_reward = np.mean(episode_rewards)
 
                 print(
-                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
+                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
                         j,
                         total_num_steps,
                         fps,
@@ -320,14 +320,23 @@ class GNNTrainer(Trainer):
 if __name__ == "__main__":
     args = get_args()
 
+    with open("params.yaml", "r") as file:
+        params = yaml.safe_load(file)
+
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     logger.create_run(
         metadata=get_metadata(Repo(".")),
         charts=get_charts(),
     )
+    logger.update_metadata(
+        {
+            "parameters": params,
+            "run_id": logger.run_id,
+            "name": args.log_name,
+        }
+    )
 
-    with open("params.yaml", "r") as file:
-        params = yaml.safe_load(file)
+    params["run_id"] = logger.run_id
 
     if args.gnn:
         GNNTrainer.train(

@@ -675,10 +675,26 @@ let cursor_info_to_actions (info : t) : Action.t list =
           match e.node with
           | EHole | ENil | EVar _ | EInt _ | EBool _ -> []
           | EUnOp _ -> [ Unwrap 0 ]
-          | EBinOp (_, (OpPlus | OpMinus | OpTimes | OpDiv), _) ->
-              [ Unwrap 0; Unwrap 1 ]
-          | EBinOp (_, (OpGt | OpGe | OpLt | OpLe | OpEq | OpNe), _) -> []
-          | EBinOp (_, OpCons, _) -> [ Unwrap 1 ]
+          | EBinOp (e1, _, e2) | EPair (e1, e2) ->
+              let t1 =
+                match Typing.synthesis info.typ_ctx e1 with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let t2 =
+                match Typing.synthesis info.typ_ctx e2 with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid type")
+              in
+              let l_consistent = Type.consistent t1 exp_ty in
+              let r_consistent = Type.consistent t2 exp_ty in
+              if l_consistent && r_consistent
+              then [ Unwrap 0; Unwrap 1 ]
+              else if l_consistent
+              then [ Unwrap 0 ]
+              else if r_consistent
+              then [ Unwrap 1 ]
+              else []
           | ELet (x, edef, ebody) ->
               let t_def =
                 match Typing.synthesis info.typ_ctx edef with
@@ -732,27 +748,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
                 | Some t -> t
                 | None -> raise (TypeError "Invalid type")
               in
-              if Type.consistent exp_ty t then [ Unwrap 1 ] else []
-          | EPair (e1, e2) | EBinOp (e1, OpAp, e2) ->
-              let t1 =
-                match Typing.synthesis info.typ_ctx e1 with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let t2 =
-                match Typing.synthesis info.typ_ctx e2 with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let l_consistent = Type.consistent exp_ty t1 in
-              let r_consistent = Type.consistent exp_ty t2 in
-              if l_consistent && r_consistent
-              then [ Unwrap 0; Unwrap 1 ]
-              else if l_consistent
-              then [ Unwrap 0 ]
-              else if r_consistent
-              then [ Unwrap 1 ]
-              else [])
+              if Type.consistent exp_ty t then [ Unwrap 1 ] else [])
       | TNode _ -> []
     in
     let remaining_nodes = max_num_nodes - info.num_nodes in

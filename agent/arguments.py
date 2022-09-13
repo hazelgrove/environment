@@ -7,7 +7,7 @@ def get_args():
     parser = argparse.ArgumentParser(description="RL")
     parser.add_argument("--log-name", default="None", help="Name for the log")
     parser.add_argument(
-        "--gnn", action="store_true", help="Whether the training is for our AST env"
+        "--sweep", action="store_true", help="Whether to use sweeps"
     )
     parser.add_argument(
         "--render", action="store_true", help="Whether to render the environment"
@@ -15,6 +15,17 @@ def get_args():
     parser.add_argument(
         "--save-dir", default="None", help="Directory to save checkpoints"
     )
+    args = parser.parse_args()
+
+    return args
+
+
+def get_args_visualizer():
+    parser = argparse.ArgumentParser(description="Visualizer")
+    parser.add_argument(
+        "--run-id", default="None", help="Run ID for the log to visualize"
+    )
+    parser.add_argument("--log-name", default="None", help="Name for the log")
     args = parser.parse_args()
 
     return args
