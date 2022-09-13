@@ -18,7 +18,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnvWrapper
 from stable_baselines3.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
-from agent.wrapper import FlattenObservation
+from agent.wrapper import FlattenObservation, RenderWrapper
 from envs.ast_env import ASTEnv
 
 try:
@@ -42,21 +42,22 @@ class Env:
     def make_env(env_id, seed, rank, allow_early_resets):
         def _thunk():
             if env_id.startswith("dm"):
-                _, domain, task = env_id.split('.')
+                _, domain, task = env_id.split(".")
                 env = dmc2gym.make(domain_name=domain, task_name=task)
                 env = ClipAction(env)
             else:
                 env = gym.make(env_id)
 
-            is_atari = hasattr(gym.envs, 'atari') and isinstance(
-                env.unwrapped, gym.envs.atari.AtariEnv)
+            is_atari = hasattr(gym.envs, "atari") and isinstance(
+                env.unwrapped, gym.envs.atari.AtariEnv
+            )
             if is_atari:
                 env = NoopResetEnv(env, noop_max=30)
                 env = MaxAndSkipEnv(env, skip=4)
 
             env.seed(seed + rank)
 
-            if str(env.__class__.__name__).find('TimeLimit') >= 0:
+            if str(env.__class__.__name__).find("TimeLimit") >= 0:
                 env = TimeLimitMask(env)
 
             env = Monitor(env, allow_early_resets=allow_early_resets)
@@ -72,7 +73,8 @@ class Env:
                 raise NotImplementedError(
                     "CNN models work only for atari,\n"
                     "please use a custom wrapper for a custom pixel input env.\n"
-                    "See wrap_deepmind for an example.")
+                    "See wrap_deepmind for an example."
+                )
 
             # If the input has shape (W,H,3), wrap for PyTorch convolutions
             obs_shape = env.observation_space.shape
@@ -117,11 +119,13 @@ class Env:
             envs = VecPyTorchFrameStack(envs, 4, device)
 
         return envs
-    
+
 
 class PLEnv(Env):
     @staticmethod
-    def make_env(seed, rank, max_episode_steps):
+    def make_env(
+        seed, rank, max_episode_steps, perturbation, render=False, render_mode=None
+    ):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
@@ -130,25 +134,37 @@ class PLEnv(Env):
                 num_assignments=1,
                 code_per_assignment=[1],
                 num_actions=58,
+                perturbation=perturbation,
+                seed=seed,
             )
             env.seed(seed + rank)
-            
+
             env = FlattenObservation(env)
+            # if render:
+            #     env = RenderWrapper(env, mode=render_mode)
             env = TimeLimit(env, max_episode_steps=max_episode_steps)
             env = Monitor(env)
             return env
-        
+
         return _thunk
-    
+
     @staticmethod
     def make_vec_envs(
         seed,
         num_processes,
         device,
         max_episode_steps,
+        perturbation,
+        render=False,
+        render_mode=None,
     ):
+        if render and num_processes > 1:
+            raise ValueError("Rendering is not supported for multiple processes")
+
         envs = [
-            PLEnv.make_env(seed, i, max_episode_steps)
+            PLEnv.make_env(
+                seed, i, max_episode_steps, perturbation, render, render_mode
+            )
             for i in range(num_processes)
         ]
 
@@ -160,6 +176,7 @@ class PLEnv(Env):
         envs = VecPyTorch(envs, device)
 
         return envs
+
 
 # Checks whether done was caused my timit limits or not
 class TimeLimitMask(gym.Wrapper):

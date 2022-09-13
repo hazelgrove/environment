@@ -3,10 +3,31 @@
 ## Overview
 This project focuses on using reinforcement learning to mutate a partially-correct/complete piece of coding homework to a complete and highly scored (e.g. test inputs all give correct output) homework submission. Our domain uses code written in the functional programming language, OCaml. This project extracts and preprocesses data from a large database of homework submission, transforming them into an abstract syntax tree (AST) and passing the through a graph neural network (GNN). 
 
-## Build instructions
-This project uses Docker for building. The scripts for building and running Docker are in `run.sh`. You can build the project by running the following commands in the terminal, given that you have correctly set up `run_logger` in `.env`:
+## Build Instructions
+To set up via docker, follow the following steps:
+1. Install [Docker](https://www.docker.com/).
+2. Set up [run-logger](https://run-logger.readthedocs.io/en/latest/index.html).
+3. Configure your `.env` file so that the environment variable `GRAPHQL_ENDPOINT` is the server you have set up. Start `direnv` by running `direnv allow`. 
 ```
-$ bash run.sh <DOCKER_IMAGE_NAME> <DESCRIPTION_ON_LOGGER>
+GRAPHQL_ENDPOINT=server.com:1200/v1/graphql
+```
+4. Create a docker volume called `rl_checkpoint` by using the command
+```
+docker volume create rl_checkpoint
+```
+
+5. Now, you can build the project with docker by running the following commands in the terminal:
+```
+bash run.sh <DOCKER_IMAGE_NAME> <DOCKER_VOLUME_MOUNT_DIR> <DESCRIPTION_ON_LOGGER>
+```
+
+## Development Instructions
+If you want to work on this project on a local machine, you need to install [Poetry](https://python-poetry.org/) and [opam](https://opam.ocaml.org/). You can run `make deps` to install all dependencies needed.
+
+## Visualization Instructions
+To visualize the actions that your agent is taking, you can run `visualize.sh`. This requires you to have saved a model in your docker volume. If you have done so already, run
+```
+bash visualize <DOCKER_IMAGE_NAME> <DOCKER_VOLUME_MOUNT_DIR> <LOG_NAME> <RUN_ID>
 ```
 
 ## Code Overview

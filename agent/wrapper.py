@@ -16,7 +16,9 @@ class Obs:
     permitted_actions: T
     cursor_position: T
     vars_in_scope: T
+    args_in_scope: T
     assignment: T
+    starter: T
 
     def to_space(self):
         return gym.spaces.Dict(**asdict(self))
@@ -57,3 +59,23 @@ class FlattenObservation(gym.ObservationWrapper):
             )
         )
         return obs
+
+
+class RenderWrapper(gym.Wrapper):
+    def __init__(self, env: gym.Env, mode="human") -> None:
+        super().__init__(env)
+        self.env = env
+        self.mode = mode
+
+        self.env.reset()
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        self.env.render(mode=self.mode)
+
+        return obs, reward, done, info
+
+    def reset(self):
+        self.env.render(mode=self.mode)
+
+        return self.env.reset()

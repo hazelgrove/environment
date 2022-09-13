@@ -13,33 +13,18 @@ from agent.wrapper import FlattenObservation, Obs
 from agent.distributions import QKV
 from agent.batch import collate
 import ipdb
+import gym
 
 
 def main():
-    args = get_args()
+    action_space = gym.spaces.Discrete(10)
+    observation_space = gym.spaces.Discrete(10)
     
-    env = ASTEnv(
-                max_num_nodes=50,
-                num_node_descriptor=33,
-                num_assignments=1,
-                code_per_assignment=[1],
-                num_actions=57,
-            )
-    obs_space = Obs(**env.observation_space.spaces)
-    env = FlattenObservation(env)
     
-    obs = env.reset()
-    inputs = torch.tensor([obs, obs])
+    actor_critic = GNNPolicy(observation_space, action_space, num_fixed_actions=10)
     
-    inputs = Obs(
-            *torch.split(
-                inputs,
-                [get_size(space) for space in astuple(obs_space)],
-                dim=-1,
-            )
-        )
-    base = GNNBase()
-    base(asdict(inputs))
+    torch.save(actor_critic, "model.pt")
+    torch.load("model.pt")
     
 
 if __name__ == "__main__":

@@ -75,7 +75,7 @@ void load_tests(int assignment)
     caml_callback(*load_tests_closure, Val_int(assignment));
 }
 
-void load_starter_code(int assignment, int index)
+void load_starter_code(int assignment, int index, int n)
 {
     static const value *load_starter_code_closure = NULL;
     if (load_starter_code_closure == NULL)
@@ -84,7 +84,23 @@ void load_starter_code(int assignment, int index)
         if (load_starter_code_closure == NULL)
             exit(1);
     }
-    strcpy(curr_state.zast, strdup(String_val(caml_callback2(*load_starter_code_closure, Val_int(assignment), Val_int(index)))));
+    strcpy(curr_state.zast, strdup(String_val(caml_callback3(*load_starter_code_closure, Val_int(assignment), Val_int(index), Val_int(n)))));
+}
+
+void print_code()
+{
+    static const value *print_code_closure = NULL;
+    if (print_code_closure == NULL)
+        print_code_closure = caml_named_value("print_code");
+    caml_callback(*print_code_closure, Val_int(0));
+}
+
+void init(int seed)
+{
+    static const value *init_closure = NULL;
+    if (init_closure == NULL)
+        init_closure = caml_named_value("init");
+    caml_callback(*init_closure, Val_int(seed));
 }
 
 /*
@@ -137,6 +153,13 @@ CAMLprim value get_edges(value bigarray)
     return Val_unit;
 }
 
+CAMLprim value get_starter(value bigarray)
+{
+    int dim = Caml_ba_array_val(bigarray)->dim[0];
+    copy_1d(Caml_ba_data_val(bigarray), dim, curr_state.starter);
+    return Val_unit;
+}
+
 CAMLprim value pass_unit_tests(value unit)
 {
     return caml_ba_alloc_dims(CAML_BA_INT32 | CAML_BA_C_LAYOUT, 2, curr_state.tests, curr_state.num_tests, 2);
@@ -148,6 +171,19 @@ CAMLprim value get_unit_tests(value bigarray)
     int dim2 = Caml_ba_array_val(bigarray)->dim[1];
     copy_2d(Caml_ba_data_val(bigarray), dim1, dim2, (int *)curr_state.tests);
     curr_state.num_tests = dim1;
+    return Val_unit;
+}
+
+CAMLprim value get_args_in_scope(value bigarray)
+{
+    int dim1 = Caml_ba_array_val(bigarray)->dim[0];
+    int dim2 = Caml_ba_array_val(bigarray)->dim[1];
+    copy_2d(Caml_ba_data_val(bigarray), dim1, dim2, (int *)curr_state.args_in_scope);
+    curr_state.num_args = dim1;
+    for (int i = dim1; i < MAX_NUM_VARS; i++){
+        curr_state.args_in_scope[i][0] = -1;
+        curr_state.args_in_scope[i][1] = -1;
+    }
     return Val_unit;
 }
 
@@ -166,12 +202,4 @@ CAMLprim value get_vars_in_scope(value bigarray)
     for (int i = dim; i < MAX_NUM_VARS; i++)
         curr_state.vars_in_scope[i] = -1;
     return Val_unit;
-}
-
-void print_code()
-{
-    static const value *print_code_closure = NULL;
-    if (print_code_closure == NULL)
-        print_code_closure = caml_named_value("print_code");
-    caml_callback(*print_code_closure, Val_int(0));
 }

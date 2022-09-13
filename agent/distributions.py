@@ -120,32 +120,44 @@ class Bernoulli(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         return FixedBernoulli(logits=x)
-    
+
 
 class QKV(nn.Module):
-    def __init__(self, num_fixed_actions, embedding_size, num_arguments=1) -> None:
+    def __init__(self, num_fixed_actions, embedding_size, max_num_vars) -> None:
         super().__init__()
-        
+
         self.k = torch.nn.Parameter(torch.empty((num_fixed_actions, embedding_size)))
-        self.k_arg = torch.nn.Parameter(torch.empty((num_arguments, embedding_size)))
-        
+        self.k_arg = torch.nn.Parameter(
+            torch.empty((max_num_vars * max_num_vars, embedding_size))
+        )
+
+        self.max_num_vars = max_num_vars
+
         self.reset_parameters()
-        
+
     def reset_parameters(self):
         torch.nn.init.orthogonal_(self.k)
-        
-    def forward(self, q : torch.Tensor, k_var : torch.Tensor):
+        torch.nn.init.orthogonal_(self.k_arg)
+
+    def forward(self, q: torch.Tensor, k_var: torch.Tensor, args):
         B, D = q.shape
         q = q.reshape((B, 1, D))
-        
+
         k = self.k.expand((B, -1, -1))
         k_arg = self.k_arg.expand((B, -1, -1))
-        
-        k = torch.concat((k, k_arg, k_var), dim=1)
-        
+
+        args = args.long()
+        num_args = torch.count_nonzero(args + 1, dim=1)[:, 0]
+        args = args[:, :, 0] * self.max_num_vars + args[:, :, 1]
+        k_arg = k_arg[torch.arange(B).reshape(-1, 1).expand(B, self.max_num_vars), args]
+        mask = torch.zeros(B, self.max_num_vars, device=k_arg.device)
+        mask[torch.arange(B), num_args] = 1
+        mask = mask.cumsum(dim=1).reshape(B, -1, 1)
+        k_arg = k_arg * (1 - mask)
+
+        k = torch.concat((k, k_var, k_arg), dim=1)
+
         attn = torch.bmm(q, k.transpose(-2, -1)) / math.sqrt(D)
-        attn = attn.transpose(-2, -1).reshape((B, -1)) # attn : B x (N + N_var)
-        
+        attn = attn.transpose(-2, -1).reshape((B, -1))  # attn : B x (N + N_var)
+
         return attn
-        
-        

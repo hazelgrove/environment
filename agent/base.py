@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import ipdb
 import numpy as np
@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch_geometric.nn as gnn
 from torch_geometric.data import Batch, Data
 
-from agent.utils import init
 from agent.batch import collate, separate
+from agent.utils import init
 
 
 class Flatten(nn.Module):
@@ -195,7 +195,7 @@ class GNNBase(NNBase):
         embedding_dim: int = 512,
         assignment_aggr: str = "add",
         max_num_vars: int = 10,
-        device=None
+        device: Optional[torch.device] = None,
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)
 
@@ -207,7 +207,7 @@ class GNNBase(NNBase):
         self.embedding_dim = embedding_dim
         self.max_num_vars = max_num_vars
         self.device = device
-        
+
         # Check lengths for GNN hyperparameters
         if len(gnn_layer_size) != 3:
             raise ValueError("GNN layer size must be a list of length 3")
@@ -265,7 +265,9 @@ class GNNBase(NNBase):
             ],
         )
 
-        self.node_embedding = nn.Embedding(num_node_descriptor + max_num_vars + 1, embedding_dim)
+        self.node_embedding = nn.Embedding(
+            num_node_descriptor + max_num_vars + 1, embedding_dim
+        )
         self.edge_embedding = nn.Embedding(num_edge_descriptor + 1, embedding_dim)
         self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
 
@@ -276,16 +278,17 @@ class GNNBase(NNBase):
 
         self.train()
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         batch_size = inputs["nodes"].shape[0]
 
         # Get corresponding data from inputs
         x = inputs["nodes"]
         edges = inputs["edges"].reshape((batch_size, -1, 3))
         edge_index = edges[:, :, :2]
-        edge_attr = edges[:, :, 2]
-        assignment = inputs["assignment"]
         edge_index = edge_index.transpose(-2, -1)
+        edge_attr = edges[:, :, 2]
+        starter = inputs["starter"]
+        assignment = inputs["assignment"]
 
         # Convert inputs to long
         x = x.long()
@@ -314,24 +317,31 @@ class GNNBase(NNBase):
             edge_attr = torch.concat((edge_attr, assignment), dim=-1)
         else:
             raise NotImplementedError
-        
+
+        # Append information on whether node can be changed
+        starter = starter.reshape((batch_size, -1, 1))
+        x = torch.concat((x, starter), dim=-1)
+
         x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
 
         # Pass through GNN
         x = self.main(x, edge_index, edge_attr)
         x = separate(x, batch_size)
-        
+
         # Get node representation at cursor
         out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
-        
+
         # Get node representation at variables in scope
-        inputs["vars_in_scope"] = inputs["vars_in_scope"][:, 1:] # Remove variable for argument
-        vars = x[torch.arange(batch_size).reshape(-1, 1).expand(batch_size, self.max_num_vars - 1), inputs["vars_in_scope"]]
+        vars = x[
+            torch.arange(batch_size)
+            .reshape(-1, 1)
+            .expand(batch_size, self.max_num_vars),
+            inputs["vars_in_scope"],
+        ]
         num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
-        mask = torch.zeros(batch_size, self.max_num_vars - 1, device=vars.device)
+        mask = torch.zeros(batch_size, self.max_num_vars, device=vars.device)
         mask[torch.arange(batch_size), num_vars] = 1
         mask = mask.cumsum(dim=1).reshape(batch_size, -1, 1)
         vars = vars * (1 - mask)
-        
+
         return self.critic_linear(out), out, vars
-    
