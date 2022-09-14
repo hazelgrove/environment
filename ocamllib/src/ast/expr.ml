@@ -20,22 +20,10 @@ type binop =
   | OpAp
 [@@deriving sexp]
 
-type const = 
-  | Bool of bool
-  | Int of int
-  | Nil
-[@@deriving sexp]
-
-type pattern = 
-  | PConst of const
-  | PVar of Var.t
-  | PWild
-[@@deriving sexp]
-
 (* Expression with metadata *)
 type node =
   | EVar of Var.t
-  | EConst of const
+  | EConst of Const
   | EUnOp of unop * t
   | EBinOp of t * binop * t
   | ELet of Var.t * t * t
@@ -44,7 +32,7 @@ type node =
   | EFix of Var.t * Type.t * t
   | EPair of t * t
   | EHole
-  | EMatch of t * ((pattern * t) list)
+  | EMatch of t * ((Pattern.t * t) list)
 
 and t = {
   id : int; (* An unique ID assigned to each node *)
@@ -56,7 +44,7 @@ and t = {
 (* Pure expression *)
 type p_t =
   | Var of Var.t
-  | Const of const
+  | Const of Const.t
   | UnOp of unop * p_t
   | BinOp of p_t * binop * p_t
   | Let of Var.t * p_t * p_t
@@ -65,7 +53,7 @@ type p_t =
   | Fix of Var.t * Type.p_t * p_t
   | Pair of p_t * p_t
   | Hole
-  | Match of p_t * ((pattern * p_t) list)
+  | Match of p_t * ((Pattern.t * p_t) list)
 [@@deriving sexp]
 
 (* Zippered Expressions *)
@@ -85,6 +73,9 @@ type z_node =
   | EFix_L of Var.t * Type.z_t * t
   | EPair_L of z_t * t
   | EPair_R of t * z_t
+  | EMatch_L of z_t * ((Pattern.t * t) list)
+  | EMatch_C of t * ((Pattern.z_t * t, Pattern.t * t) zlist)
+  | EMatch_R of t * ((Pattern.t * z_t, Pattern.t * t) zlist)
 
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
@@ -95,7 +86,7 @@ and z_t = {
 
 (* Values *)
 type value =
-  | VConst of const
+  | VConst of Const.t
   | VFun of Var.t * Type.p_t * p_t
   | VPair of value * value
   | VError
@@ -214,17 +205,10 @@ let binop_equal (b1 : binop) (b2 : binop) : bool =
       true
   | _ -> false
 
-let const_equal (c1 : const) (c2 : const) : bool =
-  match c1, c2 with
-  | Int a, Int b -> a = b
-  | Bool a, Bool b -> a = b
-  | Nil, Nil -> true
-  | _ -> false
-
 let rec equal (t1 : t) (t2 : t) : bool =
   match (t1.node, t2.node) with
   | EVar varn1, EVar varn2 -> Var.equal varn1 varn2
-  | EConst c1, EConst c2 -> const_equal c1 c2
+  | EConst c1, EConst c2 -> Const.equal c1 c2
   | EUnOp (u1, sub1), EUnOp (u2, sub2) -> unop_equal u1 u2 && equal sub1 sub2
   | EBinOp (subl1, b1, subr1), EBinOp (subl2, b2, subr2) ->
       binop_equal b1 b2 && equal subl1 subl2 && equal subr1 subr2
@@ -238,6 +222,8 @@ let rec equal (t1 : t) (t2 : t) : bool =
   | EPair (subl1, subr1), EPair (subl2, subr2) ->
       equal subl1 subl2 && equal subr1 subr2
   | EHole, EHole -> true
+  | EMatch (e1, rules1), EMatch (e2, rules2) ->
+      equal e1 e2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && equal e1 e2) rules1 rules2
   | _ -> false
 
 let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
@@ -265,6 +251,10 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
   | EPair_L (zsub1, sub1), EPair_L (zsub2, sub2)
   | EPair_R (sub1, zsub1), EPair_R (sub2, zsub2) ->
       equal sub1 sub2 && z_equal zsub1 zsub2
+  | EMatch_L (zsub1, rules1), EMatch_L (zsub2, rules2) ->
+      z_equal zsub1 zsub2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && z_equal e1 e2) rules1 rules2
+  | EMatch_C (sub1, rules1), EMatch_C (sub2, rules2) ->
+      equal sub1 sub2 && zlist.equal 
   | _ -> false
 
 let rec unzip (tree : z_t) : t =
