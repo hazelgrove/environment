@@ -1,0 +1,6 @@
+(library
+ (name environment)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_test))
+ (libraries unix ast parser action cursorInfo conversion))

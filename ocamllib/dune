@@ -1,0 +1,13 @@
+(env
+ (dev
+  (flags
+   (:standard -w -27))))
+
+(data_only_dirs ui)
+
+(executable
+ (name libcinterface)
+ (libraries environment dataUtils)
+ (modes
+  (native shared_object))
+)

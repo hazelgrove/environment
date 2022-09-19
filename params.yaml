@@ -1,0 +1,33 @@
+env_name: ASTEnv
+seed: 1
+cuda: True
+cuda_deterministic: False
+num_processes: 8
+num_steps: 128
+log_interval: 1
+eval: False
+eval_interval: 0
+save_interval: 100
+num_env_steps: 1.0e+7
+use_linear_lr_decay: True
+env: 
+  max_episode_steps: 6
+  perturbation: 4
+base: 
+  hidden_size: 32
+  gnn_layer_size: [128, 64, 64]
+  heads: [8, 8, 16, 1]
+ppo:
+  lr: 2.5e-4
+  eps: 1.0e-5
+  value_loss_coef: 0.5
+  max_grad_norm: 0.5
+  ppo_epoch: 4
+  num_mini_batch: 4
+  clip_param: 0.1
+  entropy_coef: 0.01
+return:
+  gamma: 0.99
+  use_gae: True
+  gae_lambda: 0.95
+  use_proper_time_limits: False

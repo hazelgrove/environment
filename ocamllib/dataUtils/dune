@@ -1,0 +1,7 @@
+(library
+ (name dataUtils)
+ (inline_tests)
+ (wrapped false)
+ (libraries environment)
+ (preprocess
+  (pps ppx_inline_test)))
