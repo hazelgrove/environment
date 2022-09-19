@@ -326,6 +326,7 @@ class GNNBase(NNBase):
 
         # Pass through GNN
         x = self.main(x, edge_index, edge_attr)
+        breakpoint()
         x = separate(x, batch_size)
 
         # Get node representation at cursor

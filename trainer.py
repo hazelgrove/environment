@@ -204,7 +204,7 @@ class Trainer:
                         actor_critic.state_dict(),
                         getattr(utils.get_vec_normalize(envs), "obs_rms", None),
                     ],
-                    os.path.join(save_dir, str(params["run_id"]) + ".pt"),
+                    os.path.join(save_dir, str(logger.run_id) + ".pt"),
                 )
 
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:

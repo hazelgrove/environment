@@ -86,7 +86,9 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
   in
-  let e, _ = select_root_index_aux e index in
+  if index >= Expr.size e
+  then raise (Failure "Index out of bound")
+  else let e, _ = select_root_index_aux e index in
   e
 
 (* Ranodmly select a root of the tree as the cursor position *)
@@ -137,7 +139,8 @@ let load_starter_code (directory : string) (assignment : int) (index : int) :
           }
         in
         e
-    | _ -> select_root_random e
+    (* | _ -> select_root_random e *)
+    | _ -> select_root_index e 0
   in
   match e.node with
   | ELet (x, edef, ebody) ->

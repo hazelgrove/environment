@@ -122,7 +122,7 @@ class GNNPolicy(Policy):
             embedding_size=self.base.output_size,
             max_num_vars=max_num_vars,
         )
-        self.dist = MaskedCategorical()
+        self.dist = MaskedCategorical(self.base.output_size, num_fixed_actions + 2 * max_num_vars)
         self.device = device
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
@@ -138,7 +138,7 @@ class GNNPolicy(Policy):
         args_in_scope = inputs.args_in_scope.reshape(
             inputs.args_in_scope.shape[0], -1, 2
         )
-        actor_features = self.qkv(actor_features, vars, args_in_scope)
+        # actor_features = self.qkv(actor_features, vars, args_in_scope)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
@@ -175,7 +175,7 @@ class GNNPolicy(Policy):
         args_in_scope = inputs.args_in_scope.reshape(
             inputs.args_in_scope.shape[0], -1, 2
         )
-        actor_features = self.qkv(actor_features, vars, args_in_scope)
+        # actor_features = self.qkv(actor_features, vars, args_in_scope)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         action_log_probs = dist.log_probs(action)
