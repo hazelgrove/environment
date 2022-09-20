@@ -84,7 +84,7 @@ class MaskedCategorical(nn.Module):
 
     def forward(self, x, mask):
         x = self.linear(x)
-        
+
         x = x * mask
         x = x + -1e5 * (x == 0)
 

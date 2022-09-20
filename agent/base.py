@@ -193,7 +193,7 @@ class GNNBase(NNBase):
         num_edge_descriptor: int = 4,
         num_assignments: int = 1,
         embedding_dim: int = 512,
-        assignment_aggr: str = "add",
+        assignment_aggr: Optional[str] = None,
         max_num_vars: int = 10,
         device: Optional[torch.device] = None,
     ):
@@ -224,6 +224,7 @@ class GNNBase(NNBase):
                         in_edge_channels=self.embedding_dim,
                         attention=True,
                         heads=self.heads[0],
+                        directed_msg=True,
                     ),
                     "x, edge_index, edge_feature -> x",
                 ),
@@ -236,6 +237,7 @@ class GNNBase(NNBase):
                         in_edge_channels=self.embedding_dim,
                         attention=True,
                         heads=self.heads[1],
+                        directed_msg=True,
                     ),
                     "x, edge_index, edge_feature -> x",
                 ),
@@ -248,6 +250,7 @@ class GNNBase(NNBase):
                         in_edge_channels=self.embedding_dim,
                         attention=True,
                         heads=self.heads[2],
+                        directed_msg=True,
                     ),
                     "x, edge_index, edge_feature -> x",
                 ),
@@ -259,6 +262,7 @@ class GNNBase(NNBase):
                         in_edge_channels=self.embedding_dim,
                         attention=True,
                         heads=self.heads[3],
+                        directed_msg=True,
                     ),
                     "x, edge_index -> x",
                 ),
@@ -268,7 +272,7 @@ class GNNBase(NNBase):
         self.node_embedding = nn.Embedding(
             num_node_descriptor + max_num_vars + 1, embedding_dim
         )
-        self.edge_embedding = nn.Embedding(num_edge_descriptor + 1, embedding_dim)
+        self.edge_embedding = nn.Embedding((num_edge_descriptor + 1) * 2, embedding_dim)
         self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
 
         init_ = lambda m: init(
@@ -290,6 +294,10 @@ class GNNBase(NNBase):
         starter = inputs["starter"]
         assignment = inputs["assignment"]
 
+        x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
+        edge_index = torch.concat((edge_index, edge_index.flip(0)), dim=1)
+        edge_attr = torch.concat((edge_attr, edge_attr + 4), dim=0)
+
         # Convert inputs to long
         x = x.long()
         edge_index = edge_index.long()
@@ -309,24 +317,22 @@ class GNNBase(NNBase):
         )  # Reshape assignment for broadcasting
 
         # Append assignment index to node and edge embeddings
-        if self.assignment_aggr == "add":
-            x += assignment
-            edge_attr += assignment
-        elif self.assignment_aggr == "concat":
-            x = torch.concat((x, assignment), dim=-1)
-            edge_attr = torch.concat((edge_attr, assignment), dim=-1)
-        else:
-            raise NotImplementedError
+        if self.assignment_aggr is not None:
+            if self.assignment_aggr == "add":
+                x += assignment
+                edge_attr += assignment
+            elif self.assignment_aggr == "concat":
+                x = torch.concat((x, assignment), dim=-1)
+                edge_attr = torch.concat((edge_attr, assignment), dim=-1)
+            else:
+                raise NotImplementedError
 
         # Append information on whether node can be changed
-        starter = starter.reshape((batch_size, -1, 1))
+        starter = starter.reshape((-1, 1))
         x = torch.concat((x, starter), dim=-1)
-
-        x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
 
         # Pass through GNN
         x = self.main(x, edge_index, edge_attr)
-        breakpoint()
         x = separate(x, batch_size)
 
         # Get node representation at cursor
