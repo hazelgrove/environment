@@ -334,11 +334,7 @@ class GNNBase(NNBase):
         # Append information on whether node can be changed
         starter = starter.reshape((-1, 1))
         x = torch.concat((x, starter), dim=-1)
-<<<<<<< HEAD
-
-=======
         
->>>>>>> a64c8be8f8f76bb6d9c2cb93a75d04e3c089d135
         # Pass through GNN
         x = self.main(x, edge_index, edge_attr)
         x = separate(x, batch_size)
