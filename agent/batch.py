@@ -21,7 +21,14 @@ def collate(x, edge_index, edge_attr):
     mask = grid < num_edges.reshape(b, 1, 1)
     edge_index = edge_index[mask].reshape(-1, 2).transpose(-2, -1)
 
+<<<<<<< HEAD
     grid = torch.arange(max_num_edges, device=edge_attr.device).repeat(b, 1)
+=======
+    grid = (
+        torch.arange(max_num_edges, device=edge_attr.device)
+        .repeat(b, 1)
+    )
+>>>>>>> a64c8be8f8f76bb6d9c2cb93a75d04e3c089d135
     mask = grid < num_edges.reshape(b, 1)
     edge_attr = edge_attr[mask]
 
