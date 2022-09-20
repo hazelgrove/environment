@@ -2,9 +2,9 @@ import torch
 
 
 def collate(x, edge_index, edge_attr):
-    b, num_nodes, num_features = x.shape
+    b, num_nodes = x.shape
     num_edges = torch.count_nonzero(edge_index + 1, dim=2)[:, 0]
-    x = x.reshape(b * num_nodes, num_features)
+    x = x.reshape(b * num_nodes)
 
     inc = torch.arange(0, b * num_nodes, num_nodes, device=edge_index.device).reshape(
         b, 1, 1
@@ -12,7 +12,6 @@ def collate(x, edge_index, edge_attr):
     edge_index = (edge_index + inc).transpose(-2, -1)
 
     max_num_edges = edge_index.shape[1]
-    num_features = edge_attr.shape[-1]
 
     grid = (
         torch.arange(max_num_edges, device=edge_index.device)
@@ -24,11 +23,10 @@ def collate(x, edge_index, edge_attr):
 
     grid = (
         torch.arange(max_num_edges, device=edge_attr.device)
-        .repeat(b, num_features, 1)
-        .transpose(-2, -1)
+        .repeat(b, 1)
     )
-    mask = grid < num_edges.reshape(b, 1, 1)
-    edge_attr = edge_attr[mask].reshape(-1, num_features)
+    mask = grid < num_edges.reshape(b, 1)
+    edge_attr = edge_attr[mask]
 
     return x, edge_index, edge_attr
 

@@ -40,7 +40,7 @@ def main(log_name, run_id):
         device=device,
     )
     actor_critic.to(device)
-    actor_critic.load_state_dict(torch.load(path)[0])
+    # actor_critic.load_state_dict(torch.load(path)[0])
     actor_critic.eval()
 
     obs = env.reset()

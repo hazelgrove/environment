@@ -75,3 +75,25 @@ def batch_unflatten(space: gym.Space, x: np.ndarray):
         unflattened_vecs.append(vec)
 
     return unflattened_vecs
+
+def unpad_edge(edge_index, edge_attr):
+    b, max_num_edges = edge_attr.shape
+    num_edges = torch.count_nonzero(edge_index + 1, dim=2)[:, 0]
+    
+    edge_index = edge_index.transpose(-2, -1)
+    grid = (
+        torch.arange(max_num_edges, device=edge_index.device)
+        .repeat(b, 2, 1)
+        .transpose(-2, -1)
+    )
+    mask = grid < num_edges.reshape(b, 1, 1)
+    edge_index = edge_index[mask].reshape(-1, 2).transpose(-2, -1)
+
+    grid = (
+        torch.arange(max_num_edges, device=edge_attr.device)
+        .repeat(b, 1)
+    )
+    mask = grid < num_edges.reshape(b, 1)
+    edge_attr = edge_attr[mask]
+
+    return edge_index, edge_attr
