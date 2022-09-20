@@ -1,14 +1,12 @@
 from typing import List, Optional
 
-import ipdb
 import numpy as np
 import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
-from torch_geometric.data import Batch, Data
 
 from agent.batch import collate, separate
-from agent.utils import init, unpad_edge
+from agent.utils import init
 
 
 class Flatten(nn.Module):
@@ -294,10 +292,6 @@ class GNNBase(NNBase):
         starter = inputs["starter"]
         assignment = inputs["assignment"]
         
-        x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
-        edge_index = torch.concat((edge_index, edge_index.flip(0)), dim=1)
-        edge_attr = torch.concat((edge_attr, edge_attr + 4), dim=0)
-
         x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
         edge_index = torch.concat((edge_index, edge_index.flip(0)), dim=1)
         edge_attr = torch.concat((edge_attr, edge_attr + 4), dim=0)

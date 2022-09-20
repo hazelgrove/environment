@@ -18,7 +18,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnvWrapper
 from stable_baselines3.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
-from agent.wrapper import FlattenObservation, RenderWrapper
+from agent.wrapper import FlattenObservation
 from envs.ast_env import ASTEnv
 
 try:

@@ -1,7 +1,4 @@
-import copy
-from collections import defaultdict
 from dataclasses import asdict, astuple
-from typing import List
 
 import gym
 import numpy as np
