@@ -11,8 +11,8 @@ save_interval: 100
 num_env_steps: 5.0e+6
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 1
-  perturbation: 1
+  max_episode_steps: 5
+  perturbation: 5
 base: 
   hidden_size: 32
   gnn_layer_size: [128, 64, 64]

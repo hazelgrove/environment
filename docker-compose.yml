@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:alpine
+  rank-counter:
+    image: redis:alpine
+    depends_on:
+      - redis
+    command:
+      - redis-cli
+      - -h
+      - redis
+      - set
+      - rank-counter
+      - ${REPLICAS}
+  sweep:
+    build: .
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    volumes:
+      - .:/config
+    entrypoint:
+      - create-sweep
+      - --name=${NAME}
+      - --method=${SWEEP_METHOD}
+      - --remaining-runs=${MAX_RUNS}
+      - redis
+  run:
+    build: .
+    depends_on:
+      - rank-counter
+      - sweep
+    env_file:
+      - .env
+    entrypoint:
+      - execute-sweep
+      - --graphql-endpoint=${GRAPHQL_ENDPOINT}
+      - --command=python ${SCRIPT} log sweep --sweep-id
+    volumes:
+      - "${PWD}/logs:/tmp/logs"
+      - "${PWD}/completions:/root/completions"
+    deploy:
+      replicas: ${REPLICAS}
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]

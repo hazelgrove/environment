@@ -118,9 +118,9 @@ let load_starter_code_c (assignment : int) (index : int) (n : int) : string =
   Var.reset ();
   Id.reset ();
   let e = Utils.load_starter_code "data/random_action" assignment index in
+  Expr.add_vars (Expr.unzip e);
   (* Randomly change code by n steps *)
   let e = Generator.generate e n in
-  Expr.add_vars (Expr.unzip e);
   Utils.serialize e
 
 (* For debugging use *)
