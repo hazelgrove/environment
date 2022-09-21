@@ -23,7 +23,7 @@ type binop =
 (* Expression with metadata *)
 type node =
   | EVar of Var.t
-  | EConst of Const
+  | EConst of Const.t
   | EUnOp of unop * t
   | EBinOp of t * binop * t
   | ELet of Var.t * t * t
@@ -74,8 +74,8 @@ type z_node =
   | EPair_L of z_t * t
   | EPair_R of t * z_t
   | EMatch_L of z_t * ((Pattern.t * t) list)
-  | EMatch_C of t * ((Pattern.z_t * t, Pattern.t * t) zlist)
-  | EMatch_R of t * ((Pattern.t * z_t, Pattern.t * t) zlist)
+  | EMatch_C of t * ((Pattern.z_t * t, Pattern.t * t) Zlist.t)
+  | EMatch_R of t * ((Pattern.t * z_t, Pattern.t * t) Zlist.t)
 
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
@@ -252,9 +252,23 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
   | EPair_R (sub1, zsub1), EPair_R (sub2, zsub2) ->
       equal sub1 sub2 && z_equal zsub1 zsub2
   | EMatch_L (zsub1, rules1), EMatch_L (zsub2, rules2) ->
-      z_equal zsub1 zsub2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && z_equal e1 e2) rules1 rules2
+      z_equal zsub1 zsub2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && equal e1 e2) rules1 rules2
   | EMatch_C (sub1, rules1), EMatch_C (sub2, rules2) ->
-      equal sub1 sub2 && zlist.equal 
+      let f_z (zp1, e1) (zp2, e2) = 
+        Pattern.z_equal zp1 zp2 && equal e1 e2
+      in
+      let f_a ((p1, e1) : Pattern.t * t) ((p2, e2) : Pattern.t * t) = 
+        Pattern.equal p1 p2 && equal e1 e2
+      in
+      equal sub1 sub2 && Zlist.equal f_z f_a rules1 rules2
+  | EMatch_R (sub1, rules1), EMatch_R (sub2, rules2) ->
+      let f_z (p1, ze1) (p2, ze2) = 
+        Pattern.equal p1 p2 && z_equal ze1 ze2
+      in
+      let f_a ((p1, e1) : Pattern.t * t) ((p2, e2) : Pattern.t * t) = 
+        Pattern.equal p1 p2 && equal e1 e2
+      in
+      equal sub1 sub2 && Zlist.equal f_z f_a rules1 rules2
   | _ -> false
 
 let rec unzip (tree : z_t) : t =
@@ -278,6 +292,20 @@ let rec unzip (tree : z_t) : t =
         EFun (var_n, Type.unzip var_t, child) (*unzip child type*)
     | EFix_R (var_n, var_t, child) -> EFix (var_n, var_t, unzip child)
     | EFix_L (var_n, var_t, child) -> EFix (var_n, Type.unzip var_t, child)
+    | EMatch_L (e, rules) ->
+        EMatch (unzip e, rules)
+    | EMatch_C (e, rules) ->
+        let f = 
+          fun (p, e) -> 
+            (Pattern.unzip p, e)
+        in
+        EMatch (e, Zlist.map f rules)
+    | EMatch_R (e, rules) ->
+        let f = 
+          fun (p, e) -> 
+            (p, unzip e)
+        in
+        EMatch (e, Zlist.map f rules)
   in
   { id = tree.id; node; starter = tree.starter }
 (*unzip child type*)
@@ -301,6 +329,17 @@ let rec add_vars (e : t) : unit =
       Var.used_vars.(x) <- true;
       Var.num_vars := !Var.num_vars + 1;
       add_vars child
+  | EMatch (e, rules) ->
+      add_vars e;
+      let add_vars_rule ((p, e) : Pattern.t * t) = 
+          match p with
+          | PVar x -> 
+              Var.used_vars.(x) <- true;
+              Var.num_vars := !Var.num_vars + 1;
+              add_vars e
+          | _ -> add_vars e
+      in
+      List.iter add_vars_rule rules
   | _ -> ()
 
 (* Each edge is represented as (index of start node, index of end node, edge type) *)

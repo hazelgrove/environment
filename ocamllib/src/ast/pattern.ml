@@ -1,5 +1,3 @@
-open Sexplib.Std
-
 type t = 
   | PConst of Const.t
   | PVar of Var.t
@@ -8,6 +6,7 @@ type t =
 
 type z_t = 
   | Cursor of t
+[@@deriving sexp]
 
 let equal (p1 : t) (p2 : t) = 
     match p1, p2 with
@@ -19,4 +18,7 @@ let equal (p1 : t) (p2 : t) =
 let z_equal (p1 : z_t) (p2 : z_t) = 
     match p1, p2 with
     | Cursor p1, Cursor p2 -> equal p1 p2
-    | _ -> false
+
+let unzip (zp : z_t) : t = 
+    match zp with
+    | Cursor p -> p
