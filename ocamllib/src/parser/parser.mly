@@ -14,9 +14,8 @@
 
 %{ 
     open Expr
-    open Type
 %}
-%start <Expr.t> main
+%start <Expr.p_t> main
 
 %%
 
@@ -31,133 +30,133 @@ expr:
     { 
     let ebody = 
         match e2 with
-        | None -> Expr.make_node EHole
+        | None -> Expr.Hole
         | Some e -> e
     in
-    Expr.make_node (ELet (x, e1, ebody))
+    Expr.Let (x, e1, ebody)
     }
 | LET x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
             | [] -> raise (Failure "Incorrect syntax")
-            | [(a, ty)] -> Expr.make_node (EFun(a, ty, e))
-            | (a, ty) :: tl -> Expr.make_node (EFun(a, ty, resolve_fun tl e))
+            | [(a, ty)] -> Expr.Fun(a, ty, e)
+            | (a, ty) :: tl -> Expr.Fun(a, ty, resolve_fun tl e)
     in
     let ebody = 
         match e2 with
-        | None -> Expr.make_node EHole
+        | None -> Expr.Hole
         | Some e -> e
     in
-    Expr.make_node (ELet (x, resolve_fun args e1, ebody))
+    Expr.Let (x, resolve_fun args e1, ebody)
     }
 | LET REC x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
             | [] -> raise (Failure "Incorrect syntax")
-            | [(a, ty)] -> Expr.make_node (EFun(a, ty, e))
-            | (a, ty) :: tl -> Expr.make_node (EFun(a, ty, resolve_fun tl e))
+            | [(a, ty)] -> Expr.Fun(a, ty, e)
+            | (a, ty) :: tl -> Expr.Fun(a, ty, resolve_fun tl e)
     in
     let ebody = 
         match e2 with
-        | None -> Expr.make_node EHole
+        | None -> Expr.Hole
         | Some e -> e
     in
-    Expr.make_node (ELet (x, Expr.make_node (EFix (x, Type.make_node THole, resolve_fun args e1)), ebody))    
+    Expr.Let (x, Fix (x, Type.Hole, resolve_fun args e1), ebody)
     }
 | IF econd = expr THEN ethen = expr ELSE eelse = expr 
     {
-    Expr.make_node (EIf (econd, ethen, eelse))
+    Expr.If (econd, ethen, eelse)
     }   
 | FUN x = arg RIGHTARROW e = expr
     {
     let (a, ty) = x in
-    Expr.make_node (EFun (a, ty, e))
+    Expr.Fun (a, ty, e)
     }
 | LBRAC es = separated_list(SEMI, expr) RBRAC
     { let rec resolve_list es =
         match es with
-            | hd :: [] -> Expr.make_node (EBinOp(hd, OpCons, Expr.make_node (EConst Nil)))
-            | hd :: tl -> Expr.make_node (EBinOp(hd, OpCons, resolve_list tl))
+            | hd :: [] -> Expr.BinOp(hd, OpCons, Expr.Const Nil)
+            | hd :: tl -> Expr.BinOp(hd, OpCons, resolve_list tl)
             | _ -> raise (Failure "Incorrect syntax")
     in
     resolve_list es
     }
 | MATCH escrut = expr WITH rules = rule+
     {
-        Expr.make_node (EMatch (escrut, rules))
+        Expr.Match (escrut, rules)
     }
 
 boolean: 
 | e = lst 
     { e }
 | e1 = lst LT e2 = lst
-    { Expr.make_node (EBinOp (e1, OpLt, e2)) }
+    { Expr.BinOp (e1, OpLt, e2) }
 | e1 = lst LE e2 = lst
-    { Expr.make_node (EBinOp (e1, OpLe, e2)) }
+    { Expr.BinOp (e1, OpLe, e2) }
 | e1 = lst GT e2 = lst
-    { Expr.make_node (EBinOp (e1, OpGt, e2)) }
+    { Expr.BinOp (e1, OpGt, e2) }
 | e1 = lst GE e2 = lst
-    { Expr.make_node (EBinOp (e1, OpGe, e2)) }
+    { Expr.BinOp (e1, OpGe, e2) }
 | e1 = lst EQ e2 = lst
-    { Expr.make_node (EBinOp (e1, OpEq, e2)) }
+    { Expr.BinOp (e1, OpEq, e2) }
 | e1 = lst NE e2 = lst
-    { Expr.make_node (EBinOp (e1, OpNe, e2)) }
+    { Expr.BinOp (e1, OpNe, e2) }
 
 lst:
 | e = arith
     { e }
 | e1 = arith CON e2 = lst
-    { Expr.make_node (EBinOp (e1, OpCons, e2)) }
+    { Expr.BinOp (e1, OpCons, e2) }
 
 arith:
 | e = factor
     { e }
 | e1 = arith PLUS e2 = factor
-    { Expr.make_node (EBinOp (e1, OpPlus, e2)) }
+    { Expr.BinOp (e1, OpPlus, e2) }
 | e1 = arith MINUS e2 = factor
-    { Expr.make_node (EBinOp (e1, OpMinus, e2)) }
+    { Expr.BinOp (e1, OpMinus, e2) }
 
 factor:
 | e = app
     { e }
 | e1 = factor TIMES e2 = app
-    { Expr.make_node (EBinOp (e1, OpTimes, e2)) }
+    { Expr.BinOp (e1, OpTimes, e2) }
 | e1 = factor DIV e2 = app
-    { Expr.make_node (EBinOp (e1, OpDiv, e2)) }
+    { Expr.BinOp (e1, OpDiv, e2) }
 
 app:
 | e = simple
     { e }
 | e1 = app e2 = simple
-    { Expr.make_node (EBinOp (e1, OpAp, e2))}
+    { Expr.BinOp (e1, OpAp, e2) }
 | MINUS e = simple
-    { Expr.make_node (EUnOp (OpNeg, e)) }
+    { Expr.UnOp (OpNeg, e) }
 
 simple: 
 | x = ID
-    { Expr.make_node (EVar x) }
+    { Expr.Var x }
 | TRUE
-    { Expr.make_node (EConst (Bool true)) }
+    { Expr.Const (Bool true) }
 | FALSE
-    { Expr.make_node (EConst (Bool false)) }
+    { Expr.Const (Bool false) }
 | n = INT
-    { Expr.make_node (EConst (Int n)) }
+    { Expr.Const (Int n) }
 | LBRAC RBRAC
-    { Expr.make_node (EConst Nil) }
+    { Expr.Const Nil }
 | LPAREN e = expr RPAREN
     { e }
 | LPAREN e1 = expr COMMA e2 = expr RPAREN
-    { Expr.make_node (EPair (e1, e2)) }
+    { Expr.Pair (e1, e2) }
 
 arg: 
 | x = ID
-    { (x, Type.make_node THole) }
+    { (x, Type.Hole) }
 | LPAREN x = ID t = tyann RPAREN
     { (x, t) }
 | LPAREN x = ID RPAREN
-    { (x, Type.make_node THole) }
+    { (x, Type.Hole) }
 
 rule:
 | BAR p = pattern RIGHTARROW e = expr
@@ -165,17 +164,17 @@ rule:
 
 pattern:
 | x = ID
-    { PVar x }
+    { Pattern.Var x }
 | TRUE
-    { PConst (Bool true) }
+    { Pattern.Const (Bool true) }
 | FALSE
-    { PConst (Bool false) }
+    { Pattern.Const (Bool false) }
 | n = INT
-    { PConst (Int n) }
+    { Pattern.Const (Int n) }
 | LBRAC RBRAC
-    { PConst Nil }
+    { Pattern.Const Nil }
 | WILD
-    { PWild }
+    { Pattern.Wild }
 
 tyann: 
 | OFTYPE t = ty 
@@ -185,19 +184,19 @@ ty:
 | t = ty_prod
     { t }
 | t1 = ty_prod RIGHTARROW t2 = ty
-    { Type.make_node (TArrow (t1, t2)) }
+    { Type.Arrow (t1, t2) }
 
 ty_prod:
 | t = base_ty
     { t }
 | t1 = base_ty TIMES t2 = ty_prod
-    { Type.make_node (TProd (t1, t2)) }
+    { Type.Prod (t1, t2) }
 
 base_ty:
 | TINT
-    { Type.make_node TInt }
+    { Type.Int }
 | TBOOL
-    { Type.make_node TBool }
+    { Type.Bool }
 | LPAREN t = ty RPAREN
     { t }
 

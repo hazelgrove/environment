@@ -53,7 +53,7 @@ type p_t =
   | Fix of Var.t * Type.p_t * p_t
   | Pair of p_t * p_t
   | Hole
-  | Match of p_t * ((Pattern.t * p_t) list)
+  | Match of p_t * ((Pattern.p_t * p_t) list)
 [@@deriving sexp]
 
 (* Zippered Expressions *)
@@ -115,7 +115,7 @@ let rec strip (e : t) : p_t =
   | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
-  | EMatch (e, rules) -> Match (strip e, List.map (fun (p, e) -> (p, strip e)) rules)
+  | EMatch (e, rules) -> Match (strip e, List.map (fun (p, e) -> (Pattern.strip p, strip e)) rules)
 
 let rec add_metadata (e : p_t) : t =
   match e with
@@ -131,7 +131,7 @@ let rec add_metadata (e : p_t) : t =
   | Fix (x, t, e) -> make_node (EFix (x, Type.add_metadata t, add_metadata e))
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
   | Hole -> make_node EHole
-  | Match (e, rules) -> make_node (EMatch (add_metadata e, List.map (fun (p, e) -> (p, add_metadata e)) rules))
+  | Match (e, rules) -> make_node (EMatch (add_metadata e, List.map (fun (p, e) -> (Pattern.add_metadata p, add_metadata e)) rules))
 
 (*
     Return the size of the AST
@@ -332,7 +332,7 @@ let rec add_vars (e : t) : unit =
   | EMatch (e, rules) ->
       add_vars e;
       let add_vars_rule ((p, e) : Pattern.t * t) = 
-          match p with
+          match p.node with
           | PVar x -> 
               Var.used_vars.(x) <- true;
               Var.num_vars := !Var.num_vars + 1;

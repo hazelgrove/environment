@@ -52,6 +52,8 @@ let rec to_string (e : p_t) : string =
         "(fun (" ^ Var.to_string x ^ " : " ^ TypeConv.to_string ty ^ ") -> "
         ^ to_string e ^ ") "
   | Pair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
+  | Match (e, cases) ->
+      "(match " ^ to_string e ^ " with " ^ resolve_cases cases ^ ") "
   | Hole -> "<HOLE> "
 
 and resolve_fun (e : p_t) : string =
@@ -63,6 +65,9 @@ and resolve_fun (e : p_t) : string =
         " (" ^ Var.to_string x ^ " : " ^ TypeConv.to_string ty ^ ") "
         ^ resolve_fun e
   | _ -> " = " ^ to_string e ^ " "
+
+and resolve_case (rules : (Pattern.t * p_t) list) : string =
+
 
 let node_list =
   [

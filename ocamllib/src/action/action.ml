@@ -19,6 +19,9 @@ type shape =
   | Fix
   | Pair_L
   | Pair_R
+  | Match_L
+  | Match_C
+  | Match_R
   | TypInt
   | TypBool
   | TypArrow_L
@@ -28,7 +31,11 @@ type shape =
   | TypProd_L
   | TypProd_R
 
-type dir = Parent | Child of int
+type dir = 
+  | Parent 
+  | Child of int
+  | Next
+  | Prev
 
 (* write a numbered action to inser all of <- *)
 (* Have some sort of default value analog for type t *)

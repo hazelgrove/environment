@@ -7,6 +7,8 @@ let action_list =
     Move (Child 0);
     Move (Child 1);
     Move (Child 2);
+    Move Next;
+    Move Prev;
     Construct Hole;
     Construct Nil;
     Construct (Int (-2));
@@ -50,6 +52,9 @@ let action_list =
     Construct Fix;
     Construct Pair_L;
     Construct Pair_R;
+    Construct Match_L;
+    Construct Match_C;
+    Construct Match_R;
     Construct TypInt;
     Construct TypBool;
     Construct TypArrow_L;
