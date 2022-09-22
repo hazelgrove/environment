@@ -36,6 +36,7 @@ type dir =
   | Child of int
   | Next
   | Prev
+  | Rule
 
 (* write a numbered action to inser all of <- *)
 (* Have some sort of default value analog for type t *)

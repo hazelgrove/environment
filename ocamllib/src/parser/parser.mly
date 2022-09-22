@@ -75,13 +75,8 @@ expr:
     Expr.Fun (a, ty, e)
     }
 | LBRAC es = separated_list(SEMI, expr) RBRAC
-    { let rec resolve_list es =
-        match es with
-            | hd :: [] -> Expr.BinOp(hd, OpCons, Expr.Const Nil)
-            | hd :: tl -> Expr.BinOp(hd, OpCons, resolve_list tl)
-            | _ -> raise (Failure "Incorrect syntax")
-    in
-    resolve_list es
+    { 
+    Expr.List es
     }
 | MATCH escrut = expr WITH rules = rule+
     {
@@ -163,6 +158,10 @@ rule:
     { (p, e) }
 
 pattern:
+| LPAREN p = pattern RPAREN
+    { p }
+| p1 = pattern CON p2 = pattern
+    { Pattern.List (p1, p2) }
 | x = ID
     { Pattern.Var x }
 | TRUE

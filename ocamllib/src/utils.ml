@@ -14,7 +14,7 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
     then (Expr.select_root e, -1)
     else
       match e.node with
-      | EVar _ | EInt _ | EBool _ | EHole | ENil ->
+      | EVar _ | EConst _ | EHole ->
           (Expr.make_dummy_z_node (Expr.Cursor EHole), index - 1)
       | EUnOp (op, e1) ->
           let zast, index = select_root_index_aux e1 (index - 1) in

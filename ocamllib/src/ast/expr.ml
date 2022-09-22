@@ -33,6 +33,7 @@ type node =
   | EPair of t * t
   | EHole
   | EMatch of t * ((Pattern.t * t) list)
+  | EList of t list
 
 and t = {
   id : int; (* An unique ID assigned to each node *)
@@ -54,6 +55,7 @@ type p_t =
   | Pair of p_t * p_t
   | Hole
   | Match of p_t * ((Pattern.p_t * p_t) list)
+  | List of p_t list
 [@@deriving sexp]
 
 (* Zippered Expressions *)
@@ -76,6 +78,7 @@ type z_node =
   | EMatch_L of z_t * ((Pattern.t * t) list)
   | EMatch_C of t * ((Pattern.z_t * t, Pattern.t * t) Zlist.t)
   | EMatch_R of t * ((Pattern.t * z_t, Pattern.t * t) Zlist.t)
+  | EList_L of (z_t, t) Zlist.t
 
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
@@ -89,6 +92,7 @@ type value =
   | VConst of Const.t
   | VFun of Var.t * Type.p_t * p_t
   | VPair of value * value
+  | VList of value list
   | VError
 
 (* Given a pure node, generate a node with an id *)
@@ -116,6 +120,7 @@ let rec strip (e : t) : p_t =
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
   | EMatch (e, rules) -> Match (strip e, List.map (fun (p, e) -> (Pattern.strip p, strip e)) rules)
+  | EList (es) -> List (List.map strip es)
 
 let rec add_metadata (e : p_t) : t =
   match e with
@@ -132,6 +137,7 @@ let rec add_metadata (e : p_t) : t =
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
   | Hole -> make_node EHole
   | Match (e, rules) -> make_node (EMatch (add_metadata e, List.map (fun (p, e) -> (Pattern.add_metadata p, add_metadata e)) rules))
+  | List (es) -> make_node (EList (List.map add_metadata es))
 
 (*
     Return the size of the AST
@@ -150,8 +156,9 @@ let rec size (e : t) : int =
   | EFix (_, ty, ebody) | EFun (_, ty, ebody) ->
       1 + 1 + Type.size ty + size ebody
   | EMatch (e, rules) -> 
-    let f = fun acc -> fun (_, e) -> acc + 1 + size e in
+    let f = fun acc -> fun (p, e) -> acc + Pattern.size p + size e in
     1 + size e + List.fold_left f 0 rules
+  | EList es -> 1 + List.fold_left (fun acc e -> acc + size e) 0 es
 
 let%test_module "Test Expr.size" =
   (module struct
@@ -175,6 +182,7 @@ let rec from_val (v : value) : p_t =
   | VConst c -> Const c
   | VFun (x, typ, e) -> Fun (x, typ, e)
   | VPair (e1, e2) -> Pair (from_val e1, from_val e2)
+  | VList es -> List (List.map from_val es)
   | _ -> raise (Failure "Cannot be changed to expr")
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)
@@ -224,6 +232,7 @@ let rec equal (t1 : t) (t2 : t) : bool =
   | EHole, EHole -> true
   | EMatch (e1, rules1), EMatch (e2, rules2) ->
       equal e1 e2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && equal e1 e2) rules1 rules2
+  | EList es1, EList es2 -> List.equal equal es1 es2
   | _ -> false
 
 let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
@@ -269,6 +278,7 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
         Pattern.equal p1 p2 && equal e1 e2
       in
       equal sub1 sub2 && Zlist.equal f_z f_a rules1 rules2
+  | EList_L zlist1, EList_L zlist2 -> Zlist.equal z_equal equal zlist1 zlist2
   | _ -> false
 
 let rec unzip (tree : z_t) : t =
@@ -306,12 +316,14 @@ let rec unzip (tree : z_t) : t =
             (p, unzip e)
         in
         EMatch (e, Zlist.map f rules)
+    | EList_L zlist -> EList (Zlist.map unzip zlist)
   in
   { id = tree.id; node; starter = tree.starter }
 (*unzip child type*)
 
 let rec add_vars (e : t) : unit =
   match e.node with
+  | EConst _ | EHole | EVar _ -> ()
   | EUnOp (unop, child) -> add_vars child
   | EBinOp (l_child, _, r_child) | EPair (l_child, r_child) ->
       add_vars l_child;
@@ -340,7 +352,7 @@ let rec add_vars (e : t) : unit =
           | _ -> add_vars e
       in
       List.iter add_vars_rule rules
-  | _ -> ()
+  | EList list -> List.iter add_vars list
 
 (* Each edge is represented as (index of start node, index of end node, edge type) *)
 (* let%test_module "Test Expr.unzip" =
