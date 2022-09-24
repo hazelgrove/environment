@@ -1,3 +1,5 @@
+fail_fast: false
+exclude: clib/caml
 repos:
 - repo: https://github.com/arenadotio/pre-commit-ocamlformat
   rev: master

@@ -1,7 +1,7 @@
 import copy
 import ctypes
 import random
-from typing import Any, List, Tuple, TypedDict, TypeVar
+from typing import Any, List, Optional, Tuple, TypedDict, TypeVar
 
 import gym
 import numpy as np
@@ -26,6 +26,7 @@ class ASTEnv(gym.Env):
         max_tree_length: int = 10000,
         max_num_vars: int = 10,
         seed: int = 0,
+        cursor_start_pos: Optional[int] = None,
     ):
         super(ASTEnv, self).__init__()
 
@@ -84,6 +85,7 @@ class ASTEnv(gym.Env):
 
         self.code_per_assignment = code_per_assignment
         self.assignment_dir = assignment_dir
+        self.cursor_start_pos = -1 if cursor_start_pos is None else cursor_start_pos
 
         self.astclib.init_c(ctypes.c_int(seed))
 
@@ -111,6 +113,7 @@ class ASTEnv(gym.Env):
             ctypes.c_int(assignment),
             ctypes.c_int(code),
             ctypes.c_int(self.perturbation),
+            ctypes.c_int(self.cursor_start_pos),
         )
 
         return self.get_state()

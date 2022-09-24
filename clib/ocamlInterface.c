@@ -77,7 +77,7 @@ void load_tests(char *dir, int assignment)
     caml_callback2(*load_tests_closure, dir_val, Val_int(assignment));
 }
 
-void load_starter_code(char *dir, int assignment, int index, int n)
+void load_starter_code(char *dir, int assignment, int index, int n, int cursor)
 {
     static const value *load_starter_code_closure = NULL;
     if (load_starter_code_closure == NULL)
@@ -88,8 +88,8 @@ void load_starter_code(char *dir, int assignment, int index, int n)
     }
 
     value dir_val = caml_alloc_initialized_string(strlen(dir), dir);
-    value args[] = {dir_val, Val_int(assignment), Val_int(index), Val_int(n)};
-    strcpy(curr_state.zast, strdup(String_val(caml_callbackN(*load_starter_code_closure, 4, args))));
+    value args[] = {dir_val, Val_int(assignment), Val_int(index), Val_int(n), Val_int(cursor)};
+    strcpy(curr_state.zast, strdup(String_val(caml_callbackN(*load_starter_code_closure, 5, args))));
 }
 
 void print_code()

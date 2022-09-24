@@ -115,10 +115,11 @@ let load_tests_c (directory : string) (assignment : int) : unit =
 
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (directory : string) (assignment : int) (index : int)
-    (n : int) : string =
+    (n : int) (cursor : int) : string =
   Var.reset ();
   Id.reset ();
-  let e = Utils.load_starter_code directory assignment index in
+  let cursor = if cursor < 0 then None else Some cursor in
+  let e = Utils.load_starter_code directory assignment index cursor in
   Expr.add_vars (Expr.unzip e);
   (* Randomly change code by n steps *)
   let e = Generator.generate e n in

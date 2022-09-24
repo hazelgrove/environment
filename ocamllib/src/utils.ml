@@ -122,8 +122,8 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
    Output:
      - the code for the assignment
 *)
-let load_starter_code (directory : string) (assignment : int) (index : int) :
-    Expr.z_t =
+let load_starter_code (directory : string) (assignment : int) (index : int)
+    (cursor : int option) : Expr.z_t =
   let filename =
     directory ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index
     ^ ".ml"
@@ -140,8 +140,10 @@ let load_starter_code (directory : string) (assignment : int) (index : int) :
           }
         in
         e
-    | _ -> select_root_random e
-    (* | _ -> select_root_index e 0 *)
+    | _ -> (
+        match cursor with
+        | None -> select_root_random e
+        | Some i -> select_root_index e i)
   in
   match e.node with
   | ELet (x, edef, ebody) ->

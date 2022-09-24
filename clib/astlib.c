@@ -44,9 +44,9 @@ Input:
 Mutates:
     - ast
 */
-void init_assignment(State *ast, char *dir, int assignment, int code, int n)
+void init_assignment(State *ast, char *dir, int assignment, int code, int n, int cursor)
 {
-    load_starter_code(dir, assignment, code, n);
+    load_starter_code(dir, assignment, code, n, cursor);
     get_ast();
     load_tests(dir, assignment);
 
