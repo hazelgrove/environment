@@ -670,14 +670,14 @@ let cursor_info_to_actions (info : t) : Action.t list =
       @ construct_arg_aux 0 info.args_in_scope
     in
     let handle_unwrap _ =
-      let rec check_var (e : Expr.t) (x : Var.t) : bool = 
+      let rec check_var (e : Expr.t) (x : Var.t) : bool =
         match e.node with
         | EVar v -> Var.equal x v
         | EHole | ENil | EInt _ | EBool _ -> false
         | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) -> check_var e x
-        | EBinOp (e1, _, e2) | EPair (e1, e2) | ELet (_, e1, e2) -> check_var e1 x || check_var e2 x
-        | EIf (e1, e2, e3) ->
-            check_var e1 x || check_var e2 x || check_var e3 x
+        | EBinOp (e1, _, e2) | EPair (e1, e2) | ELet (_, e1, e2) ->
+            check_var e1 x || check_var e2 x
+        | EIf (e1, e2, e3) -> check_var e1 x || check_var e2 x || check_var e3 x
       in
       match info.current_term with
       | ENode e -> (
@@ -723,7 +723,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
               let def_consistent = Type.consistent exp_ty t_def in
               let body_consistent = Type.consistent exp_ty t_body in
               let check_var = check_var ebody x in
-              if not check_var then
+              if not check_var
+              then
                 if def_consistent && body_consistent
                 then [ Unwrap 0; Unwrap 1 ]
                 else if def_consistent
@@ -731,8 +732,9 @@ let cursor_info_to_actions (info : t) : Action.t list =
                 else if body_consistent
                 then [ Unwrap 1 ]
                 else []
-              else
-                if def_consistent then [ Unwrap 0 ] else []
+              else if def_consistent
+              then [ Unwrap 0 ]
+              else []
           | EIf (econd, ethen, eelse) ->
               let t_cond =
                 match Typing.synthesis info.typ_ctx econd with
@@ -763,7 +765,9 @@ let cursor_info_to_actions (info : t) : Action.t list =
                 | Some t -> t
                 | None -> raise (TypeError "Invalid type")
               in
-              if (Type.consistent exp_ty t) && (not check_var) then [ Unwrap 1 ] else [])
+              if Type.consistent exp_ty t && not check_var
+              then [ Unwrap 1 ]
+              else [])
       | TNode _ -> []
     in
     let remaining_nodes = max_num_nodes - info.num_nodes in

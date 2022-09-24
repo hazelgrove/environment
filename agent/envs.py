@@ -123,9 +123,7 @@ class Env:
 
 class PLEnv(Env):
     @staticmethod
-    def make_env(
-        seed, rank, max_episode_steps, perturbation, render=False, render_mode=None
-    ):
+    def make_env(seed, rank, max_episode_steps, perturbation, assignment_dir):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
@@ -136,6 +134,7 @@ class PLEnv(Env):
                 num_actions=58,
                 perturbation=perturbation,
                 seed=seed,
+                assignment_dir=assignment_dir,
             )
             env.seed(seed + rank)
 
@@ -155,16 +154,14 @@ class PLEnv(Env):
         device,
         max_episode_steps,
         perturbation,
+        assignment_dir,
         render=False,
-        render_mode=None,
     ):
         if render and num_processes > 1:
             raise ValueError("Rendering is not supported for multiple processes")
 
         envs = [
-            PLEnv.make_env(
-                seed, i, max_episode_steps, perturbation, render, render_mode
-            )
+            PLEnv.make_env(seed, i, max_episode_steps, perturbation, assignment_dir)
             for i in range(num_processes)
         ]
 

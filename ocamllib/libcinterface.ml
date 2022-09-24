@@ -109,15 +109,16 @@ let run_unit_tests_c (root : int) : bool =
   Evaluator.run_unit_tests tests e
 
 (* load_assignment function that will be called by C *)
-let load_tests_c (assignment : int) : unit =
-  let unit_tests = Utils.load_tests "data/random_action" assignment in
+let load_tests_c (directory : string) (assignment : int) : unit =
+  let unit_tests = Utils.load_tests directory assignment in
   pass_unit_tests (list_to_array2 unit_tests)
 
 (* load_assignment function that will be called by C *)
-let load_starter_code_c (assignment : int) (index : int) (n : int) : string =
+let load_starter_code_c (directory : string) (assignment : int) (index : int)
+    (n : int) : string =
   Var.reset ();
   Id.reset ();
-  let e = Utils.load_starter_code "data/random_action" assignment index in
+  let e = Utils.load_starter_code directory assignment index in
   Expr.add_vars (Expr.unzip e);
   (* Randomly change code by n steps *)
   let e = Generator.generate e n in

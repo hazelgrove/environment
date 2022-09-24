@@ -20,6 +20,7 @@ class ASTEnv(gym.Env):
         num_assignments: int,
         code_per_assignment: List[int],
         num_actions: int,
+        assignment_dir: str,
         perturbation: int = 0,
         max_num_tests: int = 10,
         max_tree_length: int = 10000,
@@ -82,6 +83,7 @@ class ASTEnv(gym.Env):
         self.state = None
 
         self.code_per_assignment = code_per_assignment
+        self.assignment_dir = assignment_dir
 
         self.astclib.init_c(ctypes.c_int(seed))
 
@@ -105,15 +107,11 @@ class ASTEnv(gym.Env):
         self.state = State()
         self.astclib.init_assignment(
             ctypes.byref(self.state),
+            bytes(self.assignment_dir, encoding="utf8"),
             ctypes.c_int(assignment),
             ctypes.c_int(code),
             ctypes.c_int(self.perturbation),
         )
-
-        # TODO: Currently hardcodes reset to correct cursor position
-        # self.step(2)
-        # self.step(2)
-        # self.step(1)
 
         return self.get_state()
 

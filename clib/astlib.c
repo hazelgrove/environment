@@ -44,11 +44,11 @@ Input:
 Mutates:
     - ast
 */
-void init_assignment(State *ast, int assignment, int code, int n)
+void init_assignment(State *ast, char *dir, int assignment, int code, int n)
 {
-    load_starter_code(assignment, code, n);
+    load_starter_code(dir, assignment, code, n);
     get_ast();
-    load_tests(assignment);
+    load_tests(dir, assignment);
 
     curr_state.assignment = assignment;
     curr_state.code = code;

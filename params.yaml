@@ -13,6 +13,7 @@ use_linear_lr_decay: True
 env: 
   max_episode_steps: 5
   perturbation: 5
+  assignment_dir: data/random_action
 base: 
   hidden_size: 32
   gnn_layer_size: [128, 64, 64]
