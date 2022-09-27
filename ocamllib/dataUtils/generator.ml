@@ -11,9 +11,26 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
         | Hole, Hole, Hole -> 0
         | _, Hole, Hole | Hole, _, Hole | Hole, Hole, _ -> 1
         | Hole, _, _ | _, Hole, _ | _, _, Hole -> 2
-        | _, _, _ -> 3)
+        | _ -> 3)
     | Fun (_, _, e) | Fix (_, _, e) | UnOp (_, e) -> (
         match e with Hole -> 0 | _ -> 1)
+  in
+  let check_child (e : Expr.t) (n : int) : bool = 
+    let e = Expr.strip e in
+    match e with
+    | IntLit _ | BoolLit _ | Hole | Nil | Var _ -> false (* Impossible to do unwrap on these *)
+    | UnOp _ | Fun _ | Fix _ -> n = 1 (* No subtree to erase if we dont consider types *)
+    | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2) -> (
+        match n with
+        | 0 -> (match e2 with Hole -> true | _ -> false)
+        | 1 -> (match e1 with Hole -> true | _ -> false)
+        | _ -> false)
+    | If (e1, e2, e3) -> (
+        match n with
+        | 0 -> (match (e2, e3) with Hole, Hole -> true | _ -> false)
+        | 1 -> (match (e1, e3) with Hole, Hole -> true | _ -> false)
+        | 2 -> (match (e1, e2) with Hole, Hole -> true | _ -> false)
+        | _ -> false)
   in
 
   if n = 0
@@ -24,6 +41,7 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
 
     let action = Random.int (List.length permitted_actions) in
     let action = List.nth permitted_actions action in
+    print_endline (ActionConv.to_string action);
 
     match action with
     | Construct Hole
@@ -39,11 +57,11 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
             then generate (Environment.Agent.perform_action e action) (n - 1)
             else generate e n
         | TNode t -> raise (Failure "Invalid action"))
-    | Unwrap _ -> (
+    | Unwrap x -> (
         match cursor_info.current_term with
         | ENode e' ->
             (* Forbid actions from erasing subtrees *)
-            if num_child e' <= 1
+            if check_child e' x
             then generate (Environment.Agent.perform_action e action) (n - 1)
             else generate e n
         | TNode t -> raise (Failure "Invalid action"))
