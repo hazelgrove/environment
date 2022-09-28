@@ -28,6 +28,7 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
       Let (y, subx e_def, subx_unless (Var.equal x y) e_body)
   | Fix (y, ty, e_body) -> Fix (y, ty, subx_unless (Var.equal x y) e_body)
   | Pair (e_l, e_r) -> Pair (subx e_l, subx e_r)
+  | Assert e -> Assert (subx e)
 
 (*
   Evalutate the expression e
@@ -99,6 +100,11 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
               | _ -> ( = )
             in
             VBool (f (expecting_int v1) (expecting_int v2))
+        | OpAnd | OpOr ->
+            let f =
+              match op with OpAnd -> ( && ) | _ -> ( || )
+            in
+            VBool (f (expecting_bool v1) (expecting_bool v2))
         | OpCons -> raise NotImplemented)
     | If (e_cond, e_then, e_else) ->
         let b = expecting_bool (eval e_cond stack) in
@@ -110,6 +116,9 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
     | Fix (x, ty, e_body) ->
         let unrolled = subst (Fix (x, ty, e_body)) x e_body in
         eval unrolled stack
+    | Assert e -> 
+        let v = eval e stack in
+        if expecting_bool v then VUnit else raise (RuntimeError "Assertion failed")
     | Var _ -> raise (SyntaxError "Variable not bound")
     | Hole -> raise (SyntaxError "Hole in expression")
 

@@ -27,6 +27,7 @@ type shape =
   | TypHole
   | TypProd_L
   | TypProd_R
+  | TypUnit
 
 type dir = Parent | Child of int
 

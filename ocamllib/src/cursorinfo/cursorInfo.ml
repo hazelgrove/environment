@@ -101,6 +101,12 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Int
           ~index:(index + Expr.size e1 + 1)
+    | EBinOp_L (e, (OpAnd | OpOr), _) ->
+        get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Bool ~index:(index + 1)
+    | EBinOp_R (e1, (OpAnd | OpOr), e2) ->
+        get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Bool ~index:(index + Expr.size e1 + 1)
     | EBinOp_L (e1, OpCons, e2) ->
         let exp_ty =
           match synthesis typ_ctx e2 with
@@ -238,6 +244,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
+    | EAssert_L e ->
+        get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Bool ~index:(index + 1)
   in
   match tree with
   | ZENode e ->
@@ -504,6 +513,14 @@ let comp =
     Construct (BinOp_R OpNe);
   ]
 
+let logic = 
+  [
+    Action.Construct (BinOp_L OpAnd);
+    Construct (BinOp_L OpOr);
+    Construct (BinOp_R OpAnd);
+    Construct (BinOp_R OpOr);
+  ]
+
 (* Given the info at the cursor, return a list of possible actions *)
 let cursor_info_to_actions (info : t) : Action.t list =
   let open Action in
@@ -519,7 +536,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       | ENode e -> (
           match e.node with
           | EVar _ | EInt _ | EBool _ | EHole | ENil -> []
-          | EUnOp _ -> [ Move (Child 0) ]
+          | EUnOp _ | EAssert _ -> [ Move (Child 0) ]
           | EBinOp _ | EFun _ | EFix _ | EPair _ ->
               [ Move (Child 0); Move (Child 1) ]
           | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ]
@@ -530,7 +547,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
               | None -> raise (TypeError "Type cannot be inferred")))
       | TNode t -> (
           match t.node with
-          | TInt | TBool | THole -> []
+          | TInt | TBool | THole | TUnit -> []
           | TList _ -> [ Move (Child 0) ]
           | TArrow _ | TProd _ -> [ Move (Child 0); Move (Child 1) ])
     in
@@ -565,15 +582,21 @@ let cursor_info_to_actions (info : t) : Action.t list =
       | _ -> []
     in
     let construct_binop _ =
-      let construct_arith_comp _ =
+      let construct_arith_comp_logic _ =
         match exp_ty with
         | Type.Int -> (
             match actual_ty with Type.Int | Type.Hole -> arith | _ -> [])
         | Type.Bool -> (
-            match actual_ty with Type.Int | Type.Hole -> comp | _ -> [])
+            match actual_ty with 
+            | Type.Int -> comp
+            | Type.Bool -> logic
+            | Type.Hole -> comp @ logic
+            | _ -> [])
         | Type.Hole -> (
             match actual_ty with
-            | Type.Int | Type.Hole -> arith @ comp
+            | Type.Int -> arith @ comp
+            | Type.Bool -> logic
+            | Type.Hole -> arith @ comp @ logic
             | _ -> [])
         | _ -> []
       in
@@ -605,7 +628,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
             | _ -> [ Construct (BinOp_L OpCons) ])
         | _ -> []
       in
-      construct_arith_comp () @ construct_ap () @ construct_cons ()
+      construct_arith_comp_logic () @ construct_ap () @ construct_cons ()
     in
     let construct_let _ =
       if !Var.num_vars < Var.max_num_vars then [ Construct Let_L ] else []
@@ -674,7 +697,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
         match e.node with
         | EVar v -> Var.equal x v
         | EHole | ENil | EInt _ | EBool _ -> false
-        | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) -> check_var e x
+        | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e -> check_var e x
         | EBinOp (e1, _, e2) | EPair (e1, e2) | ELet (_, e1, e2) ->
             check_var e1 x || check_var e2 x
         | EIf (e1, e2, e3) -> check_var e1 x || check_var e2 x || check_var e3 x
@@ -682,7 +705,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       match info.current_term with
       | ENode e -> (
           match e.node with
-          | EHole | ENil | EVar _ | EInt _ | EBool _ -> []
+          | EHole | ENil | EVar _ | EInt _ | EBool _ | EAssert _ -> []
           | EUnOp _ -> [ Unwrap 0 ]
           | EBinOp (e1, _, e2) | EPair (e1, e2) ->
               let t1 =

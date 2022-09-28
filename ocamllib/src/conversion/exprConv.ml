@@ -26,6 +26,8 @@ let rec to_string (e : p_t) : string =
         | OpNe -> "!="
         | OpCons -> "::"
         | OpAp -> " "
+        | OpAnd -> "&&"
+        | OpOr -> "||"
       in
       "(" ^ to_string e1 ^ " " ^ op_string ^ " " ^ to_string e2 ^ ") "
   | If (cond, e1, e2) ->
@@ -51,6 +53,7 @@ let rec to_string (e : p_t) : string =
   | Pair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
   | Hole -> "<HOLE> "
   | Nil -> "[] "
+  | Assert e -> "assert(" ^ to_string e ^ ") "
 
 and resolve_fun (e : p_t) : string =
   match e with
@@ -77,11 +80,14 @@ let node_list =
     EBinOp (make_dummy_node EHole, OpNe, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpCons, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpAp, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpAnd, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpOr, make_dummy_node EHole);
     EIf (make_dummy_node EHole, make_dummy_node EHole, make_dummy_node EHole);
     ELet (Var.undef_var, make_dummy_node EHole, make_dummy_node EHole);
     EFun (Var.undef_var, Type.make_dummy_node THole, make_dummy_node EHole);
     EFix (Var.undef_var, Type.make_dummy_node THole, make_dummy_node EHole);
     EPair (make_dummy_node EHole, make_dummy_node EHole);
+    EAssert (make_dummy_node EHole);
     EHole;
     ENil;
     EBool true;
@@ -106,7 +112,8 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
     | ELet _, ELet _
     | EFun _, EFun _
     | EFix _, EFix _
-    | EPair _, EPair _ ->
+    | EPair _, EPair _ 
+    | EAssert _, EAssert _ ->
         true
     | _ -> false
 
@@ -217,6 +224,9 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
         EPair
           ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
+    | EAssert _ ->
+        let adj_nodes = get_adj_nodes edges root in
+        EAssert (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0))
     | EHole -> EHole
     | ENil -> ENil
   in
@@ -286,6 +296,7 @@ let to_list (e : z_t) : graph =
         let edges = add_edge edges (find_var x vars, root, -1) in
         ((nodes, edges), root, vars)
     | EUnOp (_, e) -> (add_subtree e nodes edges vars root 0, root, vars)
+    | EAssert e -> (add_subtree e nodes edges vars root 0, root, vars) 
     | EBinOp (e1, _, e2) | EPair (e1, e2) ->
         let nodes, edges = add_subtree e1 nodes edges vars root 0 in
         (add_subtree e2 nodes edges vars root 1, root, vars)
@@ -361,7 +372,7 @@ let to_list (e : z_t) : graph =
 let rec get_starter_list (e : Expr.t) : bool list =
   match e.node with
   | EVar _ | EInt _ | EBool _ | EHole | ENil -> [ e.starter ]
-  | EUnOp (_, arg) -> e.starter :: get_starter_list arg
+  | EUnOp (_, arg) | EAssert arg -> e.starter :: get_starter_list arg
   | EBinOp (arg1, _, arg2) | EPair (arg1, arg2) ->
       e.starter :: (get_starter_list arg1 @ get_starter_list arg2)
   | EFun (x, ty, body) | EFix (x, ty, body) ->

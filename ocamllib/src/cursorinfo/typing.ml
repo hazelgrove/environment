@@ -48,6 +48,11 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       if analysis context argl Int && analysis context argr Int
       then Some Bool
       else None
+  | EBinOp (argl, (OpAnd | OpOr), argr) ->
+      (*boolean operations: bool->bool*)
+      if analysis context argl Bool && analysis context argr Bool
+      then Some Bool
+      else None
   | EBinOp (arrow, OpAp, arg) -> (
       match synthesis context arrow with
       | Some (Arrow (in_t, out_t)) ->
@@ -89,6 +94,8 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       else None
   | EHole -> Some Hole
   | ENil -> Some (List Hole)
+  | EAssert e -> 
+      if analysis context e Bool then Some Unit else None
 
 and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
   (* given an epxression and an expected type,

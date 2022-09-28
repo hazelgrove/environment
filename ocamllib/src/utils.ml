@@ -85,6 +85,11 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             if index = -1
             then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EAssert e1 ->
+          let zast, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EAssert_L zast), -1)
+          else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
   in
   if index >= Expr.size e
   then raise (Failure "Index out of bound")
@@ -149,7 +154,7 @@ let load_starter_code (directory : string) (assignment : int) (index : int)
   | ELet (x, edef, ebody) ->
       {
         id = e.id;
-        node = ELet_L (x, find_fun_body edef, ebody);
+        node = ELet_L (x, find_fun_body edef, Expr.set_starter ebody true);
         starter = true;
       }
   | _ -> raise (Failure "Starter code in incorect format")

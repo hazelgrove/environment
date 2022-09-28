@@ -12,14 +12,14 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
         | _, Hole, Hole | Hole, _, Hole | Hole, Hole, _ -> 1
         | Hole, _, _ | _, Hole, _ | _, _, Hole -> 2
         | _ -> 3)
-    | Fun (_, _, e) | Fix (_, _, e) | UnOp (_, e) -> (
+    | Fun (_, _, e) | Fix (_, _, e) | UnOp (_, e) | Assert e -> (
         match e with Hole -> 0 | _ -> 1)
   in
   let check_child (e : Expr.t) (n : int) : bool = 
     let e = Expr.strip e in
     match e with
     | IntLit _ | BoolLit _ | Hole | Nil | Var _ -> false (* Impossible to do unwrap on these *)
-    | UnOp _ | Fun _ | Fix _ -> n = 1 (* No subtree to erase if we dont consider types *)
+    | UnOp _ | Fun _ | Fix _ | Assert _ -> n = 1 (* No subtree to erase if we dont consider types *)
     | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2) -> (
         match n with
         | 0 -> (match e2 with Hole -> true | _ -> false)
@@ -41,7 +41,6 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
 
     let action = Random.int (List.length permitted_actions) in
     let action = List.nth permitted_actions action in
-    print_endline (ActionConv.to_string action);
 
     match action with
     | Construct Hole

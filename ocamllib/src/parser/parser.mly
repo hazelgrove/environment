@@ -10,6 +10,8 @@
 %token CON
 %token LPAREN RPAREN LBRAC RBRAC
 %token EOF
+%token ASSERT
+%token AND, OR
 
 %{ 
     open Expr
@@ -24,7 +26,7 @@ main:
     { e }
 
 expr:
-| e = boolean
+| e = logicor
     { e }
 | LET x = ID  EQ e1 = expr e2 = option(e = scope { e })
     { 
@@ -83,8 +85,22 @@ expr:
     in
     resolve_list es
     }
+| ASSERT LPAREN e = expr RPAREN
+    { Expr.make_node (EAssert e) }
 
-boolean: 
+logicor:
+| e = logicand
+    { e }
+| e = logicor OR e2 = logicand
+    { Expr.make_node (EBinOp(e, OpOr, e2)) }
+
+logicand:
+| e = comp
+    { e }
+| e = logicand AND e2 = comp
+    { Expr.make_node (EBinOp(e, OpAnd, e2)) }
+
+comp: 
 | e = lst 
     { e }
 | e1 = lst LT e2 = lst
