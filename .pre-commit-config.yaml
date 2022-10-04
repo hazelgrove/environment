@@ -6,7 +6,7 @@ repos:
   rev: 0439858f79b3bcb49e757278eb1312e212d7dd4f
   hooks:
     - id: ocamlformat
-      exclude: "^vendor/"
+      exclude: "data/"
 -   repo: https://github.com/asottile/seed-isort-config
     rev: v2.2.0
     hooks:

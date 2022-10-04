@@ -140,7 +140,7 @@ let load_starter_code (directory : string) (assignment : int) (index : int)
         let e : Expr.z_t =
           {
             id = e.id;
-            node = Expr.EFun_R (x, ty, find_fun_body e);
+            node = Expr.EFun_R (x, Type.set_starter ty true, find_fun_body e);
             starter = true;
           }
         in
@@ -150,11 +150,22 @@ let load_starter_code (directory : string) (assignment : int) (index : int)
         | None -> select_root_random e
         | Some i -> select_root_index e i)
   in
-  match e.node with
-  | ELet (x, edef, ebody) ->
-      {
-        id = e.id;
-        node = ELet_L (x, find_fun_body edef, Expr.set_starter ebody true);
-        starter = true;
-      }
-  | _ -> raise (Failure "Starter code in incorect format")
+  let rec find_fun_def (e : Expr.t) : Expr.z_t = 
+    (* Assumes that there will only be lets before the function definition *)
+    match e.node with
+    | ELet (x, edef, ebody) ->
+        if Var.equal x Var.starter_func then
+          {
+            id = e.id;
+            node = ELet_L (Var.starter_func, find_fun_body edef, Expr.set_starter ebody true);
+            starter = true;
+          }
+        else
+          {
+            id = e.id;
+            node = ELet_R (x, Expr.set_starter edef true, find_fun_def ebody);
+            starter = true;
+          }
+    | _ -> raise (IOError "Starter code file in incorrect format.")
+  in
+  find_fun_def e

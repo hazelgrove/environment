@@ -12,6 +12,7 @@
 %token EOF
 %token ASSERT
 %token AND, OR
+%token F
 
 %{ 
     open Expr
@@ -28,7 +29,7 @@ main:
 expr:
 | e = logicor
     { e }
-| LET x = ID  EQ e1 = expr e2 = option(e = scope { e })
+| LET x = identifiers EQ e1 = expr e2 = option(e = scope { e })
     { 
     let ebody = 
         match e2 with
@@ -37,7 +38,7 @@ expr:
     in
     Expr.make_node (ELet (x, e1, ebody))
     }
-| LET x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
+| LET x = identifiers args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
@@ -52,7 +53,7 @@ expr:
     in
     Expr.make_node (ELet (x, resolve_fun args e1, ebody))
     }
-| LET REC x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
+| LET REC x = identifiers args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
@@ -147,7 +148,7 @@ app:
     { Expr.make_node (EUnOp (OpNeg, e)) }
 
 simple: 
-| x = ID
+| x = identifiers
     { Expr.make_node (EVar x) }
 | TRUE
     { Expr.make_node (EBool true) }
@@ -163,11 +164,11 @@ simple:
     { Expr.make_node (EPair (e1, e2)) }
 
 arg: 
-| x = ID
+| x = identifiers
     { (x, Type.make_node THole) }
-| LPAREN x = ID t = tyann RPAREN
+| LPAREN x = identifiers t = tyann RPAREN
     { (x, t) }
-| LPAREN x = ID RPAREN
+| LPAREN x = identifiers RPAREN
     { (x, Type.make_node THole) }
 
 tyann: 
@@ -197,3 +198,9 @@ base_ty:
 scope:
 | IN e = expr 
     { e }
+
+identifiers:
+| x = ID
+    { x }
+| F
+    { Var.starter_func }

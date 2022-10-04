@@ -101,9 +101,7 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
             in
             VBool (f (expecting_int v1) (expecting_int v2))
         | OpAnd | OpOr ->
-            let f =
-              match op with OpAnd -> ( && ) | _ -> ( || )
-            in
+            let f = match op with OpAnd -> ( && ) | _ -> ( || ) in
             VBool (f (expecting_bool v1) (expecting_bool v2))
         | OpCons -> raise NotImplemented)
     | If (e_cond, e_then, e_else) ->
@@ -116,9 +114,11 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
     | Fix (x, ty, e_body) ->
         let unrolled = subst (Fix (x, ty, e_body)) x e_body in
         eval unrolled stack
-    | Assert e -> 
+    | Assert e ->
         let v = eval e stack in
-        if expecting_bool v then VUnit else raise (RuntimeError "Assertion failed")
+        if expecting_bool v
+        then VUnit
+        else raise (RuntimeError "Assertion failed")
     | Var _ -> raise (SyntaxError "Variable not bound")
     | Hole -> raise (SyntaxError "Hole in expression")
 
@@ -174,7 +174,7 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
      true, if code passes all tests
      false, otherwise
 *)
-let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
+(* let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
   let run_test (test : int * int) (code : Expr.t) : bool =
     (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
     match code.node with
@@ -201,7 +201,13 @@ let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
   in
   match test_set with
   | [] -> true
-  | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
+  | hd :: tl -> if run_test hd code then run_unit_tests tl code else false *)
+
+let run_unit_tests (code : Expr.t) : bool =
+  let output = try eval (Expr.strip code) 100 with _ -> VError in
+  match output with
+  | VError -> false
+  | _ -> true
 
 (* let%test_module "Test run_unit_tests" =
    (module struct

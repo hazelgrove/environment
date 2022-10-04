@@ -1,7 +1,7 @@
 import copy
 import ctypes
 import random
-from typing import Any, List, Optional, Tuple, TypedDict, TypeVar
+from typing import Any, List, Optional, Tuple, TypedDict, TypeVar, Union
 
 import gym
 import numpy as np
@@ -27,6 +27,8 @@ class ASTEnv(gym.Env):
         max_num_vars: int = 10,
         seed: int = 0,
         cursor_start_pos: Optional[int] = None,
+        curriculum: Optional[List[int]] = None,
+        curriculum_threshold: Optional[int] = None,
     ):
         super(ASTEnv, self).__init__()
 
@@ -86,6 +88,14 @@ class ASTEnv(gym.Env):
         self.code_per_assignment = code_per_assignment
         self.assignment_dir = assignment_dir
         self.cursor_start_pos = -1 if cursor_start_pos is None else cursor_start_pos
+        
+        self.curriculum = curriculum
+        self.curriculum_threshold = curriculum_threshold
+        if self.curriculum is not None and self.curriculum_threshold is None:
+            raise ValueError("Curriculum threshold must be set if curriculum is set")
+        if self.curriculum_threshold is not None and self.curriculum is None:
+            raise ValueError("Curriculum must be set if curriculum threshold is set")
+        self.curriclum_index = 1
 
         self.astclib.init_c(ctypes.c_int(seed))
 
@@ -103,7 +113,10 @@ class ASTEnv(gym.Env):
         return state, reward, done, {}
 
     def reset(self):
-        assignment = self.observation_space.spaces["assignment"].sample()
+        if self.curriculum is not None:
+            assignment = random.sample(self.curriculum[:self.curriculum_index], 1)[0]
+        else:
+            assignment = self.observation_space.spaces["assignment"].sample()
         code = random.randint(0, self.code_per_assignment[assignment] - 1)
 
         self.state = State()
@@ -124,6 +137,12 @@ class ASTEnv(gym.Env):
 
     def close(self) -> None:
         self.astclib.close_c()
+        
+    def update_curriculum(self, reward: float):
+        if self.curriculum is None:
+            return
+        if reward >= self.curriculum_threshold and self.curriculum_index < len(self.curriculum):
+            self.curriclum_index += 1
 
     # Get Python dictionary for self.state
     def get_state(self):

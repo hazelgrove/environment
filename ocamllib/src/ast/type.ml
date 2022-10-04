@@ -144,11 +144,11 @@ let rec unzip (tree : z_t) : t =
   { id = tree.id; node; starter = tree.starter }
 
 let rec set_starter (typ : t) (b : bool) : t =
-  let new_node = 
+  let new_node =
     match typ.node with
     | TInt | TBool | THole | TUnit -> typ.node
     | TArrow (t1, t2) -> TArrow (set_starter t1 b, set_starter t2 b)
     | TProd (t1, t2) -> TProd (set_starter t1 b, set_starter t2 b)
     | TList t -> TList (set_starter t b)
   in
-  { typ with node = new_node; starter = b;}
+  { typ with node = new_node; starter = b }

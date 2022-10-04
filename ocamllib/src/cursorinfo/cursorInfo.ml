@@ -106,7 +106,8 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~vars ~args ~typ_ctx ~exp_ty:Type.Bool ~index:(index + 1)
     | EBinOp_R (e1, (OpAnd | OpOr), e2) ->
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
-          ~vars ~args ~typ_ctx ~exp_ty:Type.Bool ~index:(index + Expr.size e1 + 1)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Bool
+          ~index:(index + Expr.size e1 + 1)
     | EBinOp_L (e1, OpCons, e2) ->
         let exp_ty =
           match synthesis typ_ctx e2 with
@@ -513,7 +514,7 @@ let comp =
     Construct (BinOp_R OpNe);
   ]
 
-let logic = 
+let logic =
   [
     Action.Construct (BinOp_L OpAnd);
     Construct (BinOp_L OpOr);
@@ -587,7 +588,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
         | Type.Int -> (
             match actual_ty with Type.Int | Type.Hole -> arith | _ -> [])
         | Type.Bool -> (
-            match actual_ty with 
+            match actual_ty with
             | Type.Int -> comp
             | Type.Bool -> logic
             | Type.Hole -> comp @ logic
@@ -697,7 +698,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
         match e.node with
         | EVar v -> Var.equal x v
         | EHole | ENil | EInt _ | EBool _ -> false
-        | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e -> check_var e x
+        | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e ->
+            check_var e x
         | EBinOp (e1, _, e2) | EPair (e1, e2) | ELet (_, e1, e2) ->
             check_var e1 x || check_var e2 x
         | EIf (e1, e2, e3) -> check_var e1 x || check_var e2 x || check_var e3 x

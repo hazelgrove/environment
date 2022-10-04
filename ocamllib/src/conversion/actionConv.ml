@@ -116,44 +116,44 @@ let to_string (action : t) : string =
   | Construct (Int x) -> "Construct Int " ^ string_of_int x
   | Construct (Bool x) -> "Construct Bool " ^ string_of_bool x
   | Construct (UnOp OpNeg) -> "Construct UnOp OpNeg"
-  | Construct (BinOp_L op) -> 
-    let binop = 
-      match op with
-      | OpPlus -> "OpPlus"
-      | OpMinus -> "OpMinus"
-      | OpTimes -> "OpTimes"
-      | OpDiv -> "OpDiv"
-      | OpLt -> "OpLt"
-      | OpLe -> "OpLe"
-      | OpGt -> "OpGt"
-      | OpGe -> "OpGe"
-      | OpEq -> "OpEq"
-      | OpNe -> "OpNe"
-      | OpAp -> "OpAp"
-      | OpCons -> "OpCons"
-      | OpAnd -> "OpAnd"
-      | OpOr -> "OpOr"
-    in
-    "Construct BinOp_L " ^ binop
-  | Construct (BinOp_R op) -> 
-    let binop = 
-      match op with
-      | OpPlus -> "OpPlus"
-      | OpMinus -> "OpMinus"
-      | OpTimes -> "OpTimes"
-      | OpDiv -> "OpDiv"
-      | OpLt -> "OpLt"
-      | OpLe -> "OpLe"
-      | OpGt -> "OpGt"
-      | OpGe -> "OpGe"
-      | OpEq -> "OpEq"
-      | OpNe -> "OpNe"
-      | OpAp -> "OpAp"
-      | OpCons -> "OpCons"
-      | OpAnd -> "OpAnd"
-      | OpOr -> "OpOr"
-    in
-    "Construct BinOp_R " ^ binop
+  | Construct (BinOp_L op) ->
+      let binop =
+        match op with
+        | OpPlus -> "OpPlus"
+        | OpMinus -> "OpMinus"
+        | OpTimes -> "OpTimes"
+        | OpDiv -> "OpDiv"
+        | OpLt -> "OpLt"
+        | OpLe -> "OpLe"
+        | OpGt -> "OpGt"
+        | OpGe -> "OpGe"
+        | OpEq -> "OpEq"
+        | OpNe -> "OpNe"
+        | OpAp -> "OpAp"
+        | OpCons -> "OpCons"
+        | OpAnd -> "OpAnd"
+        | OpOr -> "OpOr"
+      in
+      "Construct BinOp_L " ^ binop
+  | Construct (BinOp_R op) ->
+      let binop =
+        match op with
+        | OpPlus -> "OpPlus"
+        | OpMinus -> "OpMinus"
+        | OpTimes -> "OpTimes"
+        | OpDiv -> "OpDiv"
+        | OpLt -> "OpLt"
+        | OpLe -> "OpLe"
+        | OpGt -> "OpGt"
+        | OpGe -> "OpGe"
+        | OpEq -> "OpEq"
+        | OpNe -> "OpNe"
+        | OpAp -> "OpAp"
+        | OpCons -> "OpCons"
+        | OpAnd -> "OpAnd"
+        | OpOr -> "OpOr"
+      in
+      "Construct BinOp_R " ^ binop
   | Construct Let_L -> "Construct Let_L"
   | Construct Let_R -> "Construct Let_R"
   | Construct If_L -> "Construct If_L"

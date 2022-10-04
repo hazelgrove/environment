@@ -20,7 +20,8 @@ int run_unit_tests()
         if (run_unit_test_closure == NULL)
             exit(1);
     }
-    return Bool_val(caml_callback(*run_unit_test_closure, Val_int(0)));
+    value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
+    return Bool_val(caml_callback(*run_unit_test_closure, ser_zast));
 }
 
 void change_zast(int action)
@@ -61,20 +62,6 @@ void get_cursor_info()
     value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
     int cursor = Int_val(caml_callback(*get_cursor_info_closure, ser_zast));
     curr_state.cursor = cursor;
-}
-
-void load_tests(char *dir, int assignment)
-{
-    static const value *load_tests_closure = NULL;
-    if (load_tests_closure == NULL)
-    {
-        load_tests_closure = caml_named_value("load_tests");
-        if (load_tests_closure == NULL)
-            exit(1);
-    }
-
-    value dir_val = caml_alloc_initialized_string(strlen(dir), dir);
-    caml_callback2(*load_tests_closure, dir_val, Val_int(assignment));
 }
 
 void load_starter_code(char *dir, int assignment, int index, int n, int cursor)

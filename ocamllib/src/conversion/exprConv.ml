@@ -106,13 +106,13 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
   then true
   else
     match (e1, e2) with
-    | EUnOp (op1, _), EUnOp (op2, _) -> op1 = op2
-    | EBinOp (_, op1, _), EBinOp (_, op2, _) -> op1 = op2
+    | EUnOp (op1, _), EUnOp (op2, _) -> Expr.unop_equal op1 op2
+    | EBinOp (_, op1, _), EBinOp (_, op2, _) -> Expr.binop_equal op1 op2
     | EIf _, EIf _
     | ELet _, ELet _
     | EFun _, EFun _
     | EFix _, EFix _
-    | EPair _, EPair _ 
+    | EPair _, EPair _
     | EAssert _, EAssert _ ->
         true
     | _ -> false
@@ -138,7 +138,7 @@ let tag_to_node (tag : int) : t =
     else
       try List.nth node_list tag
       with Failure _ | Invalid_argument _ ->
-        raise (Failure "Invalid node index")
+        raise (Failure ("Invalid node index " ^ string_of_int tag))
   in
   make_node node
 
@@ -296,7 +296,7 @@ let to_list (e : z_t) : graph =
         let edges = add_edge edges (find_var x vars, root, -1) in
         ((nodes, edges), root, vars)
     | EUnOp (_, e) -> (add_subtree e nodes edges vars root 0, root, vars)
-    | EAssert e -> (add_subtree e nodes edges vars root 0, root, vars) 
+    | EAssert e -> (add_subtree e nodes edges vars root 0, root, vars)
     | EBinOp (e1, _, e2) | EPair (e1, e2) ->
         let nodes, edges = add_subtree e1 nodes edges vars root 0 in
         (add_subtree e2 nodes edges vars root 1, root, vars)

@@ -268,9 +268,14 @@ class GNNBase(NNBase):
         )
 
         self.node_embedding = nn.Embedding(
-            num_node_descriptor + max_num_vars + 1, embedding_dim
+            num_embeddings=num_node_descriptor + max_num_vars + 2, 
+            embedding_dim=embedding_dim,
+            padding_idx=-1,
         )
-        self.edge_embedding = nn.Embedding((num_edge_descriptor + 1) * 2, embedding_dim)
+        self.edge_embedding = nn.Embedding(
+            num_embeddings=(num_edge_descriptor + 1) * 2, 
+            embedding_dim=embedding_dim,
+        )
         self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
 
         init_ = lambda m: init(

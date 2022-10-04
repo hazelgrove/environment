@@ -44,6 +44,7 @@ rule read =
   | "int"   { TINT }
   | "bool"  { TBOOL }
   | "assert"{ ASSERT }
+  | "f"     { F }
   | "->"    { RIGHTARROW }
   | id as x { ID (int_of_string (String.sub x 1 (String.length x - 1))) }
   | eof     { EOF }

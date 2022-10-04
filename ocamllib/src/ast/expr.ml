@@ -299,8 +299,9 @@ let rec add_vars (e : t) : unit =
       add_vars l_child;
       add_vars r_child
   | ELet (x, l_child, r_child) ->
-      Var.used_vars.(x) <- true;
-      Var.num_vars := !Var.num_vars + 1;
+      (if x < Var.max_num_vars then
+        Var.used_vars.(x) <- true;
+        Var.num_vars := !Var.num_vars + 1);
       add_vars l_child;
       add_vars r_child
   | EIf (l_child, c_child, r_child) ->
@@ -324,17 +325,21 @@ let rec add_vars (e : t) : unit =
        check (EPair_L (Cursor (EInt 7), EBool false)) EPair (EInt 7, EBool false)
    end) *)
 
-let rec set_starter (e : t) (b : bool) : t = 
-  let new_node = 
+let rec set_starter (e : t) (b : bool) : t =
+  let new_node =
     match e.node with
     | EVar _ | EInt _ | EBool _ | EHole | ENil -> e.node
     | EUnOp (unop, child) -> EUnOp (unop, set_starter child b)
-    | EBinOp (l_child, binop, r_child) -> EBinOp (set_starter l_child b, binop, set_starter r_child b)
-    | ELet (var, l_child, r_child) -> ELet (var, set_starter l_child b, set_starter r_child b)
-    | EIf (l_child, c_child, r_child) -> EIf (set_starter l_child b, set_starter c_child b, set_starter r_child b)
+    | EBinOp (l_child, binop, r_child) ->
+        EBinOp (set_starter l_child b, binop, set_starter r_child b)
+    | ELet (var, l_child, r_child) ->
+        ELet (var, set_starter l_child b, set_starter r_child b)
+    | EIf (l_child, c_child, r_child) ->
+        EIf (set_starter l_child b, set_starter c_child b, set_starter r_child b)
     | EFun (var, typ, child) -> EFun (var, typ, set_starter child b)
     | EFix (var, typ, child) -> EFix (var, typ, set_starter child b)
-    | EPair (l_child, r_child) -> EPair (set_starter l_child b, set_starter r_child b)
+    | EPair (l_child, r_child) ->
+        EPair (set_starter l_child b, set_starter r_child b)
     | EAssert child -> EAssert (set_starter child b)
   in
-  { e with node=new_node; starter=b;}
+  { e with node = new_node; starter = b }

@@ -6,7 +6,10 @@ type t = int [@@deriving sexp]
 let max_num_vars : int = 10
 let num_vars : int ref = ref 0
 let used_vars : bool Array.t = Array.make max_num_vars false
-let undef_var : t = -1
+
+(* Definition of special varaibles *)
+let starter_func : t = max_num_vars
+let undef_var : t = -2
 
 let get_new_var _ : t =
   let new_var =
@@ -31,4 +34,8 @@ let reset _ : unit =
 
 (* Check if two variable identifiers are equal *)
 let equal (x1 : t) (x2 : t) : bool = x1 = x2
-let to_string (var : t) = "x" ^ string_of_int var
+
+let to_string (var : t) =
+  if equal var starter_func then "f" else "x" ^ string_of_int var
+
+let is_normal (var : t) = if var >= max_num_vars || var < 0 then false else true
