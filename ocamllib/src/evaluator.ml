@@ -203,6 +203,35 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
   | [] -> true
   | hd :: tl -> if run_test hd code then run_unit_tests tl code else false *)
 
+let rec run_unit_tests_private (test_set : (int * int) list) (code : Expr.t) : bool =
+  let run_test (test : int * int) (code : Expr.t) : bool =
+    (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
+    match code.node with
+    | ELet (id, f, _) -> (
+        match f.node with
+        | EFun _ | EFix _ -> (
+            let test_input, test_output = test in
+            let output =
+              try
+                eval
+                  (Expr.Let
+                     ( id,
+                       Expr.strip f,
+                       BinOp (Var id, Expr.OpAp, IntLit test_input) ))
+                  100
+              with _ -> VError
+            in
+            match output with
+            | VInt n -> n = test_output
+            | VError -> false
+            | _ -> false)
+        | _ -> false)
+    | _ -> false
+  in
+  match test_set with
+  | [] -> true
+  | hd :: tl -> if run_test hd code then run_unit_tests_private tl code else false
+
 let run_unit_tests (code : Expr.t) : bool =
   let output = try eval (Expr.strip code) 100 with _ -> VError in
   match output with

@@ -24,7 +24,7 @@ class ASTEnv(gym.Env):
         perturbation: int = 0,
         max_num_tests: int = 10,
         max_tree_length: int = 10000,
-        max_num_vars: int = 10,
+        max_num_vars: int = 11,
         seed: int = 0,
         cursor_start_pos: Optional[int] = None,
         curriculum: Optional[List[int]] = None,
@@ -59,7 +59,7 @@ class ASTEnv(gym.Env):
         self.perturbation = perturbation
 
         # Plus one to account for -1
-        node_nvec = (num_node_descriptor + max_num_vars + 1) * np.ones(max_num_nodes)
+        node_nvec = (num_node_descriptor + max_num_vars + 2) * np.ones(max_num_nodes)
         edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes * 3, 3))
         vars_nvec = (max_num_nodes + 1) * np.ones(max_num_vars)
         args_nvec = (max_num_nodes + 1) * np.ones((max_num_vars, 2))

@@ -107,6 +107,18 @@ let run_unit_tests_c (ser_zast : string) : bool =
   let zast = Utils.deserialize ser_zast in
   zast |> Expr.unzip |> Evaluator.run_unit_tests
 
+let run_unit_tests_c2 (root : int) : bool =
+  let tests = array2_to_list (get_unit_tests ()) in
+  let nodes = array1_to_list (get_nodes ()) in
+  let edges = edge_to_list (get_edges ()) in
+  let e = ExprConv.from_list ~nodes ~edges ~root in
+  Evaluator.run_unit_tests_private tests e
+
+(* load_assignment function that will be called by C *)
+let load_tests_c (directory : string) (assignment : int) : unit =
+  let unit_tests = Utils.load_tests directory assignment in
+  pass_unit_tests (list_to_array2 unit_tests)
+
 (* load_assignment function that will be called by C *)
 let load_starter_code_c (directory : string) (assignment : int) (index : int)
     (n : int) (cursor : int) : string =
@@ -136,3 +148,5 @@ let _ = Callback.register "get_cursor_info" get_cursor_info_c
 let _ = Callback.register "load_starter_code" load_starter_code_c
 let _ = Callback.register "print_code" print_code_c
 let _ = Callback.register "init" init_c
+let _ = Callback.register "load_tests" load_tests_c
+

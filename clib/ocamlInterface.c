@@ -22,6 +22,14 @@ int run_unit_tests()
     }
     value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
     return Bool_val(caml_callback(*run_unit_test_closure, ser_zast));
+    // static const value *run_unit_test_closure = NULL;
+    // if (run_unit_test_closure == NULL)
+    // {
+    //     run_unit_test_closure = caml_named_value("run_unit_tests");
+    //     if (run_unit_test_closure == NULL)
+    //         exit(1);
+    // }
+    // return Bool_val(caml_callback(*run_unit_test_closure, Val_int(0)));
 }
 
 void change_zast(int action)
@@ -194,4 +202,18 @@ CAMLprim value get_vars_in_scope(value bigarray)
     for (int i = dim; i < MAX_NUM_VARS; i++)
         curr_state.vars_in_scope[i] = -1;
     return Val_unit;
+}
+
+void load_tests(char *dir, int assignment)
+{
+    static const value *load_tests_closure = NULL;
+    if (load_tests_closure == NULL)
+    {
+        load_tests_closure = caml_named_value("load_tests");
+        if (load_tests_closure == NULL)
+            exit(1);
+    }
+
+    value dir_val = caml_alloc_initialized_string(strlen(dir), dir);
+    caml_callback2(*load_tests_closure, dir_val, Val_int(assignment));
 }

@@ -309,8 +309,9 @@ let rec add_vars (e : t) : unit =
       add_vars c_child;
       add_vars r_child
   | EFun (x, _, child) | EFix (x, _, child) ->
-      Var.used_vars.(x) <- true;
-      Var.num_vars := !Var.num_vars + 1;
+    (if x < Var.max_num_vars then
+        Var.used_vars.(x) <- true;
+        Var.num_vars := !Var.num_vars + 1);
       add_vars child
   | _ -> ()
 

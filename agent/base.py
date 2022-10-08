@@ -192,7 +192,7 @@ class GNNBase(NNBase):
         num_assignments: int = 1,
         embedding_dim: int = 512,
         assignment_aggr: Optional[str] = None,
-        max_num_vars: int = 10,
+        max_num_vars: int = 11,
         device: Optional[torch.device] = None,
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)

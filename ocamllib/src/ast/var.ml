@@ -3,12 +3,12 @@ open Sexplib.Std
 (* Variables *)
 type t = int [@@deriving sexp]
 
-let max_num_vars : int = 10
+let max_num_vars : int = 11
 let num_vars : int ref = ref 0
 let used_vars : bool Array.t = Array.make max_num_vars false
 
 (* Definition of special varaibles *)
-let starter_func : t = max_num_vars
+let starter_func : t = 0
 let undef_var : t = -2
 
 let get_new_var _ : t =

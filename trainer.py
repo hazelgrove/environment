@@ -212,7 +212,7 @@ class Trainer:
                 )
 
             mean_episode_reward = np.mean(episode_rewards)
-            cls.update_curriculum(envs, mean_episode_reward)
+            # cls.update_curriculum(envs, mean_episode_reward)
             
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (

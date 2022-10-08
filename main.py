@@ -112,17 +112,17 @@ if __name__ == "__main__":
     args = get_args()
     print("Python started.")
 
-    # if args.sweep:
-    #     sweep(
-    #         name=args.log_name,
-    #         config_path="params.yaml",
-    #         graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
-    #         save_dir=args.save_dir,
-    #     )
-    # else:
-    #     run(
-    #         name=args.log_name,
-    #         config_path="params.yaml",
-    #         graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
-    #         save_dir=args.save_dir,
-    #     )
+    if args.sweep:
+        sweep(
+            name=args.log_name,
+            config_path="params.yaml",
+            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+            save_dir=args.save_dir,
+        )
+    else:
+        run(
+            name=args.log_name,
+            config_path="params.yaml",
+            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+            save_dir=args.save_dir,
+        )

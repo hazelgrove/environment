@@ -91,5 +91,7 @@ extern void load_starter_code(char *dir, int assignment, int index, int n, int c
 extern void print_code();
 extern void get_cursor_info();
 extern void init(int seed);
+extern void load_tests(char *dir, int assignment);
+
 
 #endif
