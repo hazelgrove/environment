@@ -141,7 +141,7 @@ let print_code_c (root : int) : unit =
 
 let init_c (seed : int) : unit = Random.init seed
 
-let _ = Callback.register "run_unit_tests" run_unit_tests_c
+let _ = Callback.register "run_unit_tests" run_unit_tests_c2
 let _ = Callback.register "change_zast" change_zast_c
 let _ = Callback.register "get_ast" get_ast_c
 let _ = Callback.register "get_cursor_info" get_cursor_info_c
