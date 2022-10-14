@@ -85,9 +85,17 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             if index = -1
             then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EAssert e1 ->
+          let zast, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EAssert_L zast), -1)
+          else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
   in
-  let e, _ = select_root_index_aux e index in
-  e
+  if index >= Expr.size e
+  then raise (Failure "Index out of bound")
+  else
+    let e, _ = select_root_index_aux e index in
+    e
 
 (* Ranodmly select a root of the tree as the cursor position *)
 let select_root_random (e : Expr.t) : Expr.z_t =
@@ -119,8 +127,8 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
    Output:
      - the code for the assignment
 *)
-let load_starter_code (directory : string) (assignment : int) (index : int) :
-    Expr.z_t =
+let load_starter_code (directory : string) (assignment : int) (index : int)
+    (cursor : int option) : Expr.z_t =
   let filename =
     directory ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index
     ^ ".ml"
@@ -132,18 +140,32 @@ let load_starter_code (directory : string) (assignment : int) (index : int) :
         let e : Expr.z_t =
           {
             id = e.id;
-            node = Expr.EFun_R (x, ty, find_fun_body e);
+            node = Expr.EFun_R (x, Type.set_starter ty true, find_fun_body e);
             starter = true;
           }
         in
         e
-    | _ -> select_root_random e
+    | _ -> (
+        match cursor with
+        | None -> select_root_random e
+        | Some i -> select_root_index e i)
   in
-  match e.node with
-  | ELet (x, edef, ebody) ->
-      {
-        id = e.id;
-        node = ELet_L (x, find_fun_body edef, ebody);
-        starter = true;
-      }
-  | _ -> raise (Failure "Starter code in incorect format")
+  let rec find_fun_def (e : Expr.t) : Expr.z_t = 
+    (* Assumes that there will only be lets before the function definition *)
+    match e.node with
+    | ELet (x, edef, ebody) ->
+        if Var.equal x Var.starter_func then
+          {
+            id = e.id;
+            node = ELet_L (Var.starter_func, find_fun_body edef, Expr.set_starter ebody true);
+            starter = true;
+          }
+        else
+          {
+            id = e.id;
+            node = ELet_R (x, Expr.set_starter edef true, find_fun_def ebody);
+            starter = true;
+          }
+    | _ -> raise (IOError "Starter code file in incorrect format.")
+  in
+  find_fun_def e

@@ -31,6 +31,8 @@ let action_list =
     Construct (BinOp_L OpNe);
     Construct (BinOp_L OpAp);
     Construct (BinOp_L OpCons);
+    Construct (BinOp_L OpAnd);
+    Construct (BinOp_L OpOr);
     Construct (BinOp_R OpPlus);
     Construct (BinOp_R OpMinus);
     Construct (BinOp_R OpTimes);
@@ -43,6 +45,8 @@ let action_list =
     Construct (BinOp_R OpNe);
     Construct (BinOp_R OpAp);
     Construct (BinOp_R OpCons);
+    Construct (BinOp_R OpAnd);
+    Construct (BinOp_R OpOr);
     Construct Let_L;
     Construct Let_R;
     Construct If_L;
@@ -63,6 +67,7 @@ let action_list =
     Construct TypProd_R;
     Construct TypList;
     Construct TypHole;
+    Construct TypUnit;
     Unwrap 0;
     Unwrap 1;
     Unwrap 2;
@@ -106,3 +111,72 @@ let to_list (action_list : t list) : bool list =
         to_bool tl bool_list
   in
   Array.to_list (to_bool action_list bool_list)
+
+let to_string (action : t) : string =
+  match action with
+  | Move Parent -> "Move Parent"
+  | Move (Child x) -> "Move Child " ^ string_of_int x
+  | Construct Hole -> "Construct Hole"
+  | Construct Nil -> "Construct Nil"
+  | Construct (Int x) -> "Construct Int " ^ string_of_int x
+  | Construct (Bool x) -> "Construct Bool " ^ string_of_bool x
+  | Construct (UnOp OpNeg) -> "Construct UnOp OpNeg"
+  | Construct (BinOp_L op) ->
+      let binop =
+        match op with
+        | OpPlus -> "OpPlus"
+        | OpMinus -> "OpMinus"
+        | OpTimes -> "OpTimes"
+        | OpDiv -> "OpDiv"
+        | OpLt -> "OpLt"
+        | OpLe -> "OpLe"
+        | OpGt -> "OpGt"
+        | OpGe -> "OpGe"
+        | OpEq -> "OpEq"
+        | OpNe -> "OpNe"
+        | OpAp -> "OpAp"
+        | OpCons -> "OpCons"
+        | OpAnd -> "OpAnd"
+        | OpOr -> "OpOr"
+      in
+      "Construct BinOp_L " ^ binop
+  | Construct (BinOp_R op) ->
+      let binop =
+        match op with
+        | OpPlus -> "OpPlus"
+        | OpMinus -> "OpMinus"
+        | OpTimes -> "OpTimes"
+        | OpDiv -> "OpDiv"
+        | OpLt -> "OpLt"
+        | OpLe -> "OpLe"
+        | OpGt -> "OpGt"
+        | OpGe -> "OpGe"
+        | OpEq -> "OpEq"
+        | OpNe -> "OpNe"
+        | OpAp -> "OpAp"
+        | OpCons -> "OpCons"
+        | OpAnd -> "OpAnd"
+        | OpOr -> "OpOr"
+      in
+      "Construct BinOp_R " ^ binop
+  | Construct Let_L -> "Construct Let_L"
+  | Construct Let_R -> "Construct Let_R"
+  | Construct If_L -> "Construct If_L"
+  | Construct If_C -> "Construct If_C"
+  | Construct If_R -> "Construct If_R"
+  | Construct Fun -> "Construct Fun"
+  | Construct Fix -> "Construct Fix"
+  | Construct Pair_L -> "Construct Pair_L"
+  | Construct Pair_R -> "Construct Pair_R"
+  | Construct TypInt -> "Construct TypInt"
+  | Construct TypBool -> "Construct TypBool"
+  | Construct TypArrow_L -> "Construct TypArrow_L"
+  | Construct TypArrow_R -> "Construct TypArrow_R"
+  | Construct TypProd_L -> "Construct TypProd_L"
+  | Construct TypProd_R -> "Construct TypProd_R"
+  | Construct TypList -> "Construct TypList"
+  | Construct TypHole -> "Construct TypHole"
+  | Construct TypUnit -> "Construct TypUnit"
+  | Construct (Var x) -> "Construct Var " ^ string_of_int x
+  | Construct (Arg x) -> "Construct Arg " ^ string_of_int x
+  | Unwrap x -> "Unwrap " ^ string_of_int x

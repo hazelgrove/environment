@@ -1,5 +1,4 @@
 from dataclasses import asdict, astuple, dataclass
-from functools import singledispatch
 from typing import TypeVar
 
 import gym

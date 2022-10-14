@@ -28,6 +28,7 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
       Let (y, subx e_def, subx_unless (Var.equal x y) e_body)
   | Fix (y, ty, e_body) -> Fix (y, ty, subx_unless (Var.equal x y) e_body)
   | Pair (e_l, e_r) -> Pair (subx e_l, subx e_r)
+  | Assert e -> Assert (subx e)
   | Match (e, rules) -> 
     let sub_rule (pattern : Expr.pattern) (e : Expr.p_t) : (Expr.pattern * Expr.p_t) = 
       match pattern with
@@ -104,6 +105,9 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
               | _ -> ( = )
             in
             VBool (f (expecting_int v1) (expecting_int v2))
+        | OpAnd | OpOr ->
+            let f = match op with OpAnd -> ( && ) | _ -> ( || ) in
+            VBool (f (expecting_bool v1) (expecting_bool v2))
         | OpCons -> raise NotImplemented)
     | If (e_cond, e_then, e_else) ->
         let b = expecting_bool (eval e_cond stack) in
@@ -115,6 +119,11 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
     | Fix (x, ty, e_body) ->
         let unrolled = subst (Fix (x, ty, e_body)) x e_body in
         eval unrolled stack
+    | Assert e ->
+        let v = eval e stack in
+        if expecting_bool v
+        then VUnit
+        else raise (RuntimeError "Assertion failed")
     | Match (e, rules) ->
         let v = eval e stack in
         let rec iter_rules rules =
@@ -183,7 +192,7 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
      true, if code passes all tests
      false, otherwise
 *)
-let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
+(* let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
   let run_test (test : int * int) (code : Expr.t) : bool =
     (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
     match code.node with
@@ -210,7 +219,42 @@ let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
   in
   match test_set with
   | [] -> true
-  | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
+  | hd :: tl -> if run_test hd code then run_unit_tests tl code else false *)
+
+let rec run_unit_tests_private (test_set : (int * int) list) (code : Expr.t) : bool =
+  let run_test (test : int * int) (code : Expr.t) : bool =
+    (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
+    match code.node with
+    | ELet (id, f, _) -> (
+        match f.node with
+        | EFun _ | EFix _ -> (
+            let test_input, test_output = test in
+            let output =
+              try
+                eval
+                  (Expr.Let
+                     ( id,
+                       Expr.strip f,
+                       BinOp (Var id, Expr.OpAp, IntLit test_input) ))
+                  100
+              with _ -> VError
+            in
+            match output with
+            | VInt n -> n = test_output
+            | VError -> false
+            | _ -> false)
+        | _ -> false)
+    | _ -> false
+  in
+  match test_set with
+  | [] -> true
+  | hd :: tl -> if run_test hd code then run_unit_tests_private tl code else false
+
+let run_unit_tests (code : Expr.t) : bool =
+  let output = try eval (Expr.strip code) 100 with _ -> VError in
+  match output with
+  | VError -> false
+  | _ -> true
 
 (* let%test_module "Test run_unit_tests" =
    (module struct

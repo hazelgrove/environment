@@ -17,14 +17,29 @@ import gym
 
 
 def main():
-    action_space = gym.spaces.Discrete(10)
-    observation_space = gym.spaces.Discrete(10)
+    env = ASTEnv(
+                max_num_nodes=100,
+                num_node_descriptor=33,
+                num_assignments=1,
+                code_per_assignment=[2],
+                num_actions=58,
+                assignment_dir="data/random_action",
+            )
+    obs_space = Obs(**env.observation_space.spaces)
+    env = FlattenObservation(env)
     
+    obs = env.reset()
+    inputs = torch.tensor([obs, obs])
     
-    actor_critic = GNNPolicy(observation_space, action_space, num_fixed_actions=10)
-    
-    torch.save(actor_critic, "model.pt")
-    torch.load("model.pt")
+    inputs = Obs(
+            *torch.split(
+                inputs,
+                [get_size(space) for space in astuple(obs_space)],
+                dim=-1,
+            )
+        )
+    base = GNNBase()
+    base(asdict(inputs))
     
 
 if __name__ == "__main__":

@@ -1,7 +1,5 @@
 import argparse
 
-import torch
-
 
 def get_args():
     parser = argparse.ArgumentParser(description="RL")

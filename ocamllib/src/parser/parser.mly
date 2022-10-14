@@ -10,7 +10,13 @@
 %token CON
 %token LPAREN RPAREN LBRAC RBRAC
 %token EOF
+<<<<<<< HEAD
 %token MATCH WITH BAR WILD
+=======
+%token ASSERT
+%token AND, OR
+%token F
+>>>>>>> no_assert
 
 %{ 
     open Expr
@@ -24,9 +30,9 @@ main:
     { e }
 
 expr:
-| e = boolean
+| e = logicor
     { e }
-| LET x = ID  EQ e1 = expr e2 = option(e = scope { e })
+| LET x = identifiers EQ e1 = expr e2 = option(e = scope { e })
     { 
     let ebody = 
         match e2 with
@@ -35,7 +41,7 @@ expr:
     in
     Expr.Let (x, e1, ebody)
     }
-| LET x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
+| LET x = identifiers args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
@@ -50,7 +56,7 @@ expr:
     in
     Expr.Let (x, resolve_fun args e1, ebody)
     }
-| LET REC x = ID args = arg+ EQ e1 = expr; e2 = option(scope)
+| LET REC x = identifiers args = arg+ EQ e1 = expr; e2 = option(scope)
     {
     let rec resolve_fun args e = 
         match args with
@@ -82,8 +88,22 @@ expr:
     {
         Expr.Match (escrut, rules)
     }
+| ASSERT LPAREN e = expr RPAREN
+    { Expr.make_node (EAssert e) }
 
-boolean: 
+logicor:
+| e = logicand
+    { e }
+| e = logicor OR e2 = logicand
+    { Expr.make_node (EBinOp(e, OpOr, e2)) }
+
+logicand:
+| e = comp
+    { e }
+| e = logicand AND e2 = comp
+    { Expr.make_node (EBinOp(e, OpAnd, e2)) }
+
+comp: 
 | e = lst 
     { e }
 | e1 = lst LT e2 = lst
@@ -130,8 +150,13 @@ app:
     { Expr.UnOp (OpNeg, e) }
 
 simple: 
+<<<<<<< HEAD
 | x = ID
     { Expr.Var x }
+=======
+| x = identifiers
+    { Expr.make_node (EVar x) }
+>>>>>>> no_assert
 | TRUE
     { Expr.Const (Bool true) }
 | FALSE
@@ -146,6 +171,7 @@ simple:
     { Expr.Pair (e1, e2) }
 
 arg: 
+<<<<<<< HEAD
 | x = ID
     { (x, Type.Hole) }
 | LPAREN x = ID t = tyann RPAREN
@@ -174,6 +200,14 @@ pattern:
     { Pattern.Const Nil }
 | WILD
     { Pattern.Wild }
+=======
+| x = identifiers
+    { (x, Type.make_node THole) }
+| LPAREN x = identifiers t = tyann RPAREN
+    { (x, t) }
+| LPAREN x = identifiers RPAREN
+    { (x, Type.make_node THole) }
+>>>>>>> no_assert
 
 tyann: 
 | OFTYPE t = ty 
@@ -202,3 +236,9 @@ base_ty:
 scope:
 | IN e = expr 
     { e }
+
+identifiers:
+| x = ID
+    { x }
+| F
+    { Var.starter_func }

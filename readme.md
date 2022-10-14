@@ -9,7 +9,7 @@ To set up via docker, follow the following steps:
 2. Set up [run-logger](https://run-logger.readthedocs.io/en/latest/index.html).
 3. Configure your `.env` file so that the environment variable `GRAPHQL_ENDPOINT` is the server you have set up. Start `direnv` by running `direnv allow`. 
 ```
-GRAPHQL_ENDPOINT=server.com:1200/v1/graphql
+GRAPHQL_ENDPOINT=http://server.com:1200/v1/graphql
 ```
 4. Create a docker volume called `rl_checkpoint` by using the command
 ```

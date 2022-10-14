@@ -2,7 +2,6 @@ import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from agent.utils import AddBias, init
 
@@ -74,7 +73,7 @@ class Categorical(nn.Module):
 
 
 class MaskedCategorical(nn.Module):
-    def __init__(self):
+    def __init__(self, num_inputs, num_outputs):
         super().__init__()
 
     def forward(self, x, mask):

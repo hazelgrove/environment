@@ -20,6 +20,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | TypInt -> Type.TInt
         | TypBool -> Type.TBool
         | TypHole -> Type.THole
+        | TypUnit -> Type.TUnit
         | TypArrow_L -> Type.TArrow (subtr, Type.make_node Type.THole)
         | TypArrow_R -> Type.TArrow (Type.make_node Type.THole, subtr)
         | TypList -> Type.TList subtr
@@ -191,6 +192,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
       | EPair_L (l_child, r_child) -> EPair_L (construct_shape l_child, r_child)
       | EPair_R (l_child, r_child) -> EPair_R (l_child, construct_shape r_child)
+      | EAssert_L child -> EAssert_L (construct_shape child)
       (* at cursor, build the correct expression *)
       | Cursor subtree -> build_expr shape (Expr.unzip tree)
     in
@@ -252,6 +254,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
       | EPair_L (l_child, r_child) -> EPair_L (move_n_child l_child, r_child)
       | EPair_R (l_child, r_child) -> EPair_R (l_child, move_n_child r_child)
+      | EAssert_L r_child -> EAssert_L (move_n_child r_child)
       (*Once cursor is reached, use dedicated func to move to appropriate subtree*)
       | Cursor subtree -> shuffle_cursor n_child (Expr.unzip tree)
     in

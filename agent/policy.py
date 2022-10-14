@@ -1,16 +1,10 @@
-import copy
-from collections import defaultdict
 from dataclasses import asdict, astuple
-from typing import List
 
 import gym
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch_geometric.nn as gnn
 from gym.spaces import Discrete, MultiBinary, MultiDiscrete
-from gym.spaces.utils import unflatten
 
 from agent.base import CNNBase, GNNBase, MLPBase
 from agent.distributions import (
@@ -20,7 +14,6 @@ from agent.distributions import (
     DiagGaussian,
     MaskedCategorical,
 )
-from agent.utils import batch_unflatten, init
 from agent.wrapper import Obs
 
 
@@ -105,7 +98,7 @@ class GNNPolicy(Policy):
         obs_space,
         action_space,
         num_fixed_actions,
-        max_num_vars=10,
+        max_num_vars=11,
         base_kwargs=None,
         device=None,
     ):
@@ -122,7 +115,9 @@ class GNNPolicy(Policy):
             embedding_size=self.base.output_size,
             max_num_vars=max_num_vars,
         )
-        self.dist = MaskedCategorical()
+        self.dist = MaskedCategorical(
+            self.base.output_size, num_fixed_actions + 2 * max_num_vars
+        )
         self.device = device
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):

@@ -29,6 +29,8 @@ let rec to_string (e : p_t) : string =
         | OpNe -> "!="
         | OpCons -> "::"
         | OpAp -> " "
+        | OpAnd -> "&&"
+        | OpOr -> "||"
       in
       "(" ^ to_string e1 ^ " " ^ op_string ^ " " ^ to_string e2 ^ ") "
   | If (cond, e1, e2) ->
@@ -55,6 +57,8 @@ let rec to_string (e : p_t) : string =
   | Match (e, cases) ->
       "(match " ^ to_string e ^ " with " ^ resolve_cases cases ^ ") "
   | Hole -> "<HOLE> "
+  | Nil -> "[] "
+  | Assert e -> "assert(" ^ to_string e ^ ") "
 
 and resolve_fun (e : p_t) : string =
   match e with
@@ -84,11 +88,14 @@ let node_list =
     EBinOp (make_dummy_node EHole, OpNe, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpCons, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpAp, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpAnd, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpOr, make_dummy_node EHole);
     EIf (make_dummy_node EHole, make_dummy_node EHole, make_dummy_node EHole);
     ELet (Var.undef_var, make_dummy_node EHole, make_dummy_node EHole);
     EFun (Var.undef_var, Type.make_dummy_node THole, make_dummy_node EHole);
     EFix (Var.undef_var, Type.make_dummy_node THole, make_dummy_node EHole);
     EPair (make_dummy_node EHole, make_dummy_node EHole);
+    EAssert (make_dummy_node EHole);
     EHole;
     ENil;
     EBool true;
@@ -107,13 +114,14 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
   then true
   else
     match (e1, e2) with
-    | EUnOp (op1, _), EUnOp (op2, _) -> op1 = op2
-    | EBinOp (_, op1, _), EBinOp (_, op2, _) -> op1 = op2
+    | EUnOp (op1, _), EUnOp (op2, _) -> Expr.unop_equal op1 op2
+    | EBinOp (_, op1, _), EBinOp (_, op2, _) -> Expr.binop_equal op1 op2
     | EIf _, EIf _
     | ELet _, ELet _
     | EFun _, EFun _
     | EFix _, EFix _
-    | EPair _, EPair _ ->
+    | EPair _, EPair _
+    | EAssert _, EAssert _ ->
         true
     | _ -> false
 
@@ -138,7 +146,7 @@ let tag_to_node (tag : int) : t =
     else
       try List.nth node_list tag
       with Failure _ | Invalid_argument _ ->
-        raise (Failure "Invalid node index")
+        raise (Failure ("Invalid node index " ^ string_of_int tag))
   in
   make_node node
 
@@ -167,63 +175,66 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
     | EVar x -> EVar x
     | EUnOp (op, _) ->
         let adj_nodes = get_adj_nodes edges root in
-        EUnOp (op, from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1))
+        EUnOp (op, from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0))
     | EBinOp (_, op, _) ->
         let adj_nodes = get_adj_nodes edges root in
         EBinOp
-          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
             op,
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
     | ELet (_, _, _) ->
         let adj_nodes = get_adj_nodes edges root in
         let varname =
           match
-            (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1)).node
+            (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0)).node
           with
           | EVar x -> x
           | _ -> raise (SyntaxError "Expression in variable name")
         in
         ELet
           ( varname,
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
     | EIf (_, _, _) ->
         let adj_nodes = get_adj_nodes edges root in
         EIf
-          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
     | EFun (_, _, _) ->
         let adj_nodes = get_adj_nodes edges root in
         let varname =
           match
-            (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1)).node
+            (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0)).node
           with
           | EVar x -> x
           | _ -> raise (SyntaxError "Expression in variable name")
         in
         EFun
           ( varname,
-            TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
+            TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
     | EFix (_, _, _) ->
         let adj_nodes = get_adj_nodes edges root in
         let varname =
           match
-            (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1)).node
+            (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0)).node
           with
           | EVar x -> x
           | _ -> raise (SyntaxError "Expression in variable name")
         in
         EFix
           ( varname,
-            TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3) )
+            TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
     | EPair (_, _) ->
         let adj_nodes = get_adj_nodes edges root in
         EPair
-          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
+    | EAssert _ ->
+        let adj_nodes = get_adj_nodes edges root in
+        EAssert (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0))
     | EHole -> EHole
     | ENil -> ENil
   in
@@ -292,34 +303,35 @@ let to_list (e : z_t) : graph =
     | EVar x ->
         let edges = add_edge edges (find_var x vars, root, -1) in
         ((nodes, edges), root, vars)
-    | EUnOp (_, e) -> (add_subtree e nodes edges vars root 1, root, vars)
+    | EUnOp (_, e) -> (add_subtree e nodes edges vars root 0, root, vars)
+    | EAssert e -> (add_subtree e nodes edges vars root 0, root, vars)
     | EBinOp (e1, _, e2) | EPair (e1, e2) ->
-        let nodes, edges = add_subtree e1 nodes edges vars root 1 in
-        (add_subtree e2 nodes edges vars root 2, root, vars)
+        let nodes, edges = add_subtree e1 nodes edges vars root 0 in
+        (add_subtree e2 nodes edges vars root 1, root, vars)
     | EFun (x, ty, e) | EFix (x, ty, e) ->
         let nodes, new_root =
           add_node nodes (node_to_tag (make_dummy_node (EVar x)))
         in
-        let edges = add_edge edges (root, new_root, 1) in
+        let edges = add_edge edges (root, new_root, 0) in
         let vars = add_var x new_root vars in
         let (ty_nodes, ty_edges), new_root = TypeConv.to_list ty in
         let (nodes, edges), new_root =
           append_type_tree nodes edges ty_nodes ty_edges new_root
         in
-        let edges = add_edge edges (root, new_root, 2) in
-        (add_subtree e nodes edges vars root 3, root, vars)
+        let edges = add_edge edges (root, new_root, 1) in
+        (add_subtree e nodes edges vars root 2, root, vars)
     | ELet (x, edef, ebody) ->
         let nodes, new_root =
           add_node nodes (node_to_tag (make_dummy_node (EVar x)))
         in
-        let edges = add_edge edges (root, new_root, 1) in
-        let nodes, edges = add_subtree edef nodes edges vars root 2 in
+        let edges = add_edge edges (root, new_root, 0) in
+        let nodes, edges = add_subtree edef nodes edges vars root 1 in
         let vars = add_var x new_root vars in
-        (add_subtree ebody nodes edges vars root 3, root, vars)
+        (add_subtree ebody nodes edges vars root 2, root, vars)
     | EIf (econd, ethen, eelse) ->
-        let nodes, edges = add_subtree econd nodes edges vars root 1 in
-        let nodes, edges = add_subtree ethen nodes edges vars root 2 in
-        (add_subtree eelse nodes edges vars root 3, root, vars)
+        let nodes, edges = add_subtree econd nodes edges vars root 0 in
+        let nodes, edges = add_subtree ethen nodes edges vars root 1 in
+        (add_subtree eelse nodes edges vars root 2, root, vars)
   in
   let graph, _, _ =
     try to_list_aux (unzip e) [] [] []
@@ -368,7 +380,7 @@ let to_list (e : z_t) : graph =
 let rec get_starter_list (e : Expr.t) : bool list =
   match e.node with
   | EVar _ | EInt _ | EBool _ | EHole | ENil -> [ e.starter ]
-  | EUnOp (_, arg) -> e.starter :: get_starter_list arg
+  | EUnOp (_, arg) | EAssert arg -> e.starter :: get_starter_list arg
   | EBinOp (arg1, _, arg2) | EPair (arg1, arg2) ->
       e.starter :: (get_starter_list arg1 @ get_starter_list arg2)
   | EFun (x, ty, body) | EFix (x, ty, body) ->

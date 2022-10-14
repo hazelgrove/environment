@@ -18,6 +18,8 @@ type binop =
   | OpNe
   | OpCons
   | OpAp
+  | OpAnd
+  | OpOr
 [@@deriving sexp]
 
 (* Expression with metadata *)
@@ -33,7 +35,7 @@ type node =
   | EPair of t * t
   | EHole
   | EMatch of t * ((Pattern.t * t) list)
-  | EList of t list
+  | EAssert of t
 
 and t = {
   id : int; (* An unique ID assigned to each node *)
@@ -54,8 +56,13 @@ type p_t =
   | Fix of Var.t * Type.p_t * p_t
   | Pair of p_t * p_t
   | Hole
+<<<<<<< HEAD
   | Match of p_t * ((Pattern.p_t * p_t) list)
   | List of p_t list
+=======
+  | Nil
+  | Assert of p_t
+>>>>>>> no_assert
 [@@deriving sexp]
 
 (* Zippered Expressions *)
@@ -75,10 +82,14 @@ type z_node =
   | EFix_L of Var.t * Type.z_t * t
   | EPair_L of z_t * t
   | EPair_R of t * z_t
+<<<<<<< HEAD
   | EMatch_L of z_t * ((Pattern.t * t) list)
   | EMatch_C of t * ((Pattern.z_t * t, Pattern.t * t) Zlist.t)
   | EMatch_R of t * ((Pattern.t * z_t, Pattern.t * t) Zlist.t)
   | EList_L of (z_t, t) Zlist.t
+=======
+  | EAssert_L of z_t
+>>>>>>> no_assert
 
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
@@ -94,6 +105,7 @@ type value =
   | VPair of value * value
   | VList of value list
   | VError
+  | VUnit
 
 (* Given a pure node, generate a node with an id *)
 let make_node (node : node) : t = { id = Id.generate (); node; starter = false }
@@ -119,8 +131,13 @@ let rec strip (e : t) : p_t =
   | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
+<<<<<<< HEAD
   | EMatch (e, rules) -> Match (strip e, List.map (fun (p, e) -> (Pattern.strip p, strip e)) rules)
   | EList (es) -> List (List.map strip es)
+=======
+  | ENil -> Nil
+  | EAssert e -> Assert (strip e)
+>>>>>>> no_assert
 
 let rec add_metadata (e : p_t) : t =
   match e with
@@ -136,8 +153,13 @@ let rec add_metadata (e : p_t) : t =
   | Fix (x, t, e) -> make_node (EFix (x, Type.add_metadata t, add_metadata e))
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
   | Hole -> make_node EHole
+<<<<<<< HEAD
   | Match (e, rules) -> make_node (EMatch (add_metadata e, List.map (fun (p, e) -> (Pattern.add_metadata p, add_metadata e)) rules))
   | List (es) -> make_node (EList (List.map add_metadata es))
+=======
+  | Nil -> make_node ENil
+  | Assert e -> make_node (EAssert (add_metadata e))
+>>>>>>> no_assert
 
 (*
     Return the size of the AST
@@ -148,8 +170,13 @@ let rec add_metadata (e : p_t) : t =
 *)
 let rec size (e : t) : int =
   match e.node with
+<<<<<<< HEAD
   | EVar _ | EConst _ | EHole -> 1
   | EUnOp (_, e) -> 1 + size e
+=======
+  | EVar _ | EInt _ | EBool _ | EHole | ENil -> 1
+  | EUnOp (_, e) | EAssert e -> 1 + size e
+>>>>>>> no_assert
   | EBinOp (e1, _, e2) | EPair (e1, e2) -> 1 + size e1 + size e2
   | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
   | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
@@ -209,7 +236,9 @@ let binop_equal (b1 : binop) (b2 : binop) : bool =
   | OpEq, OpEq
   | OpNe, OpNe
   | OpCons, OpCons
-  | OpAp, OpAp ->
+  | OpAp, OpAp
+  | OpAnd, OpAnd
+  | OpOr, OpOr ->
       true
   | _ -> false
 
@@ -229,10 +258,15 @@ let rec equal (t1 : t) (t2 : t) : bool =
       Var.equal var1 var2 && Type.equal t1 t2 && equal sub1 sub2
   | EPair (subl1, subr1), EPair (subl2, subr2) ->
       equal subl1 subl2 && equal subr1 subr2
+<<<<<<< HEAD
   | EHole, EHole -> true
   | EMatch (e1, rules1), EMatch (e2, rules2) ->
       equal e1 e2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && equal e1 e2) rules1 rules2
   | EList es1, EList es2 -> List.equal equal es1 es2
+=======
+  | EHole, EHole | ENil, ENil -> true
+  | EAssert sub1, EAssert sub2 -> equal sub1 sub2
+>>>>>>> no_assert
   | _ -> false
 
 let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
@@ -260,6 +294,7 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
   | EPair_L (zsub1, sub1), EPair_L (zsub2, sub2)
   | EPair_R (sub1, zsub1), EPair_R (sub2, zsub2) ->
       equal sub1 sub2 && z_equal zsub1 zsub2
+<<<<<<< HEAD
   | EMatch_L (zsub1, rules1), EMatch_L (zsub2, rules2) ->
       z_equal zsub1 zsub2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && equal e1 e2) rules1 rules2
   | EMatch_C (sub1, rules1), EMatch_C (sub2, rules2) ->
@@ -279,6 +314,9 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
       in
       equal sub1 sub2 && Zlist.equal f_z f_a rules1 rules2
   | EList_L zlist1, EList_L zlist2 -> Zlist.equal z_equal equal zlist1 zlist2
+=======
+  | EAssert_L sub1, EAssert_L sub2 -> z_equal sub1 sub2
+>>>>>>> no_assert
   | _ -> false
 
 let rec unzip (tree : z_t) : t =
@@ -302,6 +340,7 @@ let rec unzip (tree : z_t) : t =
         EFun (var_n, Type.unzip var_t, child) (*unzip child type*)
     | EFix_R (var_n, var_t, child) -> EFix (var_n, var_t, unzip child)
     | EFix_L (var_n, var_t, child) -> EFix (var_n, Type.unzip var_t, child)
+<<<<<<< HEAD
     | EMatch_L (e, rules) ->
         EMatch (unzip e, rules)
     | EMatch_C (e, rules) ->
@@ -317,20 +356,28 @@ let rec unzip (tree : z_t) : t =
         in
         EMatch (e, Zlist.map f rules)
     | EList_L zlist -> EList (Zlist.map unzip zlist)
+=======
+    | EAssert_L child -> EAssert (unzip child)
+>>>>>>> no_assert
   in
   { id = tree.id; node; starter = tree.starter }
 (*unzip child type*)
 
 let rec add_vars (e : t) : unit =
   match e.node with
+<<<<<<< HEAD
   | EConst _ | EHole | EVar _ -> ()
   | EUnOp (unop, child) -> add_vars child
+=======
+  | EUnOp (_, child) | EAssert child -> add_vars child
+>>>>>>> no_assert
   | EBinOp (l_child, _, r_child) | EPair (l_child, r_child) ->
       add_vars l_child;
       add_vars r_child
   | ELet (x, l_child, r_child) ->
-      Var.used_vars.(x) <- true;
-      Var.num_vars := !Var.num_vars + 1;
+      (if x < Var.max_num_vars then
+        Var.used_vars.(x) <- true;
+        Var.num_vars := !Var.num_vars + 1);
       add_vars l_child;
       add_vars r_child
   | EIf (l_child, c_child, r_child) ->
@@ -338,8 +385,9 @@ let rec add_vars (e : t) : unit =
       add_vars c_child;
       add_vars r_child
   | EFun (x, _, child) | EFix (x, _, child) ->
-      Var.used_vars.(x) <- true;
-      Var.num_vars := !Var.num_vars + 1;
+    (if x < Var.max_num_vars then
+        Var.used_vars.(x) <- true;
+        Var.num_vars := !Var.num_vars + 1);
       add_vars child
   | EMatch (e, rules) ->
       add_vars e;
@@ -364,3 +412,22 @@ let rec add_vars (e : t) : unit =
      let%test _ =
        check (EPair_L (Cursor (EInt 7), EBool false)) EPair (EInt 7, EBool false)
    end) *)
+
+let rec set_starter (e : t) (b : bool) : t =
+  let new_node =
+    match e.node with
+    | EVar _ | EInt _ | EBool _ | EHole | ENil -> e.node
+    | EUnOp (unop, child) -> EUnOp (unop, set_starter child b)
+    | EBinOp (l_child, binop, r_child) ->
+        EBinOp (set_starter l_child b, binop, set_starter r_child b)
+    | ELet (var, l_child, r_child) ->
+        ELet (var, set_starter l_child b, set_starter r_child b)
+    | EIf (l_child, c_child, r_child) ->
+        EIf (set_starter l_child b, set_starter c_child b, set_starter r_child b)
+    | EFun (var, typ, child) -> EFun (var, typ, set_starter child b)
+    | EFix (var, typ, child) -> EFix (var, typ, set_starter child b)
+    | EPair (l_child, r_child) ->
+        EPair (set_starter l_child b, set_starter r_child b)
+    | EAssert child -> EAssert (set_starter child b)
+  in
+  { e with node = new_node; starter = b }
