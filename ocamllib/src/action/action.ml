@@ -35,9 +35,6 @@ type shape =
 type dir = 
   | Parent 
   | Child of int
-  | Next
-  | Prev
-  | Rule
 
 (* write a numbered action to inser all of <- *)
 (* Have some sort of default value analog for type t *)

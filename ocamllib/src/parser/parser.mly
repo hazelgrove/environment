@@ -4,19 +4,16 @@
 %token TRUE FALSE
 %token IF THEN ELSE
 %token FUN REC LET OFTYPE IN RIGHTARROW
-%token COMMA SEMI
+%token COMMA
 %token PLUS MINUS TIMES DIV
 %token LT LE GT GE EQ NE
 %token CON
 %token LPAREN RPAREN LBRAC RBRAC
 %token EOF
-<<<<<<< HEAD
-%token MATCH WITH BAR WILD
-=======
 %token ASSERT
 %token AND, OR
 %token F
->>>>>>> no_assert
+%token MATCH WITH BAR WILD
 
 %{ 
     open Expr
@@ -80,28 +77,31 @@ expr:
     let (a, ty) = x in
     Expr.Fun (a, ty, e)
     }
-| LBRAC es = separated_list(SEMI, expr) RBRAC
-    { 
-    Expr.List es
-    }
 | MATCH escrut = expr WITH rules = rule+
     {
-        Expr.Match (escrut, rules)
+    let rec resolve_rules rules = 
+        match rules with
+        | [] -> raise (Failure "Incorrect syntax")
+        | [(p, e)] -> Expr.Match(escrut, (p, e), (Pattern.Wild, Expr.Hole))
+        | [(p1, e1); (p2, e2)] -> Expr.Match(escrut, (p1, e1), (p2, e2))
+        | (p1, e1) :: tl -> Expr.Match(escrut, (p1, e1), (Pattern.Wild, resolve_rules tl))
+    in
+    resolve_rules rules
     }
 | ASSERT LPAREN e = expr RPAREN
-    { Expr.make_node (EAssert e) }
+    { Expr.Assert e }
 
 logicor:
 | e = logicand
     { e }
 | e = logicor OR e2 = logicand
-    { Expr.make_node (EBinOp(e, OpOr, e2)) }
+    { Expr.BinOp(e, OpOr, e2) }
 
 logicand:
 | e = comp
     { e }
 | e = logicand AND e2 = comp
-    { Expr.make_node (EBinOp(e, OpAnd, e2)) }
+    { Expr.BinOp(e, OpAnd, e2) }
 
 comp: 
 | e = lst 
@@ -150,13 +150,10 @@ app:
     { Expr.UnOp (OpNeg, e) }
 
 simple: 
-<<<<<<< HEAD
 | x = ID
     { Expr.Var x }
-=======
 | x = identifiers
-    { Expr.make_node (EVar x) }
->>>>>>> no_assert
+    { Var x }
 | TRUE
     { Expr.Const (Bool true) }
 | FALSE
@@ -171,12 +168,11 @@ simple:
     { Expr.Pair (e1, e2) }
 
 arg: 
-<<<<<<< HEAD
-| x = ID
+| x = identifiers
     { (x, Type.Hole) }
-| LPAREN x = ID t = tyann RPAREN
+| LPAREN x = identifiers t = tyann RPAREN
     { (x, t) }
-| LPAREN x = ID RPAREN
+| LPAREN x = identifiers RPAREN
     { (x, Type.Hole) }
 
 rule:
@@ -187,7 +183,7 @@ pattern:
 | LPAREN p = pattern RPAREN
     { p }
 | p1 = pattern CON p2 = pattern
-    { Pattern.List (p1, p2) }
+    { Pattern.Cons (p1, p2) }
 | x = ID
     { Pattern.Var x }
 | TRUE
@@ -200,14 +196,6 @@ pattern:
     { Pattern.Const Nil }
 | WILD
     { Pattern.Wild }
-=======
-| x = identifiers
-    { (x, Type.make_node THole) }
-| LPAREN x = identifiers t = tyann RPAREN
-    { (x, t) }
-| LPAREN x = identifiers RPAREN
-    { (x, Type.make_node THole) }
->>>>>>> no_assert
 
 tyann: 
 | OFTYPE t = ty 

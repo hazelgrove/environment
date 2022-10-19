@@ -34,7 +34,7 @@ type node =
   | EFix of Var.t * Type.t * t
   | EPair of t * t
   | EHole
-  | EMatch of t * ((Pattern.t * t) list)
+  | EMatch of t * (Pattern.t * t) * (Pattern.t * t)
   | EAssert of t
 
 and t = {
@@ -56,13 +56,8 @@ type p_t =
   | Fix of Var.t * Type.p_t * p_t
   | Pair of p_t * p_t
   | Hole
-<<<<<<< HEAD
-  | Match of p_t * ((Pattern.p_t * p_t) list)
-  | List of p_t list
-=======
-  | Nil
+  | Match of p_t * (Pattern.p_t * p_t) * (Pattern.p_t * p_t)
   | Assert of p_t
->>>>>>> no_assert
 [@@deriving sexp]
 
 (* Zippered Expressions *)
@@ -82,14 +77,12 @@ type z_node =
   | EFix_L of Var.t * Type.z_t * t
   | EPair_L of z_t * t
   | EPair_R of t * z_t
-<<<<<<< HEAD
-  | EMatch_L of z_t * ((Pattern.t * t) list)
-  | EMatch_C of t * ((Pattern.z_t * t, Pattern.t * t) Zlist.t)
-  | EMatch_R of t * ((Pattern.t * z_t, Pattern.t * t) Zlist.t)
-  | EList_L of (z_t, t) Zlist.t
-=======
+  | EMatch_L of z_t * (Pattern.t * t) * (Pattern.t * t)
+  | EMatch_P1 of t * (Pattern.z_t * t) * (Pattern.t * t)
+  | EMatch_E1 of t * (Pattern.t * z_t) * (Pattern.t * t)
+  | EMatch_P2 of t * (Pattern.t * t) * (Pattern.z_t * t)
+  | EMatch_E2 of t * (Pattern.t * t) * (Pattern.t * z_t)
   | EAssert_L of z_t
->>>>>>> no_assert
 
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
@@ -103,7 +96,6 @@ type value =
   | VConst of Const.t
   | VFun of Var.t * Type.p_t * p_t
   | VPair of value * value
-  | VList of value list
   | VError
   | VUnit
 
@@ -131,13 +123,8 @@ let rec strip (e : t) : p_t =
   | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
-<<<<<<< HEAD
-  | EMatch (e, rules) -> Match (strip e, List.map (fun (p, e) -> (Pattern.strip p, strip e)) rules)
-  | EList (es) -> List (List.map strip es)
-=======
-  | ENil -> Nil
+  | EMatch (e, (p1, e1), (p2, e2)) -> Match (strip e, (Pattern.strip p1, strip e1), (Pattern.strip p2, strip e2))
   | EAssert e -> Assert (strip e)
->>>>>>> no_assert
 
 let rec add_metadata (e : p_t) : t =
   match e with
@@ -153,13 +140,8 @@ let rec add_metadata (e : p_t) : t =
   | Fix (x, t, e) -> make_node (EFix (x, Type.add_metadata t, add_metadata e))
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
   | Hole -> make_node EHole
-<<<<<<< HEAD
-  | Match (e, rules) -> make_node (EMatch (add_metadata e, List.map (fun (p, e) -> (Pattern.add_metadata p, add_metadata e)) rules))
-  | List (es) -> make_node (EList (List.map add_metadata es))
-=======
-  | Nil -> make_node ENil
+  | Match (e, (p1, e1), (p2, e2)) -> make_node (EMatch (add_metadata e, (Pattern.add_metadata p1, add_metadata e1), (Pattern.add_metadata p2, add_metadata e2)))
   | Assert e -> make_node (EAssert (add_metadata e))
->>>>>>> no_assert
 
 (*
     Return the size of the AST
@@ -170,22 +152,15 @@ let rec add_metadata (e : p_t) : t =
 *)
 let rec size (e : t) : int =
   match e.node with
-<<<<<<< HEAD
   | EVar _ | EConst _ | EHole -> 1
-  | EUnOp (_, e) -> 1 + size e
-=======
-  | EVar _ | EInt _ | EBool _ | EHole | ENil -> 1
   | EUnOp (_, e) | EAssert e -> 1 + size e
->>>>>>> no_assert
   | EBinOp (e1, _, e2) | EPair (e1, e2) -> 1 + size e1 + size e2
   | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
   | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
   | EFix (_, ty, ebody) | EFun (_, ty, ebody) ->
       1 + 1 + Type.size ty + size ebody
-  | EMatch (e, rules) -> 
-    let f = fun acc -> fun (p, e) -> acc + Pattern.size p + size e in
-    1 + size e + List.fold_left f 0 rules
-  | EList es -> 1 + List.fold_left (fun acc e -> acc + size e) 0 es
+  | EMatch (e, (p1, e1), (p2, e2)) -> 
+      1 + size e + Pattern.size p1 + size e1 + Pattern.size p2 + size e2
 
 let%test_module "Test Expr.size" =
   (module struct
@@ -209,7 +184,6 @@ let rec from_val (v : value) : p_t =
   | VConst c -> Const c
   | VFun (x, typ, e) -> Fun (x, typ, e)
   | VPair (e1, e2) -> Pair (from_val e1, from_val e2)
-  | VList es -> List (List.map from_val es)
   | _ -> raise (Failure "Cannot be changed to expr")
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)
@@ -258,15 +232,10 @@ let rec equal (t1 : t) (t2 : t) : bool =
       Var.equal var1 var2 && Type.equal t1 t2 && equal sub1 sub2
   | EPair (subl1, subr1), EPair (subl2, subr2) ->
       equal subl1 subl2 && equal subr1 subr2
-<<<<<<< HEAD
   | EHole, EHole -> true
-  | EMatch (e1, rules1), EMatch (e2, rules2) ->
-      equal e1 e2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && equal e1 e2) rules1 rules2
-  | EList es1, EList es2 -> List.equal equal es1 es2
-=======
-  | EHole, EHole | ENil, ENil -> true
+  | EMatch (scrut1, (p1, e1), (p2, e2)), EMatch (scrut2, (p1', e1'), (p2', e2')) ->
+      equal scrut1 scrut2 && Pattern.equal p1 p1' && equal e1' e2' && Pattern.equal p2 p2' && equal e2' e2
   | EAssert sub1, EAssert sub2 -> equal sub1 sub2
->>>>>>> no_assert
   | _ -> false
 
 let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
@@ -294,29 +263,17 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
   | EPair_L (zsub1, sub1), EPair_L (zsub2, sub2)
   | EPair_R (sub1, zsub1), EPair_R (sub2, zsub2) ->
       equal sub1 sub2 && z_equal zsub1 zsub2
-<<<<<<< HEAD
-  | EMatch_L (zsub1, rules1), EMatch_L (zsub2, rules2) ->
-      z_equal zsub1 zsub2 && List.equal (fun (p1, e1) (p2, e2) -> Pattern.equal p1 p2 && equal e1 e2) rules1 rules2
-  | EMatch_C (sub1, rules1), EMatch_C (sub2, rules2) ->
-      let f_z (zp1, e1) (zp2, e2) = 
-        Pattern.z_equal zp1 zp2 && equal e1 e2
-      in
-      let f_a ((p1, e1) : Pattern.t * t) ((p2, e2) : Pattern.t * t) = 
-        Pattern.equal p1 p2 && equal e1 e2
-      in
-      equal sub1 sub2 && Zlist.equal f_z f_a rules1 rules2
-  | EMatch_R (sub1, rules1), EMatch_R (sub2, rules2) ->
-      let f_z (p1, ze1) (p2, ze2) = 
-        Pattern.equal p1 p2 && z_equal ze1 ze2
-      in
-      let f_a ((p1, e1) : Pattern.t * t) ((p2, e2) : Pattern.t * t) = 
-        Pattern.equal p1 p2 && equal e1 e2
-      in
-      equal sub1 sub2 && Zlist.equal f_z f_a rules1 rules2
-  | EList_L zlist1, EList_L zlist2 -> Zlist.equal z_equal equal zlist1 zlist2
-=======
+  | EMatch_L (zsub1, (p1, e1), (p2, e2)), EMatch_L (zsub2, (p1', e1'), (p2', e2')) ->
+      z_equal zsub1 zsub2 && Pattern.equal p1 p1' && equal e1' e2' && Pattern.equal p2 p2' && equal e2' e2
+  | EMatch_P1 (scrut1, (p1, e1), (p2, e2)), EMatch_P1 (scrut2, (p1', e1'), (p2', e2')) ->
+      equal scrut1 scrut2 && Pattern.z_equal p1 p1' && Pattern.equal p2 p2' && equal e1 e1' && equal e2 e2'
+  | EMatch_E1 (scrut1, (p1, e1), (p2, e2)), EMatch_E1 (scrut2, (p1', e1'), (p2', e2')) ->
+      equal scrut1 scrut2 && Pattern.equal p1 p1' && Pattern.equal p2 p2' && z_equal e1 e1' && equal e2 e2'
+  | EMatch_P2 (scrut1, (p1, e1), (p2, e2)), EMatch_P2 (scrut2, (p1', e1'), (p2', e2')) ->
+      equal scrut1 scrut2 && Pattern.equal p1 p1' && Pattern.z_equal p2 p2' && equal e1 e1' && equal e2 e2'
+  | EMatch_E2 (scrut1, (p1, e1), (p2, e2)), EMatch_E2 (scrut2, (p1', e1'), (p2', e2')) ->
+      equal scrut1 scrut2 && Pattern.equal p1 p1' && Pattern.equal p2 p2' && equal e1 e1' && z_equal e2 e2'
   | EAssert_L sub1, EAssert_L sub2 -> z_equal sub1 sub2
->>>>>>> no_assert
   | _ -> false
 
 let rec unzip (tree : z_t) : t =
@@ -340,37 +297,25 @@ let rec unzip (tree : z_t) : t =
         EFun (var_n, Type.unzip var_t, child) (*unzip child type*)
     | EFix_R (var_n, var_t, child) -> EFix (var_n, var_t, unzip child)
     | EFix_L (var_n, var_t, child) -> EFix (var_n, Type.unzip var_t, child)
-<<<<<<< HEAD
-    | EMatch_L (e, rules) ->
-        EMatch (unzip e, rules)
-    | EMatch_C (e, rules) ->
-        let f = 
-          fun (p, e) -> 
-            (Pattern.unzip p, e)
-        in
-        EMatch (e, Zlist.map f rules)
-    | EMatch_R (e, rules) ->
-        let f = 
-          fun (p, e) -> 
-            (p, unzip e)
-        in
-        EMatch (e, Zlist.map f rules)
-    | EList_L zlist -> EList (Zlist.map unzip zlist)
-=======
+    | EMatch_L (e, rule1, rule2) ->
+        EMatch (unzip e, rule1, rule2)
+    | EMatch_P1 (scrut, (p1, e1), rule2) ->
+        EMatch (scrut, (Pattern.unzip p1, e1), rule2)
+    | EMatch_E1 (scrut, (p1, e1), rule2) ->
+        EMatch (scrut, (p1, unzip e1), rule2)
+    | EMatch_P2 (scrut, rule1, (p2, e2)) ->
+        EMatch (scrut, rule1, (Pattern.unzip p2, e2))
+    | EMatch_E2 (scrut, rule1, (p2, e2)) ->
+        EMatch (scrut, rule1, (p2, unzip e2))
     | EAssert_L child -> EAssert (unzip child)
->>>>>>> no_assert
   in
   { id = tree.id; node; starter = tree.starter }
 (*unzip child type*)
 
 let rec add_vars (e : t) : unit =
   match e.node with
-<<<<<<< HEAD
   | EConst _ | EHole | EVar _ -> ()
-  | EUnOp (unop, child) -> add_vars child
-=======
   | EUnOp (_, child) | EAssert child -> add_vars child
->>>>>>> no_assert
   | EBinOp (l_child, _, r_child) | EPair (l_child, r_child) ->
       add_vars l_child;
       add_vars r_child
@@ -389,18 +334,20 @@ let rec add_vars (e : t) : unit =
         Var.used_vars.(x) <- true;
         Var.num_vars := !Var.num_vars + 1);
       add_vars child
-  | EMatch (e, rules) ->
+  | EMatch (e, (p1, e1), (p2, e2)) ->
       add_vars e;
-      let add_vars_rule ((p, e) : Pattern.t * t) = 
-          match p.node with
-          | PVar x -> 
-              Var.used_vars.(x) <- true;
-              Var.num_vars := !Var.num_vars + 1;
-              add_vars e
-          | _ -> add_vars e
-      in
-      List.iter add_vars_rule rules
-  | EList list -> List.iter add_vars list
+      match p1.node with
+      | PVar x -> 
+          Var.used_vars.(x) <- true;
+          Var.num_vars := !Var.num_vars + 1;
+      | _ -> ();
+      add_vars e1;
+      match p2.node with
+      | PVar x -> 
+          Var.used_vars.(x) <- true;
+          Var.num_vars := !Var.num_vars + 1;
+      | _ -> ();
+      add_vars e2
 
 (* Each edge is represented as (index of start node, index of end node, edge type) *)
 (* let%test_module "Test Expr.unzip" =
@@ -416,7 +363,7 @@ let rec add_vars (e : t) : unit =
 let rec set_starter (e : t) (b : bool) : t =
   let new_node =
     match e.node with
-    | EVar _ | EInt _ | EBool _ | EHole | ENil -> e.node
+    | EVar _ | EConst _ | EHole -> e.node
     | EUnOp (unop, child) -> EUnOp (unop, set_starter child b)
     | EBinOp (l_child, binop, r_child) ->
         EBinOp (set_starter l_child b, binop, set_starter r_child b)
@@ -428,6 +375,11 @@ let rec set_starter (e : t) (b : bool) : t =
     | EFix (var, typ, child) -> EFix (var, typ, set_starter child b)
     | EPair (l_child, r_child) ->
         EPair (set_starter l_child b, set_starter r_child b)
+    | EMatch (e, (p1, e1), (p2, e2)) ->
+        EMatch
+          ( set_starter e b,
+             (Pattern.set_starter p1 b, set_starter e1 b),
+              (Pattern.set_starter p2 b, set_starter e2 b) ) 
     | EAssert child -> EAssert (set_starter child b)
   in
   { e with node = new_node; starter = b }

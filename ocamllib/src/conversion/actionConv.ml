@@ -7,8 +7,8 @@ let action_list =
     Move (Child 0);
     Move (Child 1);
     Move (Child 2);
-    Move Next;
-    Move Prev;
+    Move (Child 3);
+    Move (Child 4);
     Construct Hole;
     Construct Nil;
     Construct (Int (-2));
