@@ -10,14 +10,14 @@ let action_list =
     Move (Child 3);
     Move (Child 4);
     Construct Hole;
-    Construct Nil;
-    Construct (Int (-2));
-    Construct (Int (-1));
-    Construct (Int 0);
-    Construct (Int 1);
-    Construct (Int 2);
-    Construct (Bool true);
-    Construct (Bool false);
+    Construct (Const Nil);
+    Construct (Const (Int (-2)));
+    Construct (Const (Int (-1)));
+    Construct (Const (Int 0));
+    Construct (Const (Int 1));
+    Construct (Const (Int 2));
+    Construct (Const (Bool true));
+    Construct (Const (Bool false));
     Construct (UnOp OpNeg);
     Construct (BinOp_L OpPlus);
     Construct (BinOp_L OpMinus);
@@ -57,9 +57,7 @@ let action_list =
     Construct Pair_L;
     Construct Pair_R;
     Construct Match_L;
-    Construct Match_P1;
     Construct Match_E1;
-    Construct Match_P2;
     Construct Match_E2;
     Construct TypInt;
     Construct TypBool;
@@ -70,13 +68,13 @@ let action_list =
     Construct TypList;
     Construct TypHole;
     Construct TypUnit;
-    Construct (PatInt (-2));
-    Construct (PatInt (-1));
-    Construct (PatInt 0);
-    Construct (PatInt 1);
-    Construct (PatInt 2);
-    Construct (PatBool true);
-    Construct (PatBool false);
+    Construct (PatConst (Int (-2)));
+    Construct (PatConst (Int (-1)));
+    Construct (PatConst (Int 0));
+    Construct (PatConst (Int 1));
+    Construct (PatConst (Int 2));
+    Construct (PatConst (Bool true));
+    Construct (PatConst (Bool false));
     Construct PatCons_L;
     Construct PatCons_R;
     Construct PatVar;
@@ -130,9 +128,9 @@ let to_string (action : t) : string =
   | Move Parent -> "Move Parent"
   | Move (Child x) -> "Move Child " ^ string_of_int x
   | Construct Hole -> "Construct Hole"
-  | Construct Nil -> "Construct Nil"
-  | Construct (Int x) -> "Construct Int " ^ string_of_int x
-  | Construct (Bool x) -> "Construct Bool " ^ string_of_bool x
+  | Construct (Const Nil) -> "Construct Nil"
+  | Construct (Const (Int x)) -> "Construct Int " ^ string_of_int x
+  | Construct (Const (Bool x)) -> "Construct Bool " ^ string_of_bool x
   | Construct (UnOp OpNeg) -> "Construct UnOp OpNeg"
   | Construct (BinOp_L op) ->
       let binop =
@@ -193,12 +191,9 @@ let to_string (action : t) : string =
   | Construct (Var x) -> "Construct Var " ^ string_of_int x
   | Construct (Arg x) -> "Construct Arg " ^ string_of_int x
   | Construct Match_L -> "Construct Match_L"
-  | Construct Match_P1 -> "Construct Match_P1"
   | Construct Match_E1 -> "Construct Match_E1"
-  | Construct Match_P2 -> "Construct Match_P2"
   | Construct Match_E2 -> "Construct Match_E2"
-  | Construct (PatInt x) -> "Construct PatInt " ^ string_of_int x
-  | Construct (PatBool x) -> "Construct PatBool " ^ string_of_bool x
+  | Construct (PatConst c) -> "Construct PatConst " ^ ConstConv.to_string c
   | Construct PatCons_L -> "Construct PatCons_L"
   | Construct PatCons_R -> "Construct PatCons_R"
   | Construct PatVar -> "Construct PatVar"

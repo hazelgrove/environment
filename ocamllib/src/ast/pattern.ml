@@ -32,6 +32,7 @@ type p_t =
 
 let make_node (node : node) : t = { id = Id.generate (); node; starter = false }
 let make_dummy_node (node : node) : t = { id = -1; node; starter = false }
+let make_dummy_z_node (node : z_node) : z_t = { id = -1; node; starter = false }
 
 let select_root (p : t) : z_t =
   { id = p.id; node = Cursor p.node; starter = p.starter }

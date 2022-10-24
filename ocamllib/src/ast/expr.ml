@@ -96,6 +96,7 @@ type value =
   | VConst of Const.t
   | VFun of Var.t * Type.p_t * p_t
   | VPair of value * value
+  | VCons of value * value
   | VError
   | VUnit
 
@@ -184,6 +185,7 @@ let rec from_val (v : value) : p_t =
   | VConst c -> Const c
   | VFun (x, typ, e) -> Fun (x, typ, e)
   | VPair (e1, e2) -> Pair (from_val e1, from_val e2)
+  | VCons (e1, e2) -> BinOp (from_val e1, OpCons, from_val e2)
   | _ -> raise (Failure "Cannot be changed to expr")
 
 (* Convert an unzipped ast into a zipped one, by selecting the root *)

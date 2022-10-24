@@ -4,9 +4,7 @@ type shape =
   | Var of Var.t
   | Arg of Var.t
   | Hole
-  | Nil
-  | Int of int
-  | Bool of bool
+  | Const of Const.t
   | UnOp of Expr.unop
   | BinOp_L of Expr.binop
   | BinOp_R of Expr.binop
@@ -20,9 +18,7 @@ type shape =
   | Pair_L
   | Pair_R
   | Match_L
-  | Match_P1
   | Match_E1
-  | Match_P2
   | Match_E2
   | TypInt
   | TypBool
@@ -33,8 +29,7 @@ type shape =
   | TypProd_L
   | TypProd_R
   | TypUnit
-  | PatInt of int
-  | PatBool of bool
+  | PatConst of Const.t
   | PatCons_L
   | PatCons_R
   | PatVar

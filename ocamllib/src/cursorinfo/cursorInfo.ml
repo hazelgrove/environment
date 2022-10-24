@@ -577,14 +577,14 @@ let max_num_nodes = 100
 
 let ints =
   [
-    Action.Construct (Int (-2));
-    Construct (Int (-1));
-    Construct (Int 0);
-    Construct (Int 1);
-    Construct (Int 2);
+    Action.Construct (Const (Int (-2)));
+    Construct (Const (Int (-1)));
+    Construct (Const (Int 0));
+    Construct (Const (Int 1));
+    Construct (Const (Int 2));
   ]
 
-let bools = [ Action.Construct (Bool true); Construct (Bool false) ]
+let bools = [ Action.Construct (Const (Bool true)); Construct (Const (Bool false)) ]
 
 let arith =
   [
@@ -623,14 +623,14 @@ let logic =
   ]
 
 let pat_int = [
-  Action.Construct (PatInt (-2));
-  Construct (PatInt (-1));
-  Construct (PatInt 0);
-  Construct (PatInt 1);
-  Construct (PatInt 2);
+  Action.Construct (PatConst (Int (-2)));
+  Construct (PatConst (Int (-1)));
+  Construct (PatConst (Int 0));
+  Construct (PatConst (Int 1));
+  Construct (PatConst (Int 2));
 ]
 
-let pat_bool = [ Action.Construct (PatBool true); Construct (PatBool false) ]
+let pat_bool = [ Action.Construct (PatConst (Bool true)); Construct (PatConst (Bool false)) ]
 
 (* Given the info at the cursor, return a list of possible actions *)
 let cursor_info_to_actions (info : t) : Action.t list =
@@ -687,8 +687,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
       match exp_ty with
       | Type.Int -> Construct Hole :: ints
       | Type.Bool -> Construct Hole :: bools
-      | Type.List _ -> [ Construct Nil; Construct Hole ]
-      | Type.Hole -> [ Construct Nil; Construct Hole ] @ ints @ bools
+      | Type.List _ -> [ Construct (Const Nil); Construct Hole ]
+      | Type.Hole -> [ Construct (Const Nil); Construct Hole ] @ ints @ bools
       | _ -> []
     in
     let construct_unop _ =
@@ -811,7 +811,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       @ construct_arg_aux 0 info.args_in_scope
     in
     let construct_match _ =
-      [Construct Match_L; Construct Match_E1; Construct Match_E2;]
+      [ Construct Match_L; Construct Match_E1; Construct Match_E2; ]
     in
     let handle_unwrap _ =
       let rec check_var (e : Expr.t) (x : Var.t) : bool =

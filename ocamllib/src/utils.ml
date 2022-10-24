@@ -10,6 +10,21 @@ let deserialize (zast : string) : Expr.z_t =
 let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
   let rec select_root_index_aux (e : Expr.t) (index : int) : Expr.z_t * int =
     (* Use -1 as indicator that there is a cursor position found, otherwise return remaining amount of index *)
+    let rec select_root_pattern (p : Pattern.t) (index : int) : Pattern.z_t * int = 
+      if index = 0
+      then (Pattern.select_root p, -1)
+      else match p.node with
+      | PConst _ | PVar _ | PWild -> (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index - 1)
+      | PCons (p1, p2) -> 
+          let zast1, index = select_root_pattern p1 (index - 1) in
+          if index = -1
+          then (Pattern.zip_migrate p (PCons_L (zast1, p2)), -1)
+          else
+            let zast2, _ = select_root_pattern p2 index in
+            if index = -1
+            then (Pattern.zip_migrate p (PCons_R (p1, zast2)), -1)
+            else (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index)
+    in
     if index = 0
     then (Expr.select_root e, -1)
     else
@@ -85,6 +100,27 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             if index = -1
             then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EMatch (e, (p1, e1), (p2, e2)) ->
+          let zast1, index = select_root_index_aux e (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EMatch_L (zast1, (p1, e1), (p2, e2))), -1)
+          else
+            let zast2, index = select_root_pattern p1 index in
+            if index = -1
+            then (Expr.zip_migrate e (EMatch_P1 (e, (zast2, e1), (p2, e2))), -1)
+            else
+              let zast3, _ = select_root_index_aux e1 index in
+              if index = -1
+              then (Expr.zip_migrate e (EMatch_E1 (e, (p1, zast3), (p2, e2))), -1)
+              else
+                let zast4, _ = select_root_pattern p2 index in
+                if index = -1
+                then (Expr.zip_migrate e (EMatch_P2 (e, (p1, e1), (zast4, e2))), -1)
+                else
+                  let zast5, _ = select_root_index_aux e2 index in
+                  if index = -1
+                  then (Expr.zip_migrate e (EMatch_E2 (e, (p1, e1), (p2, zast5))), -1)
+                  else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
       | EAssert e1 ->
           let zast, index = select_root_index_aux e1 (index - 1) in
           if index = -1
@@ -114,12 +150,12 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
   let tests_cons = ParserUtils.parse_file filename in
   let rec combine_tests (tests_cons : Expr.p_t) : (int * int) list =
     match tests_cons with
-    | BinOp (Pair (IntLit a, IntLit b), OpCons, Nil) -> [ (a, b) ]
-    | BinOp (Pair (IntLit a, IntLit b), OpCons, tl) ->
+    | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, Const Nil) -> [ (a, b) ]
+    | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, tl) ->
         (a, b) :: combine_tests tl
     | _ -> raise (IOError "Test file in incorrect format.")
   in
-  combine_tests (Expr.strip tests_cons)
+  combine_tests tests_cons
 
 (* Given an assignment number, load the code
    Input:
@@ -168,4 +204,4 @@ let load_starter_code (directory : string) (assignment : int) (index : int)
           }
     | _ -> raise (IOError "Starter code file in incorrect format.")
   in
-  find_fun_def e
+  find_fun_def (Expr.add_metadata e)
