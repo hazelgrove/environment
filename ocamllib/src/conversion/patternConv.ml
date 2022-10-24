@@ -1,5 +1,7 @@
 open Pattern
 
+exception TranslationError of string
+
 let rec to_string (p : p_t) : string =
     match p with
     | Const c -> ConstConv.to_string c
@@ -20,13 +22,13 @@ let node_list = [
     PWild;
 ] @ List.init Var.max_num_vars (fun i -> PVar i)
 
-let num_nodes = List.length num_nodes
+let num_nodes = List.length node_list
 
 let node_list_equal (p1 : node) (p2 : node) : bool =
     if p1 = p2
     then true
     else
-        match (e1, e2) with
+        match (p1, p2) with
         | PCons _, PCons _ -> true
         | _ -> false
 
@@ -76,7 +78,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
     in
     { node with node = new_node }
 
-let to_list (p : t) : graph * int =
+let to_list (p : t) : graph * int * varlist =
     let add_node (nodes : int list) (tag : int) : int list * int =
         let new_nodes = nodes @ [ tag ] in
         (new_nodes, List.length nodes)
@@ -84,23 +86,28 @@ let to_list (p : t) : graph * int =
     let add_edge (edges : edge list) (new_edge : edge) : edge list =
         new_edge :: edges
     in
-    let rec to_list_aux (p : t) (nodes : int list) (edges : edge list) :
-        graph * int =
+    let add_var (var : Var.t) (index : int) (vars : varlist) : varlist =
+        (var, index) :: vars
+    in
+    let rec to_list_aux (p : t) (nodes : int list) (edges : edge list) (vars : varlist) :
+        graph * int * varlist =
         let add_subtree (p : t) (nodes : int list) (edges : edge list) (root : int)
-            (num_child : int) : graph =
-        let (nodes, edges), new_root = to_list_aux p nodes edges in
-        let edges = add_edge edges (root, new_root, num_child) in
-        (nodes, edges)
+            (vars : varlist) (num_child : int) : graph * varlist =
+            let (nodes, edges), new_root, vars = to_list_aux p nodes edges vars in
+            let edges = add_edge edges (root, new_root, num_child) in
+            ((nodes, edges), vars)
         in
         let tag = node_to_tag p in
         let nodes, root = add_node nodes tag in
         match p.node with
-        | PConst _ | PVar _ | PWild -> ((nodes, edges), root)
+        | PConst _ | PWild -> ((nodes, edges), root, vars)
+        | PVar x -> ((nodes, edges), root, add_var x root vars)
         | PCons (p1, p2) ->
-            let nodes, edges = add_subtree p1 nodes edges root 1 in
-            (add_subtree p2 nodes edges root 2, root)
+            let (nodes, edges), vars = add_subtree p1 nodes edges root vars 1 in
+            let (nodes, edges), vars = add_subtree p2 nodes edges root vars 2 in
+            ((nodes, edges), root, vars)
     in
-    to_list_aux tree [] []
+    to_list_aux p [] [] []
 
 let rec get_starter_list (p : t) : bool list =
     match p.node with

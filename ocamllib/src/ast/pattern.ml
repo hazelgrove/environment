@@ -14,8 +14,8 @@ and t = {
 
 type z_node = 
   | Cursor of node
-  | ZPCons_L of z_t * t
-  | ZPCons_R of t * z_t
+  | PCons_L of z_t * t
+  | PCons_R of t * z_t
 and z_t = {
   id : int; (* An unique ID assigned to each node *)
   node : z_node; (* Node type and its children *)
@@ -50,8 +50,8 @@ let rec equal (p1 : t) (p2 : t) =
 let rec z_equal (p1 : z_t) (p2 : z_t) = 
     match p1.node, p2.node with
     | Cursor p1, Cursor p2 -> equal (make_dummy_node p1) (make_dummy_node p2)
-    | ZPCons_L (zp1, p1), ZPCons_L (zp2, p2)
-    | ZPCons_R (p1, zp1), ZPCons_R (p2, zp2) ->
+    | PCons_L (zp1, p1), PCons_L (zp2, p2)
+    | PCons_R (p1, zp1), PCons_R (p2, zp2) ->
         z_equal zp1 zp2 && equal p1 p2
     | _ -> false
 
@@ -59,8 +59,8 @@ let rec unzip (zp : z_t) : t =
     let node : node =
       match zp.node with
       | Cursor p -> p
-      | ZPCons_L (zp, p) -> PCons (unzip zp, p)
-      | ZPCons_R (p, zp) -> PCons (p, unzip zp)
+      | PCons_L (zp, p) -> PCons (unzip zp, p)
+      | PCons_R (p, zp) -> PCons (p, unzip zp)
     in
     { id = zp.id; node; starter = zp.starter }
 

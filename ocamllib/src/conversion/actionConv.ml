@@ -57,8 +57,10 @@ let action_list =
     Construct Pair_L;
     Construct Pair_R;
     Construct Match_L;
-    Construct Match_C;
-    Construct Match_R;
+    Construct Match_P1;
+    Construct Match_E1;
+    Construct Match_P2;
+    Construct Match_E2;
     Construct TypInt;
     Construct TypBool;
     Construct TypArrow_L;
@@ -68,6 +70,17 @@ let action_list =
     Construct TypList;
     Construct TypHole;
     Construct TypUnit;
+    Construct (PatInt (-2));
+    Construct (PatInt (-1));
+    Construct (PatInt 0);
+    Construct (PatInt 1);
+    Construct (PatInt 2);
+    Construct (PatBool true);
+    Construct (PatBool false);
+    Construct PatCons_L;
+    Construct PatCons_R;
+    Construct PatVar;
+    Construct PatWild;
     Unwrap 0;
     Unwrap 1;
     Unwrap 2;
@@ -179,4 +192,15 @@ let to_string (action : t) : string =
   | Construct TypUnit -> "Construct TypUnit"
   | Construct (Var x) -> "Construct Var " ^ string_of_int x
   | Construct (Arg x) -> "Construct Arg " ^ string_of_int x
+  | Construct Match_L -> "Construct Match_L"
+  | Construct Match_P1 -> "Construct Match_P1"
+  | Construct Match_E1 -> "Construct Match_E1"
+  | Construct Match_P2 -> "Construct Match_P2"
+  | Construct Match_E2 -> "Construct Match_E2"
+  | Construct (PatInt x) -> "Construct PatInt " ^ string_of_int x
+  | Construct (PatBool x) -> "Construct PatBool " ^ string_of_bool x
+  | Construct PatCons_L -> "Construct PatCons_L"
+  | Construct PatCons_R -> "Construct PatCons_R"
+  | Construct PatVar -> "Construct PatVar"
+  | Construct PatWild -> "Construct PatWild"
   | Unwrap x -> "Unwrap " ^ string_of_int x

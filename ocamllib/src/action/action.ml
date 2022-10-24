@@ -20,8 +20,10 @@ type shape =
   | Pair_L
   | Pair_R
   | Match_L
-  | Match_C
-  | Match_R
+  | Match_P1
+  | Match_E1
+  | Match_P2
+  | Match_E2
   | TypInt
   | TypBool
   | TypArrow_L
@@ -31,6 +33,12 @@ type shape =
   | TypProd_L
   | TypProd_R
   | TypUnit
+  | PatInt of int
+  | PatBool of bool
+  | PatCons_L
+  | PatCons_R
+  | PatVar
+  | PatWild
 
 type dir = 
   | Parent 

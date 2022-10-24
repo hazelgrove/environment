@@ -1,6 +1,6 @@
 open Const
 
-let rec to_string (c : t) : string = 
+let to_string (c : t) : string = 
     match c with
     | Bool b -> string_of_bool b
     | Int i -> string_of_int i
