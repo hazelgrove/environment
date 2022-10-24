@@ -1,20 +1,29 @@
 (* Generate code n actions away from original *)
-let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
-  let num_child (e : Expr.t) : int =
-    let e = Expr.strip e in
-    match e with
-    | IntLit _ | BoolLit _ | Hole | Nil | Var _ -> 0
-    | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2) -> (
-        match (e1, e2) with Hole, Hole -> 0 | Hole, _ | _, Hole -> 1 | _ -> 2)
-    | If (e1, e2, e3) -> (
-        match (e1, e2, e3) with
-        | Hole, Hole, Hole -> 0
-        | _, Hole, Hole | Hole, _, Hole | Hole, Hole, _ -> 1
-        | Hole, _, _ | _, Hole, _ | _, _, Hole -> 2
-        | _, _, _ -> 3)
-    | Fun (_, _, e) | Fix (_, _, e) | UnOp (_, e) -> (
-        match e with Hole -> 0 | _ -> 1)
-  in
+let rec generate (e : Expr.z_t) (n : int) : Expr.z_t = 
+    let num_child (e : Expr.t) : int = 
+        let e = Expr.strip e in
+        match e with
+        | IntLit _ | BoolLit _ | Hole | Nil | Var _ -> 0
+        | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2)
+        | Filter (e1, e2) | Map (e1, e2) -> 
+            begin match e1, e2 with
+            | Hole, Hole -> 0
+            | Hole, _ | _, Hole -> 1
+            | _ -> 2
+            end
+        | If (e1, e2, e3) -> 
+            begin match e1, e2, e3 with
+            | Hole, Hole, Hole -> 0
+            | _, Hole, Hole | Hole, _, Hole | Hole, Hole, _ -> 1
+            | Hole, _, _ | _, Hole, _ | _, _, Hole -> 2
+            | _, _, _ -> 3
+            end
+        | Fun (_, _, e) | Fix (_, _, e) | UnOp (_, e) ->
+            begin match e with
+            | Hole -> 0
+            | _ -> 1
+            end
+    in
 
   if n = 0
   then e

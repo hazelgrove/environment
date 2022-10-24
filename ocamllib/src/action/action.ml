@@ -17,6 +17,10 @@ type shape =
   | If_R
   | Fun
   | Fix
+  | Map_L
+  | Map_R
+  | Filter_L
+  | Filter_R
   | Pair_L
   | Pair_R
   | TypInt

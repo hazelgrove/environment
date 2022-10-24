@@ -50,6 +50,10 @@ let action_list =
     Construct Fix;
     Construct Pair_L;
     Construct Pair_R;
+    Construct Filter_L;
+    Construct Filter_R;
+    Construct Map_L; 
+    Construct Map_R;
     Construct TypInt;
     Construct TypBool;
     Construct TypArrow_L;

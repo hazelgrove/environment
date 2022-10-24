@@ -111,12 +111,13 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           free_vars edef;
           free_vars ebody
       | EFun (x, _, e) | EFix (x, _, e) ->
-          Var.free_var x;
-          free_vars e
-      | EUnOp (_, e) -> free_vars e
-      | EBinOp (e1, _, e2) | EPair (e1, e2) ->
-          free_vars e1;
-          free_vars e2
+        Var.free_var x;
+        free_vars e
+      | EUnOp (_, e) ->
+        free_vars e
+      | EBinOp (e1, _, e2) | EPair (e1, e2) | EMap (e1,e2) | EFilter (e1,e2) ->
+        free_vars e1;
+        free_vars e2
       | EIf (e1, e2, e3) ->
           free_vars e1;
           free_vars e2;
@@ -161,6 +162,10 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | Fix -> EFix (Var.get_new_var (), Type.make_node THole, subtree)
       | Pair_L -> EPair (subtree, Expr.make_node EHole)
       | Pair_R -> EPair (Expr.make_node EHole, subtree)
+      | Map_L -> EMap (subtree, Expr.make_node EHole)
+      | Map_R -> EMap ( Expr.make_node EHole, subtree)
+      | Filter_L -> EFilter (subtree, Expr.make_node EHole)
+      | Filter_R -> EFilter ( Expr.make_node EHole, subtree)
       (* throw invalid action if no actions match *)
       | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
       (* only other option is type 'shapes' which arent valid in this scope*)
@@ -191,6 +196,10 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
       | EPair_L (l_child, r_child) -> EPair_L (construct_shape l_child, r_child)
       | EPair_R (l_child, r_child) -> EPair_R (l_child, construct_shape r_child)
+      | EMap_L (l_child, r_child) -> EMap_L (construct_shape l_child, r_child)
+      | EMap_R (l_child, r_child) -> EMap_R (l_child, construct_shape r_child)
+      | EFilter_L (l_child, r_child) -> EFilter_L (construct_shape l_child, r_child)
+      | EFilter_R (l_child, r_child) -> EFilter_R (l_child, construct_shape r_child)
       (* at cursor, build the correct expression *)
       | Cursor subtree -> build_expr shape (Expr.unzip tree)
     in
@@ -213,6 +222,8 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 0, EFun (varname, typ, arg) -> EFun_L (varname, Type.select_root typ, arg)
     | 0, EFix (varname, typ, arg) -> EFix_L (varname, Type.select_root typ, arg)
     | 0, EPair (arg_l, arg_r) -> EPair_L (Expr.select_root arg_l, arg_r)
+    | 0, EMap (arg_l, arg_r) -> EMap_L (Expr.select_root arg_l, arg_r)
+    | 0, EFilter (arg_l, arg_r) -> EFilter_L (Expr.select_root arg_l, arg_r)
     | 1, EBinOp (arg_l, op, arg_r) ->
         EBinOp_R (arg_l, op, Expr.select_root arg_r)
     | 1, ELet (varn, arg_l, arg_r) ->
@@ -220,6 +231,8 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 1, EIf (arg_l, arg_c, arg_r) ->
         EIf_C (arg_l, Expr.select_root arg_c, arg_r)
     | 1, EPair (arg_l, arg_r) -> EPair_R (arg_l, Expr.select_root arg_r)
+    | 1, EMap (arg_l, arg_r) -> EMap_R (arg_l, Expr.select_root arg_r)
+    | 1, EFilter (arg_l, arg_r) -> EFilter_R (arg_l, Expr.select_root arg_r)
     | 1, EFun (varname, typ, arg_l) ->
         EFun_R (varname, typ, Expr.select_root arg_l)
     | 1, EFix (varname, typ, arg_l) ->
@@ -252,6 +265,11 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EFix_L (var, typ, child) -> EFix_L (var, act_on_type typ, child)
       | EPair_L (l_child, r_child) -> EPair_L (move_n_child l_child, r_child)
       | EPair_R (l_child, r_child) -> EPair_R (l_child, move_n_child r_child)
+      | EMap_L (l_child, r_child) -> EMap_L (move_n_child l_child, r_child)
+      | EMap_R (l_child, r_child) -> EMap_R (l_child, move_n_child r_child)
+      | EFilter_L (l_child, r_child) -> EFilter_L (move_n_child l_child, r_child)
+      | EFilter_R (l_child, r_child) -> EFilter_R (l_child, move_n_child r_child)
+
       (*Once cursor is reached, use dedicated func to move to appropriate subtree*)
       | Cursor subtree -> shuffle_cursor n_child (Expr.unzip tree)
     in
@@ -281,8 +299,19 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EPair_R (l_child, ({ node = Cursor arg; _ } as subtr)) ->
           Cursor (EPair (l_child, { (Expr.unzip subtr) with node = arg }))
       | EPair_R (l_child, r_child) -> EPair_R (l_child, move_parent r_child)
-      | ELet_L (var, ({ node = Cursor arg; _ } as subtr), r_child) ->
-          Cursor (ELet (var, { (Expr.unzip subtr) with node = arg }, r_child))
+      (*working on map*)
+      | EMap_L ( ({ node = Cursor arg; _ } as subtr), r_child) -> Cursor (EMap ({ (Expr.unzip subtr) with node = arg; }, r_child))
+      | EMap_L (l_child, r_child) -> EMap_L (move_parent l_child, r_child)
+      | EMap_R (l_child,  ({ node = Cursor arg; _ } as subtr)) -> Cursor (EMap (l_child, { (Expr.unzip subtr) with node = arg; }))
+      | EMap_R (l_child, r_child) -> EMap_R (l_child, move_parent r_child)
+      (*working on  filter*)
+      | EFilter_L ( ({ node = Cursor arg; _ } as subtr), r_child) -> Cursor (EFilter ({ (Expr.unzip subtr) with node = arg; }, r_child))
+      | EFilter_L (l_child, r_child) -> EFilter_L (move_parent l_child, r_child)
+      | EFilter_R (l_child,  ({ node = Cursor arg; _ } as subtr)) -> Cursor (EFilter (l_child, { (Expr.unzip subtr) with node = arg; }))
+      | EFilter_R (l_child, r_child) -> EFilter_R (l_child, move_parent r_child)
+      (* let etc *)
+      | ELet_L (var,  ({ node = Cursor arg; _ } as subtr), r_child) ->
+          Cursor (ELet (var, { (Expr.unzip subtr) with node = arg; }, r_child))
       | ELet_L (var, l_child, r_child) ->
           ELet_L (var, move_parent l_child, r_child)
       | ELet_R (var, l_child, ({ node = Cursor arg; _ } as subtr)) ->
@@ -331,6 +360,10 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | 1, EFix (_, _, e) -> e
           | 0, EPair (e, _) -> e
           | 1, EPair (_, e) -> e
+          | 0, EMap  (_, e) -> e 
+          | 1, EMap (_, e) -> e  
+          | 0, EFilter  (_, e) -> e 
+          | 1, EFilter (_, e) -> e  
           | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         in
         Expr.select_root subtree
@@ -353,6 +386,10 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EFix_R (var, typ, child) -> EFix_R (var, typ, unwrap child n)
           | EPair_L (l_child, r_child) -> EPair_L (unwrap l_child n, r_child)
           | EPair_R (l_child, r_child) -> EPair_R (l_child, unwrap r_child n)
+          | EMap_L (l_child, r_child) -> EMap_L (unwrap l_child n, r_child)
+          | EMap_R (l_child, r_child) -> EMap_R (l_child, unwrap r_child n)
+          | EFilter_L (l_child, r_child) -> EFilter_L (unwrap l_child n, r_child)
+          | EFilter_R (l_child, r_child) -> EFilter_R (l_child, unwrap r_child n)
           | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         in
         { tree with node }

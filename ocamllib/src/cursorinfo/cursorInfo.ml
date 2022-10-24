@@ -238,6 +238,47 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
+    | EFilter_L (e1,e2)  -> 
+        let exp_ty = match exp_ty, synthesis typ_ctx e2  with 
+          | List(exptype), Some Type.List (foundtype) -> 
+            if Type.equal ( Type.add_metadata exp_ty) (Type.add_metadata foundtype) 
+              then Type.Arrow (exp_ty,Type.Bool) 
+               else raise (TypeError "List types do not match")
+          | _->  raise (TypeError "Expected a List type")
+        in 
+        get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
+        ~vars ~args ~typ_ctx ~exp_ty
+         ~index:(index + 1)
+    |EFilter_R  (e1,e2) -> 
+      let exp_ty = match exp_ty, synthesis typ_ctx e1 with 
+        | (List listtype), Some (Arrow(functype,Bool)) -> 
+          if Type.equal ( Type.add_metadata listtype) (Type.add_metadata functype) 
+            then exp_ty
+             else raise (TypeError "List types do not match")
+        | _ -> raise (TypeError "Expected a List type")
+       in 
+      get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
+      ~vars ~args ~typ_ctx ~exp_ty
+       ~index:(index + Expr.size e1 + 1)
+    |EMap_L (e1,e2) ->         
+      let exp_ty = match exp_ty, synthesis typ_ctx e2  with 
+        | List(exptype), Some Type.List (foundtype) -> Type.Arrow(foundtype,exptype)
+        | _->  raise (TypeError "Expected a List type")
+      in 
+      get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
+      ~vars ~args ~typ_ctx ~exp_ty
+      ~index:(index + 1)
+    |EMap_R (e1,e2) -> 
+      let exp_ty = match exp_ty, synthesis typ_ctx e1  with 
+        | List(exptype), Some Arrow(intype,outtype) -> 
+          if Type.equal ( Type.add_metadata exptype) (Type.add_metadata outtype)
+            then Type.List intype
+            else raise (TypeError "Function type does not match list")
+        | _->  raise (TypeError "Expected a List type")
+      in 
+      get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
+      ~vars ~args ~typ_ctx ~exp_ty
+      ~index:(index + Expr.size e1 + 1)
   in
   match tree with
   | ZENode e ->
@@ -520,7 +561,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
           match e.node with
           | EVar _ | EInt _ | EBool _ | EHole | ENil -> []
           | EUnOp _ -> [ Move (Child 0) ]
-          | EBinOp _ | EFun _ | EFix _ | EPair _ ->
+          | EBinOp _ | EFun _ | EFix _ | EPair _ |EMap _ |EFilter _ ->
               [ Move (Child 0); Move (Child 1) ]
           | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ]
           | ELet (_, edef, _) -> (
@@ -643,6 +684,26 @@ let cursor_info_to_actions (info : t) : Action.t list =
       then [ Construct Pair_R ]
       else []
     in
+    let construct_map _ = 
+      match actual_ty with
+      | Type.Arrow (tin, tout) ->
+          if Type.consistent exp_ty (Type.List  tout)
+          then [ Construct Map_L ]
+          else [ ]
+      | Type.List _ -> [ Construct Map_R ]
+      | Type.Hole -> [ Construct Map_L; Construct Map_L ]
+      | _ -> [ ]
+    in 
+    let construct_filter _ = 
+      match actual_ty with
+      | Type.Arrow (tin, tout) ->
+          if Type.consistent exp_ty (Type.List tin)
+          then [ Construct Filter_L ]
+          else [ ]
+      | Type.List _ -> [ Construct Filter_R ]
+      | Type.Hole -> [ Construct Filter_L; Construct Filter_L ]
+      | _ -> [ ]
+    in
     let construct_var _ =
       let rec construct_var_aux n lst =
         match lst with
@@ -670,102 +731,110 @@ let cursor_info_to_actions (info : t) : Action.t list =
       @ construct_arg_aux 0 info.args_in_scope
     in
     let handle_unwrap _ =
+      (*inspects the current node from info and determines which unwraps are possible *)
       match info.current_term with
-      | ENode e -> (
-          match e.node with
-          | EHole | ENil | EVar _ | EInt _ | EBool _ -> []
-          | EUnOp _ -> [ Unwrap 0 ]
-          | EBinOp (e1, _, e2) | EPair (e1, e2) ->
-              let t1 =
-                match Typing.synthesis info.typ_ctx e1 with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let t2 =
-                match Typing.synthesis info.typ_ctx e2 with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let l_consistent = Type.consistent t1 exp_ty in
-              let r_consistent = Type.consistent t2 exp_ty in
-              if l_consistent && r_consistent
-              then [ Unwrap 0; Unwrap 1 ]
-              else if l_consistent
-              then [ Unwrap 0 ]
-              else if r_consistent
-              then [ Unwrap 1 ]
-              else []
-          | ELet (x, edef, ebody) ->
-              let t_def =
-                match Typing.synthesis info.typ_ctx edef with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let t_body =
-                match
-                  Typing.synthesis
-                    (Context.extend info.typ_ctx (x, t_def))
-                    ebody
-                with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let def_consistent = Type.consistent exp_ty t_def in
-              let body_consistent = Type.consistent exp_ty t_body in
-              if def_consistent && body_consistent
-              then [ Unwrap 0; Unwrap 1 ]
-              else if def_consistent
-              then [ Unwrap 0 ]
-              else if body_consistent
-              then [ Unwrap 1 ]
-              else []
-          | EIf (econd, ethen, eelse) ->
-              let t_cond =
-                match Typing.synthesis info.typ_ctx econd with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let t_body =
-                match Typing.synthesis info.typ_ctx ethen with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              let cond_consistent = Type.consistent exp_ty t_cond in
-              let body_consistent = Type.consistent exp_ty t_body in
-              if cond_consistent && body_consistent
-              then [ Unwrap 0; Unwrap 1; Unwrap 2 ]
-              else if cond_consistent
-              then [ Unwrap 0 ]
-              else if body_consistent
-              then [ Unwrap 1; Unwrap 2 ]
-              else []
-          | EFun (x, ty, e) | EFix (x, ty, e) ->
-              let ty = Type.strip ty in
-              let t =
-                match
-                  Typing.synthesis (Context.extend info.typ_ctx (x, ty)) e
-                with
-                | Some t -> t
-                | None -> raise (TypeError "Invalid type")
-              in
-              if Type.consistent exp_ty t then [ Unwrap 1 ] else [])
+      | ENode e ->
+        begin match e.node with
+        | EHole | ENil | EVar _ | EInt _ | EBool _ -> []
+        | EUnOp _ -> [ Unwrap 0 ]
+        | EBinOp (_, (OpPlus | OpMinus | OpTimes | OpDiv), _) -> [ Unwrap 0; Unwrap 1 ]
+        | EBinOp (_, (OpGt | OpGe | OpLt | OpLe | OpEq | OpNe), _) -> []
+        | EBinOp (_, OpCons, _) -> [Unwrap 1]
+        | EFilter _ -> [Unwrap 1]
+        | EMap  (func,listarg) -> 
+            begin match synthesis info.typ_ctx func, synthesis info.typ_ctx listarg  with 
+            | Some (Arrow (intype, outtype)), Some List(listtype) -> 
+              if Type.consistent intype outtype && Type.consistent outtype listtype 
+                then [Unwrap 1] else []
+            | _ -> []
+            end 
+        | ELet (x, edef, ebody) ->
+          let t_def = 
+            match Typing.synthesis info.typ_ctx edef with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let t_body =
+            match Typing.synthesis (Context.extend info.typ_ctx (x, t_def)) ebody with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let def_consistent = Type.consistent exp_ty t_def in
+          let body_consistent = Type.consistent exp_ty t_body in
+          if def_consistent && body_consistent
+          then [ Unwrap 0; Unwrap 1 ]
+          else if def_consistent
+          then [ Unwrap 0 ]
+          else if body_consistent
+          then [ Unwrap 1 ]
+          else []
+        | EIf (econd, ethen, eelse) ->
+          let t_cond = 
+            match Typing.synthesis info.typ_ctx econd with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")  
+          in
+          let t_body = 
+            match Typing.synthesis info.typ_ctx ethen with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")  
+          in
+          let cond_consistent = Type.consistent exp_ty t_cond in
+          let body_consistent = Type.consistent exp_ty t_body in
+          if cond_consistent && body_consistent
+          then [ Unwrap 0; Unwrap 1; Unwrap 2 ]
+          else if cond_consistent
+          then [ Unwrap 0 ]
+          else if body_consistent
+          then [ Unwrap 1; Unwrap 2 ]
+          else []
+        | EFun (x, ty, e) | EFix (x, ty, e) ->
+          let ty = Type.strip ty in
+          let t = 
+            match Typing.synthesis (Context.extend info.typ_ctx (x, ty)) e with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          if Type.consistent exp_ty t then [ Unwrap 1 ] else []
+        | EPair (e1, e2) | EBinOp (e1, OpAp, e2) ->
+          let t1 = 
+            match Typing.synthesis info.typ_ctx e1 with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let t2 = 
+            match Typing.synthesis info.typ_ctx e2 with
+            | Some t -> t
+            | None -> raise (TypeError "Invalid type")
+          in
+          let l_consistent = Type.consistent exp_ty t1 in
+          let r_consistent = Type.consistent exp_ty t2 in
+          if l_consistent && r_consistent
+          then [ Unwrap 0; Unwrap 1 ]
+          else if l_consistent
+          then [ Unwrap 0 ]
+          else if r_consistent
+          then [ Unwrap 1 ]
+          else []
+        end
       | TNode _ -> []
     in
     let remaining_nodes = max_num_nodes - info.num_nodes in
-    let actions =
-      if remaining_nodes = 0
-      then [ construct_atom (); construct_var () ]
-      else if remaining_nodes = 1
-      then [ construct_atom (); construct_var (); construct_unop () ]
-      else if remaining_nodes = 2
-      then
+    let actions = 
+      if remaining_nodes = 0 then
+        [construct_atom (); construct_var ();]
+      else if remaining_nodes = 1 then
+        [construct_atom (); construct_var (); construct_unop ();]
+      else if remaining_nodes = 2 then
         [
-          construct_atom ();
-          construct_var ();
-          construct_unop ();
-          construct_binop ();
-          construct_pair ();
-        ]
+         construct_atom (); 
+         construct_var (); 
+         construct_unop (); 
+         construct_binop (); 
+         construct_pair (); 
+         construct_filter (); 
+         construct_map (); 
+         ]
       else
         [
           construct_atom ();
@@ -775,6 +844,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_if ();
           construct_fun_fix ();
           construct_pair ();
+          construct_filter (); 
+          construct_map (); 
           construct_var ();
           handle_unwrap ();
         ]
