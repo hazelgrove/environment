@@ -92,6 +92,19 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       if analysis (Context.extend context (varn, vart)) body vart
       then Some vart
       else None
+  | EMap (left, right) -> (
+        match synthesis context left with 
+        | Some (Type.Arrow(intype,outtype))  -> 
+            if (analysis context right  (Type.List(intype))) then Some outtype
+            else None
+        |_ -> None 
+        )
+   | EFilter (func, list) -> (
+        match synthesis context list with 
+        | Some (List (listtype)) -> if analysis context func (Type.Arrow(listtype,Bool)) 
+            then Some (List listtype) else None 
+        | _ -> None
+   )
   | EHole -> Some Hole
   | ENil -> Some (List Hole)
 
@@ -123,6 +136,18 @@ and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
       match synthesis context def with
       | Some vart -> analysis (Context.extend context (varn, vart)) body targ
       | None -> false)
+  | EMap (func,list) -> (
+        match (targ,synthesis context list)  with
+        | List( outtype ), Some List(intype) -> analysis context func (Type.Arrow(outtype,intype))  
+        |_ -> false 
+    ) 
+  | EFilter (func,list) -> (
+        match (targ,synthesis context list)  with
+        | List( outtype ), Some List(intype) -> 
+            analysis context func (Type.Arrow(outtype,Bool))  
+            && Type.consistent intype outtype
+        |_ -> false 
+    ) 
   | _ -> (
       match synthesis context e with
       | None -> false

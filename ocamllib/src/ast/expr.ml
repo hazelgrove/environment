@@ -32,6 +32,8 @@ type node =
   | EFun of Var.t * Type.t * t
   | EFix of Var.t * Type.t * t
   | EPair of t * t
+  | EMap of t * t
+  | EFilter of t * t
   | EHole
   | ENil
 
@@ -42,8 +44,7 @@ and t = {
 }
 [@@deriving sexp]
 
-(* Pure expression *)
-type p_t =
+(* Pure expression *)type p_t =
   | Var of Var.t
   | IntLit of int
   | BoolLit of bool
@@ -54,6 +55,8 @@ type p_t =
   | Fun of Var.t * Type.p_t * p_t
   | Fix of Var.t * Type.p_t * p_t
   | Pair of p_t * p_t
+  | Map of p_t * p_t
+  | Filter of p_t * p_t
   | Hole
   | Nil
 [@@deriving sexp]
@@ -73,6 +76,10 @@ type z_node =
   | EFun_L of Var.t * Type.z_t * t
   | EFix_R of Var.t * Type.t * z_t
   | EFix_L of Var.t * Type.z_t * t
+  | EMap_L of z_t * t 
+  | EMap_R of t * z_t 
+  | EFilter_L of z_t * t 
+  | EFilter_R of t * z_t 
   | EPair_L of z_t * t
   | EPair_R of t * z_t
 
@@ -112,6 +119,8 @@ let rec strip (e : t) : p_t =
   | EIf (e1, e2, e3) -> If (strip e1, strip e2, strip e3)
   | EFun (x, t, e) -> Fun (x, Type.strip t, strip e)
   | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
+  | EMap (e1, e2) ->    Map (strip e1, strip e2)
+  | EFilter (e1, e2) -> Filter (strip e1, strip e2)
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
   | ENil -> Nil
@@ -130,6 +139,8 @@ let rec add_metadata (e : p_t) : t =
   | Fun (x, t, e) -> make_node (EFun (x, Type.add_metadata t, add_metadata e))
   | Fix (x, t, e) -> make_node (EFix (x, Type.add_metadata t, add_metadata e))
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
+  | Map  (e1,e2)   -> make_node (EMap    (add_metadata (e1), add_metadata (e2)))
+  | Filter (e1,e2) -> make_node (EFilter (add_metadata (e1), add_metadata (e2)))
   | Hole -> make_node EHole
   | Nil -> make_node ENil
 
@@ -147,6 +158,8 @@ let rec size (e : t) : int =
   | EBinOp (e1, _, e2) | EPair (e1, e2) -> 1 + size e1 + size e2
   | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
   | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
+  | EMap (e1,e2) -> 1 + size e1 + size e2 
+  | EFilter (e1,e2) -> 1 + size e1 + size e2 
   | EFix (_, ty, ebody) | EFun (_, ty, ebody) ->
       1 + 1 + Type.size ty + size ebody
 
@@ -219,6 +232,8 @@ let rec equal (t1 : t) (t2 : t) : bool =
       Var.equal var1 var2 && Type.equal t1 t2 && equal sub1 sub2
   | EPair (subl1, subr1), EPair (subl2, subr2) ->
       equal subl1 subl2 && equal subr1 subr2
+  | EMap (subl1, subl2), EMap (subr1, subr2)
+  | EFilter (subl1, subl2), EFilter (subr1, subr2) -> equal subl1  subr1 && equal subl2 subr2
   | EHole, EHole | ENil, ENil -> true
   | _ -> false
 
@@ -247,6 +262,10 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
   | EPair_L (zsub1, sub1), EPair_L (zsub2, sub2)
   | EPair_R (sub1, zsub1), EPair_R (sub2, zsub2) ->
       equal sub1 sub2 && z_equal zsub1 zsub2
+  | EMap_L (subl1, subl2), EMap_L (subr1, subr2)
+  | EFilter_L (subl1, subl2), EFilter_L (subr1, subr2) -> z_equal subl1  subr1 && equal subl2 subr2
+  | EMap_R (subl1, subl2), EMap_R (subr1, subr2) 
+  | EFilter_R (subl1, subl2), EFilter_R (subr1, subr2) -> equal subl1  subr1 && z_equal subl2 subr2
   | _ -> false
 
 let rec unzip (tree : z_t) : t =
@@ -270,6 +289,12 @@ let rec unzip (tree : z_t) : t =
         EFun (var_n, Type.unzip var_t, child) (*unzip child type*)
     | EFix_R (var_n, var_t, child) -> EFix (var_n, var_t, unzip child)
     | EFix_L (var_n, var_t, child) -> EFix (var_n, Type.unzip var_t, child)
+    | EMap_L (e1, e2) -> EMap (unzip e1, e2)
+    | EMap_R (e1, e2) -> EMap (e1, unzip e2)
+    | EFilter_L (e1, e2) -> EFilter (unzip e1, e2)
+    | EFilter_R (e1, e2) -> EFilter (e1, unzip e2)
+
+  
   in
   { id=tree.id; node; starter=tree.starter }
 (*unzip child type*)
@@ -279,6 +304,8 @@ let rec add_vars (e : t) : unit =
   match e.node with
   | EUnOp (unop, child) ->
       add_vars child
+  |EMap (l_child, r_child) 
+  |EFilter (l_child, r_child) 
   | EBinOp (l_child, _, r_child) 
   | EPair (l_child, r_child) ->
       add_vars l_child; add_vars r_child

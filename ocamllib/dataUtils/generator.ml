@@ -4,7 +4,8 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
         let e = Expr.strip e in
         match e with
         | IntLit _ | BoolLit _ | Hole | Nil | Var _ -> 0
-        | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2) -> 
+        | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2)
+        | Filter (e1, e2) | Map (e1, e2) -> 
             begin match e1, e2 with
             | Hole, Hole -> 0
             | Hole, _ | _, Hole -> 1

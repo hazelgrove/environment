@@ -28,6 +28,9 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
       Let (y, subx e_def, subx_unless (Var.equal x y) e_body)
   | Fix (y, ty, e_body) -> Fix (y, ty, subx_unless (Var.equal x y) e_body)
   | Pair (e_l, e_r) -> Pair (subx e_l, subx e_r)
+  | Map (func, e_list) -> Map (subx func, subx e_list)
+  | Filter (func, e_list) -> Filter (subx func, subx e_list)
+
 
 (*
   Evalutate the expression e
@@ -110,6 +113,9 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
     | Fix (x, ty, e_body) ->
         let unrolled = subst (Fix (x, ty, e_body)) x e_body in
         eval unrolled stack
+
+    | Map (func, e_list) 
+    | Filter (func, e_list)   -> raise NotImplemented
     | Var _ -> raise (SyntaxError "Variable not bound")
     | Hole -> raise (SyntaxError "Hole in expression")
 
