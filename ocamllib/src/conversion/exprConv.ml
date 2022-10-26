@@ -8,8 +8,12 @@ open Expr
 let rec to_string (e : p_t) : string =
   match e with
   | Var x -> Var.to_string x ^ " "
-  | IntLit n -> string_of_int n ^ " "
-  | BoolLit b -> string_of_bool b ^ " "
+  | Const c -> 
+    begin match c with
+    | Int n -> string_of_int n ^ " "
+    | Bool b -> string_of_bool b ^ " "
+    | Nil -> "[] "
+    end
   | UnOp (_, e) -> "(-" ^ to_string e ^ ") "
   | BinOp (e1, op, e2) ->
       let op_string =
@@ -26,6 +30,8 @@ let rec to_string (e : p_t) : string =
         | OpNe -> "!="
         | OpCons -> "::"
         | OpAp -> " "
+        | OpAnd -> "&&"
+        | OpOr -> "||"
       in
       "(" ^ to_string e1 ^ " " ^ op_string ^ " " ^ to_string e2 ^ ") "
   | If (cond, e1, e2) ->
@@ -53,6 +59,8 @@ let rec to_string (e : p_t) : string =
   | Map  (e1,e2)  -> "Map( " ^ to_string e1     ^ ", " ^ to_string e2 ^ ") "
   | Filter (e1,e2)-> "Filter ( " ^ to_string e2 ^ ", " ^ to_string e2 ^ ") "
   | Nil -> "[] "
+  | Match (e, (p1, e1), (p2, e2)) -> "(match " ^ to_string e ^ " with | " ^ PatternConv.to_string p1 ^ " -> " ^ to_string e1 ^ " | " ^ PatternConv.to_string p2 ^ " -> " ^ to_string e2 ^ ") "
+  | Assert e -> "assert(" ^ to_string e ^ ") "
 
 and resolve_fun (e : p_t) : string =
   match e with
@@ -64,8 +72,9 @@ and resolve_fun (e : p_t) : string =
         ^ resolve_fun e
   | _ -> " = " ^ to_string e ^ " "
 
+
 let node_list =
-  [
+  ([
     EUnOp (OpNeg, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpPlus, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpMinus, make_dummy_node EHole);
@@ -79,6 +88,8 @@ let node_list =
     EBinOp (make_dummy_node EHole, OpNe, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpCons, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpAp, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpAnd, make_dummy_node EHole);
+    EBinOp (make_dummy_node EHole, OpOr, make_dummy_node EHole);
     EIf (make_dummy_node EHole, make_dummy_node EHole, make_dummy_node EHole);
     ELet (Var.undef_var, make_dummy_node EHole, make_dummy_node EHole);
     EFun (Var.undef_var, Type.make_dummy_node THole, make_dummy_node EHole);
@@ -86,16 +97,18 @@ let node_list =
     EPair (make_dummy_node EHole, make_dummy_node EHole);
     EMap    (make_dummy_node EHole, make_dummy_node EHole);
     EFilter (make_dummy_node EHole, make_dummy_node EHole);
+    EAssert (make_dummy_node EHole);
+    EMatch (make_dummy_node EHole, (Pattern.make_dummy_node PWild, make_dummy_node EHole), (Pattern.make_dummy_node PWild, make_dummy_node EHole));
     EHole;
-    ENil;
-    EBool true;
-    EBool false;
-    EInt (-2);
-    EInt (-1);
-    EInt 0;
-    EInt 1;
-    EInt 2;
-  ]
+    EConst Nil;
+    EConst (Bool true);
+    EConst (Bool false);
+    EConst (Int (-2));
+    EConst (Int (-1));
+    EConst (Int 0);
+    EConst (Int 1);
+    EConst (Int 2);
+  ] @ (List.init Var.max_num_vars (fun i -> EVar i)))
 
 let num_nodes = List.length node_list
 
@@ -104,34 +117,36 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
   then true
   else
     match (e1, e2) with
-    | EUnOp (op1, _), EUnOp (op2, _) -> op1 = op2
-    | EBinOp (_, op1, _), EBinOp (_, op2, _) -> op1 = op2
-    | EIf _, EIf _ | ELet _, ELet _ | EFun _, EFun _ | EFix _, EFix _ 
-    | EPair _, EPair _ |EMap _, EMap _ | EFilter _, EFilter _  -> true
+    | EUnOp (op1, _), EUnOp (op2, _) -> Expr.unop_equal op1 op2
+    | EBinOp (_, op1, _), EBinOp (_, op2, _) -> Expr.binop_equal op1 op2
+    | EIf _, EIf _
+    | ELet _, ELet _
+    | EFun _, EFun _
+    | EFix _, EFix _
+    | EPair _, EPair _
+    | EAssert _, EAssert _
+    | EMap _, EMap _ 
+    | EFilter _, EFilter _ 
+    | EMatch _, EMatch _ ->
+        true
     | _ -> false
 
 (* Convert each unique AST node to an integer *)
 let node_to_tag (e : t) : int =
-  match e.node with
-  | EVar x -> num_nodes + TypeConv.num_nodes + x
-  | _ ->
-      let rec find_node x lst c =
-        match lst with
-        | [] -> raise (Failure "Invalid node")
-        | hd :: tl -> if node_list_equal x hd then c else find_node x tl (c + 1)
-      in
-      find_node e.node node_list 0 + TypeConv.num_nodes
+  let rec find_node x lst c =
+    match lst with
+    | [] -> raise (Failure "Invalid node")
+    | hd :: tl -> if node_list_equal x hd then c else find_node x tl (c + 1)
+  in
+  find_node e.node node_list (PatternConv.num_nodes + TypeConv.num_nodes)
 
 (* Convert each integer to a type of node with expression holes padded for its children *)
 let tag_to_node (tag : int) : t =
-  let tag = tag - TypeConv.num_nodes in
+  let tag = tag - TypeConv.num_nodes - PatternConv.num_nodes in
   let node =
-    if tag >= num_nodes
-    then EVar (tag - num_nodes)
-    else
-      try List.nth node_list tag
-      with Failure _ | Invalid_argument _ ->
-        raise (Failure "Invalid node index")
+    try List.nth node_list tag
+    with Failure _ | Invalid_argument _ ->
+      raise (Failure ("Invalid node index " ^ string_of_int tag))
   in
   make_node node
 
@@ -155,8 +170,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
   let node = tag_to_node tag in
   let new_node =
     match node.node with
-    | EInt n -> EInt n
-    | EBool b -> EBool b
+    | EConst c -> EConst c
     | EVar x -> EVar x
     | EUnOp (op, _) ->
         let adj_nodes = get_adj_nodes edges root in
@@ -190,13 +204,13 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
           ( varname,
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
-    | EIf (_, _, _) ->
+    | EIf _ ->
         let adj_nodes = get_adj_nodes edges root in
         EIf
           ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
-    | EFun (_, _, _) ->
+    | EFun _ ->
         let adj_nodes = get_adj_nodes edges root in
         let varname =
           match
@@ -209,7 +223,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
           ( varname,
             TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
-    | EFix (_, _, _) ->
+    | EFix _ ->
         let adj_nodes = get_adj_nodes edges root in
         let varname =
           match
@@ -222,13 +236,23 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
           ( varname,
             TypeConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
-    | EPair (_, _) ->
+    | EPair _ ->
         let adj_nodes = get_adj_nodes edges root in
         EPair
           ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
+    | EAssert _ ->
+        let adj_nodes = get_adj_nodes edges root in
+        EAssert (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0))
+    | EMatch _ ->
+        let adj_nodes = get_adj_nodes edges root in
+        EMatch
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
+            (PatternConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2)),
+            (PatternConv.from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 3),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 4)) )
     | EHole -> EHole
-    | ENil -> ENil
   in
   { node with node = new_node }
 
@@ -280,6 +304,13 @@ let to_list (e : z_t) : graph =
     let ty_edges = List.map (fun (x, y, z) -> (x + len, y + len, z)) ty_edges in
     ((nodes @ ty_nodes, edges @ ty_edges), root + len)
   in
+  let append_pattern_tree (nodes : int list) (edges : edge list) (vars : varlist)
+      (p_nodes : int list) (p_edges : edge list) (root : int) (p_vars : varlist) : graph * int * varlist =
+    let len = List.length nodes in
+    let p_edges = List.map (fun (x, y, z) -> (x + len, y + len, z)) p_edges in
+    let p_vars = List.map (fun (var, index) -> (var, index + len)) p_vars in
+    ((nodes @ p_nodes, edges @ p_edges), root + len, vars @ p_vars)
+  in
   let rec to_list_aux (e : t) (nodes : int list) (edges : edge list)
       (vars : varlist) : graph * int * varlist =
     let add_subtree (e : t) (nodes : int list) (edges : edge list)
@@ -291,14 +322,15 @@ let to_list (e : z_t) : graph =
     let tag = node_to_tag e in
     let nodes, root = add_node nodes tag in
     match e.node with
-    | EInt _ | EBool _ | EHole | ENil -> ((nodes, edges), root, vars)
+    | EConst _| EHole -> ((nodes, edges), root, vars)
     | EVar x ->
         let edges = add_edge edges (find_var x vars, root, -1) in
         ((nodes, edges), root, vars)
-    | EUnOp (_, e) -> (add_subtree e nodes edges vars root 1, root, vars)
-    | EBinOp (e1, _, e2) | EPair (e1, e2) | EMap (e1, e2) | EFilter (e1,e2)->
-        let nodes, edges = add_subtree e1 nodes edges vars root 1 in
-        (add_subtree e2 nodes edges vars root 2, root, vars)
+    | EUnOp (_, e) -> (add_subtree e nodes edges vars root 0, root, vars)
+    | EAssert e -> (add_subtree e nodes edges vars root 0, root, vars)
+    | EBinOp (e1, _, e2) | EPair (e1, e2) | EMap (e1, e2) | EFilter (e1,e2) ->
+        let nodes, edges = add_subtree e1 nodes edges vars root 0 in
+        (add_subtree e2 nodes edges vars root 1, root, vars)
     | EFun (x, ty, e) | EFix (x, ty, e) ->
         let nodes, new_root =
           add_node nodes (node_to_tag (make_dummy_node (EVar x)))
@@ -323,6 +355,20 @@ let to_list (e : z_t) : graph =
         let nodes, edges = add_subtree econd nodes edges vars root 0 in
         let nodes, edges = add_subtree ethen nodes edges vars root 1 in
         (add_subtree eelse nodes edges vars root 2, root, vars)
+    | EMatch (escrut, (p1, e1), (p2, e2)) ->
+        let nodes, edges = add_subtree escrut nodes edges vars root 0 in
+        let (p_nodes, p_edges), new_root, p_vars = PatternConv.to_list p1 in
+        let (nodes, edges), new_root, vars =
+          append_pattern_tree nodes edges vars p_nodes p_edges new_root p_vars
+        in
+        let edges = add_edge edges (root, new_root, 1) in
+        let nodes, edges = add_subtree e1 nodes edges vars root 2 in
+        let (p_nodes, p_edges), new_root, p_vars = PatternConv.to_list p2 in
+        let (nodes, edges), new_root, vars =
+          append_pattern_tree nodes edges vars p_nodes p_edges new_root p_vars
+        in
+        let edges = add_edge edges (root, new_root, 3) in
+        (add_subtree e2 nodes edges vars root 4, root, vars)
   in
   let graph, _, _ =
     try to_list_aux (unzip e) [] [] []
@@ -370,10 +416,10 @@ let to_list (e : z_t) : graph =
 
 let rec get_starter_list (e : Expr.t) : bool list =
   match e.node with
-  | EVar _ | EInt _ | EBool _ | EHole | ENil -> [e.starter]
-  | EUnOp (_, arg) -> e.starter :: (get_starter_list arg)
-  | EBinOp (arg1, _, arg2) | EPair (arg1, arg2) | EMap (arg1,arg2) |EFilter (arg1,arg2) ->
-      e.starter :: ((get_starter_list arg1) @ (get_starter_list arg2))
+  | EVar _ | EConst _ | EHole -> [ e.starter ]
+  | EUnOp (_, arg) | EAssert arg -> e.starter :: get_starter_list arg
+  | EBinOp (arg1, _, arg2) | EPair (arg1, arg2)  | EMap (arg1,arg2) |EFilter (arg1,arg2) ->
+      e.starter :: (get_starter_list arg1 @ get_starter_list arg2)
   | EFun (x, ty, body) | EFix (x, ty, body) ->
       [ e.starter; e.starter ]
       @ TypeConv.get_starter_list ty
@@ -383,3 +429,7 @@ let rec get_starter_list (e : Expr.t) : bool list =
   | EIf (econd, ethen, eelse) ->
       (e.starter :: get_starter_list econd)
       @ get_starter_list ethen @ get_starter_list eelse
+  | EMatch (escrut, (p1, e1), (p2, e2)) ->
+      (e.starter :: get_starter_list escrut)
+      @ PatternConv.get_starter_list p1 @ get_starter_list e1
+      @ PatternConv.get_starter_list p2 @ get_starter_list e2

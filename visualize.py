@@ -12,6 +12,8 @@ from agent.policy import GNNPolicy
 def main(log_name, run_id):
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     params = get_load_params(run_id, logger)
+    # Account for changes in logging
+    # params["env"]["assignment_dir"] = "data/random_action"
 
     path = os.path.join("save", log_name, str(run_id) + ".pt")
 
@@ -40,7 +42,7 @@ def main(log_name, run_id):
         device=device,
     )
     actor_critic.to(device)
-    # actor_critic.load_state_dict(torch.load(path)[0])
+    actor_critic.load_state_dict(torch.load(path)[0])
     actor_critic.eval()
 
     obs = env.reset()
@@ -53,12 +55,16 @@ def main(log_name, run_id):
                 None,
             )
         print(f"Action: {action}")
-        breakpoint()
+        # breakpoint()
         obs, reward, done, info = env.step(action.reshape((-1,)))
 
         if done[0]:
             print(f"Reward: {info[0]['episode']['r']}")
             print()
+
+            if info[0]['episode']['r'] == 0:
+                breakpoint()
+
             print("---------------Environment reset---------------")
 
         env.render()

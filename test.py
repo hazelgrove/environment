@@ -18,11 +18,12 @@ import gym
 
 def main():
     env = ASTEnv(
-                max_num_nodes=50,
+                max_num_nodes=100,
                 num_node_descriptor=33,
                 num_assignments=1,
                 code_per_assignment=[2],
                 num_actions=58,
+                assignment_dir="data/random_action",
             )
     obs_space = Obs(**env.observation_space.spaces)
     env = FlattenObservation(env)

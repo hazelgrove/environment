@@ -88,7 +88,9 @@ let get_cursor_info_c (ser_zast : string) : int =
            ^ (zast |> Expr.unzip |> Expr.strip |> ExprConv.to_string)))
   in
   let vars_in_scope =
-    List.map (fun (_, index) -> index + 1) cursorInfo.vars_in_scope
+    List.filter_map
+      (fun (x, index) -> if Var.is_normal x then Some (index + 1) else None)
+      cursorInfo.CursorInfo.vars_in_scope
   in
   let args_in_scope =
     List.map
@@ -101,26 +103,32 @@ let get_cursor_info_c (ser_zast : string) : int =
   cursorInfo.cursor_position
 
 (* run_unittests function that will be called by C *)
-let run_unit_tests_c (root : int) : bool =
+let run_unit_tests_c (ser_zast : string) : bool =
+  let zast = Utils.deserialize ser_zast in
+  zast |> Expr.unzip |> Evaluator.run_unit_tests
+
+let run_unit_tests_c2 (root : int) : bool =
   let tests = array2_to_list (get_unit_tests ()) in
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
   let e = ExprConv.from_list ~nodes ~edges ~root in
-  Evaluator.run_unit_tests tests e
+  Evaluator.run_unit_tests_private tests e
 
 (* load_assignment function that will be called by C *)
-let load_tests_c (assignment : int) : unit =
-  let unit_tests = Utils.load_tests "data/random_action" assignment in
+let load_tests_c (directory : string) (assignment : int) : unit =
+  let unit_tests = Utils.load_tests directory assignment in
   pass_unit_tests (list_to_array2 unit_tests)
 
 (* load_assignment function that will be called by C *)
-let load_starter_code_c (assignment : int) (index : int) (n : int) : string =
+let load_starter_code_c (directory : string) (assignment : int) (index : int)
+    (n : int) (cursor : int) : string =
   Var.reset ();
   Id.reset ();
-  let e = Utils.load_starter_code "data/random_action" assignment index in
+  let cursor = if cursor < 0 then None else Some cursor in
+  let e = Utils.load_starter_code directory assignment index cursor in
+  Expr.add_vars (Expr.unzip e);
   (* Randomly change code by n steps *)
   let e = Generator.generate e n in
-  Expr.add_vars (Expr.unzip e);
   Utils.serialize e
 
 (* For debugging use *)
@@ -132,11 +140,13 @@ let print_code_c (root : int) : unit =
   print_endline s
 
 let init_c (seed : int) : unit = Random.init seed
-let _ = Callback.register "run_unit_tests" run_unit_tests_c
+
+let _ = Callback.register "run_unit_tests" run_unit_tests_c2
 let _ = Callback.register "change_zast" change_zast_c
 let _ = Callback.register "get_ast" get_ast_c
 let _ = Callback.register "get_cursor_info" get_cursor_info_c
-let _ = Callback.register "load_tests" load_tests_c
 let _ = Callback.register "load_starter_code" load_starter_code_c
 let _ = Callback.register "print_code" print_code_c
 let _ = Callback.register "init" init_c
+let _ = Callback.register "load_tests" load_tests_c
+

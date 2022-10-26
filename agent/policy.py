@@ -98,7 +98,7 @@ class GNNPolicy(Policy):
         obs_space,
         action_space,
         num_fixed_actions,
-        max_num_vars=10,
+        max_num_vars=11,
         base_kwargs=None,
         device=None,
     ):

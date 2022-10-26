@@ -14,6 +14,7 @@ type node =
   | TProd of t * t
   | THole
   | TList of t
+  | TUnit
 (* temporarily include lists *)
 
 and t = {
@@ -30,6 +31,7 @@ type p_t =
   | Prod of p_t * p_t
   | Hole
   | List of p_t
+  | Unit
 [@@deriving sexp]
 
 type z_node =
@@ -62,6 +64,7 @@ let rec strip (e : t) : p_t =
   | TProd (t1, t2) -> Prod (strip t1, strip t2)
   | THole -> Hole
   | TList t -> List (strip t)
+  | TUnit -> Unit
 
 let rec add_metadata (e : p_t) : t =
   match e with
@@ -71,11 +74,12 @@ let rec add_metadata (e : p_t) : t =
   | Prod (t1, t2) -> make_node (TProd (add_metadata t1, add_metadata t2))
   | Hole -> make_node THole
   | List t -> make_node (TList (add_metadata t))
+  | Unit -> make_node TUnit
 
 (* Check if two types are equal *)
 let rec equal (ty : t) (ty' : t) : bool =
   match (ty.node, ty'.node) with
-  | TInt, TInt | TBool, TBool | THole, THole -> true
+  | TInt, TInt | TBool, TBool | THole, THole | TUnit, TUnit -> true
   | TArrow (t1, t2), TArrow (t1', t2') | TProd (t1, t2), TProd (t1', t2') ->
       equal t1 t1' && equal t2 t2'
   | TList t_1, TList t_2 -> equal t_1 t_2
@@ -97,7 +101,7 @@ let rec z_equal (ty : z_t) (ty' : z_t) : bool =
 let rec consistent (ty : p_t) (ty' : p_t) : bool =
   match (ty, ty') with
   | _, Hole | Hole, _ -> true
-  | Int, Int | Bool, Bool -> true
+  | Int, Int | Bool, Bool | Unit, Unit -> true
   | Arrow (t1, t2), Arrow (t1', t2') | Prod (t1, t2), Prod (t1', t2') ->
       consistent t1 t1' && consistent t2 t2'
   | List t_1, List t_2 -> consistent t_1 t_2
@@ -112,7 +116,7 @@ let rec consistent (ty : p_t) (ty' : p_t) : bool =
 *)
 let rec size (ty : t) : int =
   match ty.node with
-  | TInt | TBool | THole -> 1
+  | TInt | TBool | THole | TUnit -> 1
   | TList t1 -> 1 + size t1
   | TArrow (t1, t2) | TProd (t1, t2) -> 1 + size t1 + size t2
 
@@ -138,3 +142,13 @@ let rec unzip (tree : z_t) : t =
     | List_L tl -> TList (unzip tl)
   in
   { id = tree.id; node; starter = tree.starter }
+
+let rec set_starter (typ : t) (b : bool) : t =
+  let new_node =
+    match typ.node with
+    | TInt | TBool | THole | TUnit -> typ.node
+    | TArrow (t1, t2) -> TArrow (set_starter t1 b, set_starter t2 b)
+    | TProd (t1, t2) -> TProd (set_starter t1 b, set_starter t2 b)
+    | TList t -> TList (set_starter t b)
+  in
+  { typ with node = new_node; starter = b }

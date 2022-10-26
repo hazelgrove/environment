@@ -4,9 +4,7 @@ type shape =
   | Var of Var.t
   | Arg of Var.t
   | Hole
-  | Nil
-  | Int of int
-  | Bool of bool
+  | Const of Const.t
   | UnOp of Expr.unop
   | BinOp_L of Expr.binop
   | BinOp_R of Expr.binop
@@ -23,6 +21,9 @@ type shape =
   | Filter_R
   | Pair_L
   | Pair_R
+  | Match_L
+  | Match_E1
+  | Match_E2
   | TypInt
   | TypBool
   | TypArrow_L
@@ -31,8 +32,16 @@ type shape =
   | TypHole
   | TypProd_L
   | TypProd_R
+  | TypUnit
+  | PatConst of Const.t
+  | PatCons_L
+  | PatCons_R
+  | PatVar
+  | PatWild
 
-type dir = Parent | Child of int
+type dir = 
+  | Parent 
+  | Child of int
 
 (* write a numbered action to inser all of <- *)
 (* Have some sort of default value analog for type t *)

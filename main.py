@@ -97,12 +97,17 @@ def sweep(
         },
     }
 
+<<<<<<< HEAD
     runtime_env = {
         "working_dir": ".",
     }
 
     ray.init(runtime_env=runtime_env)
     num_cpus = 1#os.cpu_count()
+=======
+    ray.init()
+    num_cpus = os.cpu_count()
+>>>>>>> f0952d0de3e12cfdee076b6c1e1201571d8fe6ff
     analysis = ray.tune.run(
         trainable,
         config=config,
@@ -114,6 +119,7 @@ def sweep(
 
 if __name__ == "__main__":
     args = get_args()
+    print("Python started.")
 
     if args.sweep:
         print('sweeping')

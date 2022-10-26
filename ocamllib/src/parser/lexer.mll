@@ -27,9 +27,10 @@ rule read =
   | "("     { LPAREN }
   | ")"     { RPAREN }
   | ","     { COMMA }
-  | ";"     { SEMI }
   | "["     { LBRAC }
   | "]"     { RBRAC }
+  | "&&"    { AND }
+  | "||"    { OR }
   | "true"  { TRUE }
   | "false" { FALSE }
   | "let"   { LET }
@@ -41,6 +42,12 @@ rule read =
   | "rec"   { REC }
   | "int"   { TINT }
   | "bool"  { TBOOL }
+  | "assert"{ ASSERT }
+  | "f"     { F }
+  | "match" { MATCH }
+  | "with"  { WITH }
+  | "|"     { BAR }
+  | "_"     { WILD }
   | "->"    { RIGHTARROW }
   | id as x { ID (int_of_string (String.sub x 1 (String.length x - 1))) }
   | eof     { EOF }

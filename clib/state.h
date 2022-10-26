@@ -1,11 +1,11 @@
 #ifndef __STATE_H
 #define __STATE_H
 
-#define MAX_NUM_NODES 50
+#define MAX_NUM_NODES 100
 #define MAX_NUM_TESTS 10
-#define NUM_ACTIONS 58
+#define NUM_ACTIONS 63
 #define MAX_TREE_LENGTH 10000
-#define MAX_NUM_VARS 10
+#define MAX_NUM_VARS 11
 
 /*
 Struct defining the AST structure

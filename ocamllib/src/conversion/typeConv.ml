@@ -11,6 +11,7 @@ let node_list =
     TProd (make_dummy_node THole, make_dummy_node THole);
     TList (make_dummy_node THole);
     THole;
+    TUnit;
   ]
 
 let num_nodes = List.length node_list
@@ -74,6 +75,7 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
         let adj_nodes = get_adj_nodes edges root in
         TList (from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1))
     | THole -> THole
+    | TUnit -> TUnit
   in
   { node with node = new_node }
 
@@ -107,7 +109,7 @@ let to_list (tree : t) : graph * int =
     let tag = node_to_tag tree in
     let nodes, root = add_node nodes tag in
     match tree.node with
-    | TInt | TBool | THole -> ((nodes, edges), root)
+    | TInt | TBool | THole | TUnit -> ((nodes, edges), root)
     | TList t1 -> (add_subtree t1 nodes edges root 1, root)
     | TArrow (t1, t2) | TProd (t1, t2) ->
         let nodes, edges = add_subtree t1 nodes edges root 1 in
@@ -134,10 +136,11 @@ let rec to_string (tree : p_t) : string =
   | Prod (t1, t2) -> to_string t1 ^ "* " ^ to_string t2
   | List t1 -> to_string t1 ^ " list"
   | Hole -> "? "
+  | Unit -> "() "
 
 let rec get_starter_list (ty : t) : bool list =
   match ty.node with
-  | TInt | TBool | THole -> [ ty.starter ]
+  | TInt | TBool | THole | TUnit -> [ ty.starter ]
   | TArrow (t1, t2) | TProd (t1, t2) ->
       (ty.starter :: get_starter_list t1) @ get_starter_list t2
   | TList t' -> ty.starter :: get_starter_list t'

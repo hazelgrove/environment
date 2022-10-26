@@ -192,7 +192,7 @@ class GNNBase(NNBase):
         num_assignments: int = 1,
         embedding_dim: int = 512,
         assignment_aggr: Optional[str] = None,
-        max_num_vars: int = 10,
+        max_num_vars: int = 11,
         device: Optional[torch.device] = None,
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)
@@ -268,9 +268,14 @@ class GNNBase(NNBase):
         )
 
         self.node_embedding = nn.Embedding(
-            num_node_descriptor + max_num_vars + 1, embedding_dim
+            num_embeddings=num_node_descriptor + max_num_vars + 2, 
+            embedding_dim=embedding_dim,
+            padding_idx=-1,
         )
-        self.edge_embedding = nn.Embedding((num_edge_descriptor + 1) * 2, embedding_dim)
+        self.edge_embedding = nn.Embedding(
+            num_embeddings=(num_edge_descriptor + 1) * 2, 
+            embedding_dim=embedding_dim,
+        )
         self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
 
         init_ = lambda m: init(
@@ -291,7 +296,7 @@ class GNNBase(NNBase):
         edge_attr = edges[:, :, 2]
         starter = inputs["starter"]
         assignment = inputs["assignment"]
-        
+
         x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
         edge_index = torch.concat((edge_index, edge_index.flip(0)), dim=1)
         edge_attr = torch.concat((edge_attr, edge_attr + 4), dim=0)
@@ -328,7 +333,7 @@ class GNNBase(NNBase):
         # Append information on whether node can be changed
         starter = starter.reshape((-1, 1))
         x = torch.concat((x, starter), dim=-1)
-        
+
         # Pass through GNN
         x = self.main(x, edge_index, edge_attr)
         x = separate(x, batch_size)

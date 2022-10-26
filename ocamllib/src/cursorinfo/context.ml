@@ -22,3 +22,6 @@ let extend (ctx : t) ((x, ty) : assumption) : t =
           let ty = if Var.equal x y then ty else ty' in
           (y, ty) :: new_ctx)
         ctx empty
+
+let concat (ctx1 : t) (ctx2 : t) : t =
+  List.fold_left (fun ctx (x, ty) -> extend ctx (x, ty)) ctx1 ctx2

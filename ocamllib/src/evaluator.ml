@@ -18,7 +18,7 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
   (* Substitute if condition is not met *)
   let subx_unless cond = if cond then Fun.id else subx in
   match e2 with
-  | BoolLit _ | IntLit _ | Nil | Hole -> e2
+  | Const _ | Hole -> e2
   | Var y -> if Var.equal x y then e1 else e2
   | UnOp (op, e) -> UnOp (op, subx e)
   | BinOp (e_l, op, e_r) -> BinOp (subx e_l, op, subx e_r)
@@ -31,6 +31,17 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
   | Map (func, e_list) -> Map (subx func, subx e_list)
   | Filter (func, e_list) -> Filter (subx func, subx e_list)
 
+  | Assert e -> Assert (subx e)
+  | Match (e, (p1, e1), (p2, e2)) -> 
+    let rec find_x (p : Pattern.p_t) (x : Var.t) = 
+      match p with
+      | Var y -> Var.equal x y
+      | Cons (p1, p2) -> find_x p1 x || find_x p2 x
+      | Const _ | Wild -> false
+    in
+    let e1 = if find_x p1 x then e1 else subx e1 in
+    let e2 = if find_x p2 x then e2 else subx e2 in
+    Match (subx e, (p1, e1), (p2, e2))
 
 (*
   Evalutate the expression e
@@ -52,11 +63,11 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
 let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
   (* Checks if v is an int, and return the value of the int *)
   let expecting_int (v : Expr.value) : int =
-    match v with VInt n -> n | _ -> raise (RuntimeError "Expected int")
+    match v with VConst (Int n) -> n | _ -> raise (RuntimeError "Expected int")
   in
   (* Checks if v is a bool, and return the value of the bool *)
   let expecting_bool (v : Expr.value) : bool =
-    match v with VBool b -> b | _ -> raise (RuntimeError "Expected bool")
+    match v with VConst (Bool b) -> b | _ -> raise (RuntimeError "Expected bool")
   in
   (* Checks if v is a function, and returns its argument name and body *)
   let expecting_fun (v : Expr.value) : Var.t * Expr.p_t =
@@ -68,13 +79,11 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
   then raise (RuntimeError "Stack overflow")
   else
     match e with
-    | IntLit n -> VInt n
-    | BoolLit b -> VBool b
+    | Const c -> VConst c
     | Fun (x, ty, e_body) -> VFun (x, ty, e_body)
-    | Nil -> VNil
     | UnOp (op, e) -> (
         let v = eval e stack in
-        match op with OpNeg -> VInt (-1 * expecting_int v))
+        match op with OpNeg -> VConst (Int (-1 * expecting_int v)))
     | BinOp (e1, op, e2) -> (
         let v1 = eval e1 stack in
         let v2 = eval e2 stack in
@@ -90,7 +99,7 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
               | OpTimes -> ( * )
               | _ -> ( / )
             in
-            VInt (f (expecting_int v1) (expecting_int v2))
+            VConst (Int (f (expecting_int v1) (expecting_int v2)))
         | OpLt | OpLe | OpGt | OpGe | OpEq | OpNe ->
             let f =
               match op with
@@ -101,8 +110,12 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
               | OpNe -> ( != )
               | _ -> ( = )
             in
-            VBool (f (expecting_int v1) (expecting_int v2))
-        | OpCons -> raise NotImplemented)
+            VConst (Bool (f (expecting_int v1) (expecting_int v2)))
+        | OpAnd | OpOr ->
+            let f = match op with OpAnd -> ( && ) | _ -> ( || ) in
+            VConst (Bool (f (expecting_bool v1) (expecting_bool v2)))
+        | OpCons -> 
+            VCons (eval e1 stack, eval e2 stack))
     | If (e_cond, e_then, e_else) ->
         let b = expecting_bool (eval e_cond stack) in
         if b then eval e_then stack else eval e_else stack
@@ -116,6 +129,37 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
 
     | Map (func, e_list) 
     | Filter (func, e_list)   -> raise NotImplemented
+    | Assert e ->
+        let v = eval e stack in
+        if expecting_bool v
+        then VUnit
+        else raise (RuntimeError "Assertion failed")
+    | Match (e, (p1, e1), (p2, e2)) ->
+        let v = eval e stack in
+        let rec find_match (pattern : Pattern.p_t) (value : Expr.value) : ((Var.t * Expr.value) list) option =
+          match (pattern, value) with
+          | Const c1, VConst c2 -> if Const.equal c1 c2 then Some [] else None
+          | Var x, _ -> Some [(x, value)]
+          | Cons (p1, p2), VCons (v1, v2) ->
+              begin match find_match p1 v1, find_match p2 v2 with
+              | Some a, Some b -> Some (a @ b)
+              | _ -> None
+              end
+          | Wild, _ -> Some []
+          | _ -> None
+        in
+        begin match find_match p1 v with
+        | Some bindings -> 
+            let e1 = List.fold_left (fun e (x, v) -> subst (Expr.from_val v) x e) e1 bindings in
+            eval e1 stack
+        | None ->
+            begin match find_match p2 v with
+            | Some bindings -> 
+                let e2 = List.fold_left (fun e (x, v) -> subst (Expr.from_val v) x e) e2 bindings in
+                eval e2 stack
+            | None -> raise (RuntimeError "Pattern matching failed")
+            end
+        end
     | Var _ -> raise (SyntaxError "Variable not bound")
     | Hole -> raise (SyntaxError "Hole in expression")
 
@@ -171,7 +215,7 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
      true, if code passes all tests
      false, otherwise
 *)
-let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
+(* let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
   let run_test (test : int * int) (code : Expr.t) : bool =
     (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
     match code.node with
@@ -198,7 +242,42 @@ let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
   in
   match test_set with
   | [] -> true
-  | hd :: tl -> if run_test hd code then run_unit_tests tl code else false
+  | hd :: tl -> if run_test hd code then run_unit_tests tl code else false *)
+
+let rec run_unit_tests_private (test_set : (int * int) list) (code : Expr.t) : bool =
+  let run_test (test : int * int) (code : Expr.t) : bool =
+    (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
+    match code.node with
+    | ELet (id, f, _) -> (
+        match f.node with
+        | EFun _ | EFix _ -> (
+            let test_input, test_output = test in
+            let output =
+              try
+                eval
+                  (Expr.Let
+                     ( id,
+                       Expr.strip f,
+                       BinOp (Var id, Expr.OpAp, Const (Int test_input)) ))
+                  100
+              with _ -> VError
+            in
+            match output with
+            | VConst (Int n) -> n = test_output
+            | VError -> false
+            | _ -> false)
+        | _ -> false)
+    | _ -> false
+  in
+  match test_set with
+  | [] -> true
+  | hd :: tl -> if run_test hd code then run_unit_tests_private tl code else false
+
+let run_unit_tests (code : Expr.t) : bool =
+  let output = try eval (Expr.strip code) 100 with _ -> VError in
+  match output with
+  | VError -> false
+  | _ -> true
 
 (* let%test_module "Test run_unit_tests" =
    (module struct

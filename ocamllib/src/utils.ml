@@ -10,83 +10,138 @@ let deserialize (zast : string) : Expr.z_t =
 let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
   let rec select_root_index_aux (e : Expr.t) (index : int) : Expr.z_t * int =
     (* Use -1 as indicator that there is a cursor position found, otherwise return remaining amount of index *)
-    if index = 0 then (Expr.select_root e, -1) else
-    match e.node with
-    | EVar _ | EInt _ | EBool _ | EHole | ENil ->
-      (Expr.make_dummy_z_node (Expr.Cursor EHole), index - 1)
-    | EUnOp (op, e1) -> 
-      let (zast, index) = select_root_index_aux e1 (index - 1) in
-      if index = -1
-      then (Expr.zip_migrate e (EUnOp_L (op, zast)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-    | EBinOp (e1, op, e2) ->
-      let (zast1, index) = select_root_index_aux e1 (index - 1) in
-      if index = -1 
-      then (Expr.zip_migrate e (EBinOp_L (zast1, op, e2)), -1)
-      else let (zast2, index) = select_root_index_aux e2 index in
-      if index = -1
-      then (Expr.zip_migrate e (EBinOp_R (e1, op, zast2)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-    | ELet (x, edef, ebody) ->
-      if index = 1 then (Expr.select_root e, -1) else
-      let (zast1, index) = select_root_index_aux edef (index - 2) in
-      if index = -1 
-      then (Expr.zip_migrate e (ELet_L (x, zast1, ebody)), -1)
-      else let (zast2, index) = select_root_index_aux ebody index in
-      if index = -1
-      then (Expr.zip_migrate e (ELet_R (x, edef, zast2)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-    | EIf (econd, ethen, eelse) ->
-      let (zast1, index) = select_root_index_aux econd (index - 1) in
-      if index = -1 
-      then (Expr.zip_migrate e (EIf_L (zast1, ethen, eelse)), -1)
-      else let (zast2, index) = select_root_index_aux ethen index in
-      if index = -1
-      then (Expr.zip_migrate e (EIf_C (econd, zast2, eelse)), -1)
-      else let (zast3, index) = select_root_index_aux eelse index in
-      if index = -1
-      then (Expr.zip_migrate e (EIf_R (econd, ethen, zast3)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-    | EFun (x, ty, ebody) -> 
-      (* Forbid entering type subtree *)
-      let t_size = Type.size ty in
-      if index <= t_size + 1 then (Expr.select_root e, -1) else
-      let (zast, index) = select_root_index_aux ebody (index - 2 - t_size) in
-      if index = -1
-      then (Expr.zip_migrate e (EFun_R (x, ty, zast)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-    | EFix (x, ty, ebody) -> 
-      (* Forbid entering type subtree *)
-      if index <= Type.size ty then (Expr.select_root e, -1) else
-      let (zast, _) = select_root_index_aux ebody (index - 2) in
-      if index = -1
-      then (Expr.zip_migrate e (EFix_R (x, ty, zast)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-    | EPair (e1, e2) ->
-      let (zast1, index) = select_root_index_aux e1 (index - 1) in
-      if index = -1 
-      then (Expr.zip_migrate e (EPair_L (zast1, e2)), -1)
-      else let (zast2, _) = select_root_index_aux e2 index in
-      if index = -1
-      then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-      (* check that this is correct *)
-    | EMap (e1, e2) ->
-      let (zast1, index) = select_root_index_aux e1 (index - 1) in
-      if index = -1 
-      then (Expr.zip_migrate e (EMap_L (zast1, e2)), -1)
-      else let (zast2, _) = select_root_index_aux e2 index in
-      if index = -1
-      then (Expr.zip_migrate e (EMap_R (e1, zast2)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-    | EFilter (e1, e2) ->
-      let (zast1, index) = select_root_index_aux e1 (index - 1) in
-      if index = -1 
-      then (Expr.zip_migrate e (EFilter_L (zast1, e2)), -1)
-      else let (zast2, _) = select_root_index_aux e2 index in
-      if index = -1
-      then (Expr.zip_migrate e (EFilter_R (e1, zast2)), -1)
-      else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+    let rec select_root_pattern (p : Pattern.t) (index : int) : Pattern.z_t * int = 
+      if index = 0
+      then (Pattern.select_root p, -1)
+      else match p.node with
+      | PConst _ | PVar _ | PWild -> (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index - 1)
+      | PCons (p1, p2) -> 
+          let zast1, index = select_root_pattern p1 (index - 1) in
+          if index = -1
+          then (Pattern.zip_migrate p (PCons_L (zast1, p2)), -1)
+          else
+            let zast2, _ = select_root_pattern p2 index in
+            if index = -1
+            then (Pattern.zip_migrate p (PCons_R (p1, zast2)), -1)
+            else (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index)
+    in
+    if index = 0
+    then (Expr.select_root e, -1)
+    else
+      match e.node with
+      | EVar _ | EConst _ | EHole ->
+          (Expr.make_dummy_z_node (Expr.Cursor EHole), index - 1)
+      | EUnOp (op, e1) ->
+          let zast, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EUnOp_L (op, zast)), -1)
+          else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EBinOp (e1, op, e2) ->
+          let zast1, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EBinOp_L (zast1, op, e2)), -1)
+          else
+            let zast2, index = select_root_index_aux e2 index in
+            if index = -1
+            then (Expr.zip_migrate e (EBinOp_R (e1, op, zast2)), -1)
+            else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | ELet (x, edef, ebody) ->
+          if index = 1
+          then (Expr.select_root e, -1)
+          else
+            let zast1, index = select_root_index_aux edef (index - 2) in
+            if index = -1
+            then (Expr.zip_migrate e (ELet_L (x, zast1, ebody)), -1)
+            else
+              let zast2, index = select_root_index_aux ebody index in
+              if index = -1
+              then (Expr.zip_migrate e (ELet_R (x, edef, zast2)), -1)
+              else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EIf (econd, ethen, eelse) ->
+          let zast1, index = select_root_index_aux econd (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EIf_L (zast1, ethen, eelse)), -1)
+          else
+            let zast2, index = select_root_index_aux ethen index in
+            if index = -1
+            then (Expr.zip_migrate e (EIf_C (econd, zast2, eelse)), -1)
+            else
+              let zast3, index = select_root_index_aux eelse index in
+              if index = -1
+              then (Expr.zip_migrate e (EIf_R (econd, ethen, zast3)), -1)
+              else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EFun (x, ty, ebody) ->
+          (* Forbid entering type subtree *)
+          let t_size = Type.size ty in
+          if index <= t_size + 1
+          then (Expr.select_root e, -1)
+          else
+            let zast, index =
+              select_root_index_aux ebody (index - 2 - t_size)
+            in
+            if index = -1
+            then (Expr.zip_migrate e (EFun_R (x, ty, zast)), -1)
+            else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EFix (x, ty, ebody) ->
+          (* Forbid entering type subtree *)
+          if index <= Type.size ty
+          then (Expr.select_root e, -1)
+          else
+            let zast, _ = select_root_index_aux ebody (index - 2) in
+            if index = -1
+            then (Expr.zip_migrate e (EFix_R (x, ty, zast)), -1)
+            else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EPair (e1, e2) ->
+          let zast1, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EPair_L (zast1, e2)), -1)
+          else
+            let zast2, _ = select_root_index_aux e2 index in
+            if index = -1
+            then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
+            else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EMap (e1, e2) ->
+          let (zast1, index) = select_root_index_aux e1 (index - 1) in
+          if index = -1 
+          then (Expr.zip_migrate e (EMap_L (zast1, e2)), -1)
+          else let (zast2, _) = select_root_index_aux e2 index in
+          if index = -1
+          then (Expr.zip_migrate e (EMap_R (e1, zast2)), -1)
+          else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EFilter (e1, e2) ->
+          let (zast1, index) = select_root_index_aux e1 (index - 1) in
+          if index = -1 
+          then (Expr.zip_migrate e (EFilter_L (zast1, e2)), -1)
+          else let (zast2, _) = select_root_index_aux e2 index in
+          if index = -1
+          then (Expr.zip_migrate e (EFilter_R (e1, zast2)), -1)
+          else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EMatch (e, (p1, e1), (p2, e2)) ->
+          let zast1, index = select_root_index_aux e (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EMatch_L (zast1, (p1, e1), (p2, e2))), -1)
+          else
+            let zast2, index = select_root_pattern p1 index in
+            if index = -1
+            then (Expr.zip_migrate e (EMatch_P1 (e, (zast2, e1), (p2, e2))), -1)
+            else
+              let zast3, _ = select_root_index_aux e1 index in
+              if index = -1
+              then (Expr.zip_migrate e (EMatch_E1 (e, (p1, zast3), (p2, e2))), -1)
+              else
+                let zast4, _ = select_root_pattern p2 index in
+                if index = -1
+                then (Expr.zip_migrate e (EMatch_P2 (e, (p1, e1), (zast4, e2))), -1)
+                else
+                  let zast5, _ = select_root_index_aux e2 index in
+                  if index = -1
+                  then (Expr.zip_migrate e (EMatch_E2 (e, (p1, e1), (p2, zast5))), -1)
+                  else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EAssert e1 ->
+          let zast, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EAssert_L zast), -1)
+          else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
   in
   if index >= Expr.size e
   then raise (Failure "Index out of bound")
@@ -111,12 +166,12 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
   let tests_cons = ParserUtils.parse_file filename in
   let rec combine_tests (tests_cons : Expr.p_t) : (int * int) list =
     match tests_cons with
-    | BinOp (Pair (IntLit a, IntLit b), OpCons, Nil) -> [ (a, b) ]
-    | BinOp (Pair (IntLit a, IntLit b), OpCons, tl) ->
+    | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, Const Nil) -> [ (a, b) ]
+    | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, tl) ->
         (a, b) :: combine_tests tl
     | _ -> raise (IOError "Test file in incorrect format.")
   in
-  combine_tests (Expr.strip tests_cons)
+  combine_tests tests_cons
 
 (* Given an assignment number, load the code
    Input:
@@ -124,8 +179,8 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
    Output:
      - the code for the assignment
 *)
-let load_starter_code (directory : string) (assignment : int) (index : int) :
-    Expr.z_t =
+let load_starter_code (directory : string) (assignment : int) (index : int)
+    (cursor : int option) : Expr.z_t =
   let filename =
     directory ^ "/" ^ string_of_int assignment ^ "/" ^ string_of_int index
     ^ ".ml"
@@ -137,19 +192,32 @@ let load_starter_code (directory : string) (assignment : int) (index : int) :
         let e : Expr.z_t =
           {
             id = e.id;
-            node = Expr.EFun_R (x, ty, find_fun_body e);
+            node = Expr.EFun_R (x, Type.set_starter ty true, find_fun_body e);
             starter = true;
           }
         in
         e
-    | _ -> select_root_random e
-    (* | _ -> select_root_index e 0 *)
+    | _ -> (
+        match cursor with
+        | None -> select_root_random e
+        | Some i -> select_root_index e i)
   in
-  match e.node with
-  | ELet (x, edef, ebody) ->
-      {
-        id = e.id;
-        node = ELet_L (x, find_fun_body edef, ebody);
-        starter = true;
-      }
-  | _ -> raise (Failure "Starter code in incorect format")
+  let rec find_fun_def (e : Expr.t) : Expr.z_t = 
+    (* Assumes that there will only be lets before the function definition *)
+    match e.node with
+    | ELet (x, edef, ebody) ->
+        if Var.equal x Var.starter_func then
+          {
+            id = e.id;
+            node = ELet_L (Var.starter_func, find_fun_body edef, Expr.set_starter ebody true);
+            starter = true;
+          }
+        else
+          {
+            id = e.id;
+            node = ELet_R (x, Expr.set_starter edef true, find_fun_def ebody);
+            starter = true;
+          }
+    | _ -> raise (IOError "Starter code file in incorrect format.")
+  in
+  find_fun_def (Expr.add_metadata e)

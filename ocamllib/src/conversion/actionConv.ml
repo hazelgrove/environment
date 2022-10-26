@@ -7,15 +7,17 @@ let action_list =
     Move (Child 0);
     Move (Child 1);
     Move (Child 2);
+    Move (Child 3);
+    Move (Child 4);
     Construct Hole;
-    Construct Nil;
-    Construct (Int (-2));
-    Construct (Int (-1));
-    Construct (Int 0);
-    Construct (Int 1);
-    Construct (Int 2);
-    Construct (Bool true);
-    Construct (Bool false);
+    Construct (Const Nil);
+    Construct (Const (Int (-2)));
+    Construct (Const (Int (-1)));
+    Construct (Const (Int 0));
+    Construct (Const (Int 1));
+    Construct (Const (Int 2));
+    Construct (Const (Bool true));
+    Construct (Const (Bool false));
     Construct (UnOp OpNeg);
     Construct (BinOp_L OpPlus);
     Construct (BinOp_L OpMinus);
@@ -29,6 +31,8 @@ let action_list =
     Construct (BinOp_L OpNe);
     Construct (BinOp_L OpAp);
     Construct (BinOp_L OpCons);
+    Construct (BinOp_L OpAnd);
+    Construct (BinOp_L OpOr);
     Construct (BinOp_R OpPlus);
     Construct (BinOp_R OpMinus);
     Construct (BinOp_R OpTimes);
@@ -41,6 +45,8 @@ let action_list =
     Construct (BinOp_R OpNe);
     Construct (BinOp_R OpAp);
     Construct (BinOp_R OpCons);
+    Construct (BinOp_R OpAnd);
+    Construct (BinOp_R OpOr);
     Construct Let_L;
     Construct Let_R;
     Construct If_L;
@@ -54,6 +60,9 @@ let action_list =
     Construct Filter_R;
     Construct Map_L; 
     Construct Map_R;
+    Construct Match_L;
+    Construct Match_E1;
+    Construct Match_E2;
     Construct TypInt;
     Construct TypBool;
     Construct TypArrow_L;
@@ -62,6 +71,18 @@ let action_list =
     Construct TypProd_R;
     Construct TypList;
     Construct TypHole;
+    Construct TypUnit;
+    Construct (PatConst (Int (-2)));
+    Construct (PatConst (Int (-1)));
+    Construct (PatConst (Int 0));
+    Construct (PatConst (Int 1));
+    Construct (PatConst (Int 2));
+    Construct (PatConst (Bool true));
+    Construct (PatConst (Bool false));
+    Construct PatCons_L;
+    Construct PatCons_R;
+    Construct PatVar;
+    Construct PatWild;
     Unwrap 0;
     Unwrap 1;
     Unwrap 2;
@@ -105,3 +126,80 @@ let to_list (action_list : t list) : bool list =
         to_bool tl bool_list
   in
   Array.to_list (to_bool action_list bool_list)
+
+let to_string (action : t) : string =
+  match action with
+  | Move Parent -> "Move Parent"
+  | Move (Child x) -> "Move Child " ^ string_of_int x
+  | Construct Hole -> "Construct Hole"
+  | Construct (Const Nil) -> "Construct Nil"
+  | Construct (Const (Int x)) -> "Construct Int " ^ string_of_int x
+  | Construct (Const (Bool x)) -> "Construct Bool " ^ string_of_bool x
+  | Construct (UnOp OpNeg) -> "Construct UnOp OpNeg"
+  | Construct (BinOp_L op) ->
+      let binop =
+        match op with
+        | OpPlus -> "OpPlus"
+        | OpMinus -> "OpMinus"
+        | OpTimes -> "OpTimes"
+        | OpDiv -> "OpDiv"
+        | OpLt -> "OpLt"
+        | OpLe -> "OpLe"
+        | OpGt -> "OpGt"
+        | OpGe -> "OpGe"
+        | OpEq -> "OpEq"
+        | OpNe -> "OpNe"
+        | OpAp -> "OpAp"
+        | OpCons -> "OpCons"
+        | OpAnd -> "OpAnd"
+        | OpOr -> "OpOr"
+      in
+      "Construct BinOp_L " ^ binop
+  | Construct (BinOp_R op) ->
+      let binop =
+        match op with
+        | OpPlus -> "OpPlus"
+        | OpMinus -> "OpMinus"
+        | OpTimes -> "OpTimes"
+        | OpDiv -> "OpDiv"
+        | OpLt -> "OpLt"
+        | OpLe -> "OpLe"
+        | OpGt -> "OpGt"
+        | OpGe -> "OpGe"
+        | OpEq -> "OpEq"
+        | OpNe -> "OpNe"
+        | OpAp -> "OpAp"
+        | OpCons -> "OpCons"
+        | OpAnd -> "OpAnd"
+        | OpOr -> "OpOr"
+      in
+      "Construct BinOp_R " ^ binop
+  | Construct Let_L -> "Construct Let_L"
+  | Construct Let_R -> "Construct Let_R"
+  | Construct If_L -> "Construct If_L"
+  | Construct If_C -> "Construct If_C"
+  | Construct If_R -> "Construct If_R"
+  | Construct Fun -> "Construct Fun"
+  | Construct Fix -> "Construct Fix"
+  | Construct Pair_L -> "Construct Pair_L"
+  | Construct Pair_R -> "Construct Pair_R"
+  | Construct TypInt -> "Construct TypInt"
+  | Construct TypBool -> "Construct TypBool"
+  | Construct TypArrow_L -> "Construct TypArrow_L"
+  | Construct TypArrow_R -> "Construct TypArrow_R"
+  | Construct TypProd_L -> "Construct TypProd_L"
+  | Construct TypProd_R -> "Construct TypProd_R"
+  | Construct TypList -> "Construct TypList"
+  | Construct TypHole -> "Construct TypHole"
+  | Construct TypUnit -> "Construct TypUnit"
+  | Construct (Var x) -> "Construct Var " ^ string_of_int x
+  | Construct (Arg x) -> "Construct Arg " ^ string_of_int x
+  | Construct Match_L -> "Construct Match_L"
+  | Construct Match_E1 -> "Construct Match_E1"
+  | Construct Match_E2 -> "Construct Match_E2"
+  | Construct (PatConst c) -> "Construct PatConst " ^ ConstConv.to_string c
+  | Construct PatCons_L -> "Construct PatCons_L"
+  | Construct PatCons_R -> "Construct PatCons_R"
+  | Construct PatVar -> "Construct PatVar"
+  | Construct PatWild -> "Construct PatWild"
+  | Unwrap x -> "Unwrap " ^ string_of_int x
