@@ -10,20 +10,23 @@ let deserialize (zast : string) : Expr.z_t =
 let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
   let rec select_root_index_aux (e : Expr.t) (index : int) : Expr.z_t * int =
     (* Use -1 as indicator that there is a cursor position found, otherwise return remaining amount of index *)
-    let rec select_root_pattern (p : Pattern.t) (index : int) : Pattern.z_t * int = 
+    let rec select_root_pattern (p : Pattern.t) (index : int) :
+        Pattern.z_t * int =
       if index = 0
       then (Pattern.select_root p, -1)
-      else match p.node with
-      | PConst _ | PVar _ | PWild -> (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index - 1)
-      | PCons (p1, p2) -> 
-          let zast1, index = select_root_pattern p1 (index - 1) in
-          if index = -1
-          then (Pattern.zip_migrate p (PCons_L (zast1, p2)), -1)
-          else
-            let zast2, _ = select_root_pattern p2 index in
+      else
+        match p.node with
+        | PConst _ | PVar _ | PWild ->
+            (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index - 1)
+        | PCons (p1, p2) ->
+            let zast1, index = select_root_pattern p1 (index - 1) in
             if index = -1
-            then (Pattern.zip_migrate p (PCons_R (p1, zast2)), -1)
-            else (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index)
+            then (Pattern.zip_migrate p (PCons_L (zast1, p2)), -1)
+            else
+              let zast2, _ = select_root_pattern p2 index in
+              if index = -1
+              then (Pattern.zip_migrate p (PCons_R (p1, zast2)), -1)
+              else (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index)
     in
     if index = 0
     then (Expr.select_root e, -1)
@@ -111,15 +114,19 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             else
               let zast3, _ = select_root_index_aux e1 index in
               if index = -1
-              then (Expr.zip_migrate e (EMatch_E1 (e, (p1, zast3), (p2, e2))), -1)
+              then
+                (Expr.zip_migrate e (EMatch_E1 (e, (p1, zast3), (p2, e2))), -1)
               else
                 let zast4, _ = select_root_pattern p2 index in
                 if index = -1
-                then (Expr.zip_migrate e (EMatch_P2 (e, (p1, e1), (zast4, e2))), -1)
+                then
+                  (Expr.zip_migrate e (EMatch_P2 (e, (p1, e1), (zast4, e2))), -1)
                 else
                   let zast5, _ = select_root_index_aux e2 index in
                   if index = -1
-                  then (Expr.zip_migrate e (EMatch_E2 (e, (p1, e1), (p2, zast5))), -1)
+                  then
+                    ( Expr.zip_migrate e (EMatch_E2 (e, (p1, e1), (p2, zast5))),
+                      -1 )
                   else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
       | EAssert e1 ->
           let zast, index = select_root_index_aux e1 (index - 1) in
@@ -150,7 +157,8 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
   let tests_cons = ParserUtils.parse_file filename in
   let rec combine_tests (tests_cons : Expr.p_t) : (int * int) list =
     match tests_cons with
-    | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, Const Nil) -> [ (a, b) ]
+    | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, Const Nil) ->
+        [ (a, b) ]
     | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, tl) ->
         (a, b) :: combine_tests tl
     | _ -> raise (IOError "Test file in incorrect format.")
@@ -186,14 +194,19 @@ let load_starter_code (directory : string) (assignment : int) (index : int)
         | None -> select_root_random e
         | Some i -> select_root_index e i)
   in
-  let rec find_fun_def (e : Expr.t) : Expr.z_t = 
+  let rec find_fun_def (e : Expr.t) : Expr.z_t =
     (* Assumes that there will only be lets before the function definition *)
     match e.node with
     | ELet (x, edef, ebody) ->
-        if Var.equal x Var.starter_func then
+        if Var.equal x Var.starter_func
+        then
           {
             id = e.id;
-            node = ELet_L (Var.starter_func, find_fun_body edef, Expr.set_starter ebody true);
+            node =
+              ELet_L
+                ( Var.starter_func,
+                  find_fun_body edef,
+                  Expr.set_starter ebody true );
             starter = true;
           }
         else

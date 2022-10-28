@@ -35,9 +35,7 @@ type shape =
   | PatVar
   | PatWild
 
-type dir = 
-  | Parent 
-  | Child of int
+type dir = Parent | Child of int
 
 (* write a numbered action to inser all of <- *)
 (* Have some sort of default value analog for type t *)

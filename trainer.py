@@ -62,7 +62,7 @@ class Trainer:
             device,
             max_episode_steps,
         )
-        
+
     @staticmethod
     def update_curriculum(envs, reward):
         return
@@ -213,7 +213,7 @@ class Trainer:
 
             mean_episode_reward = np.mean(episode_rewards)
             # cls.update_curriculum(envs, mean_episode_reward)
-            
+
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
                     (j + 1) * params["num_processes"] * params["num_steps"]
@@ -321,8 +321,8 @@ class GNNTrainer(Trainer):
             device,
             max_episode_steps,
         )
-    
-    @staticmethod 
+
+    @staticmethod
     def update_curriculum(envs, reward):
         envs.get_attr("update_curriculum")(reward)
 
@@ -358,5 +358,3 @@ if __name__ == "__main__":
         )
     else:
         Trainer.train(args.log_name, render=args.render, save_dir=args.save_dir)
-        
-    

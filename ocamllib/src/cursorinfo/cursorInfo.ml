@@ -53,7 +53,8 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~parent_term:(Some (ZTNode current_term))
           ~index:(index + Type.size t1 + 1)
   in
-  let rec get_cursor_info_pattern ~(current_term : Pattern.z_t) ~(parent_term : Syntax.z_t option) ~(exp_ty : Type.p_t) ~(index : int) = 
+  let rec get_cursor_info_pattern ~(current_term : Pattern.z_t)
+      ~(parent_term : Syntax.z_t option) ~(exp_ty : Type.p_t) ~(index : int) =
     match current_term.node with
     | Cursor p ->
         let p : Pattern.t = { (Pattern.unzip current_term) with node = p } in
@@ -69,7 +70,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           num_nodes = Syntax.zsize tree;
         }
     | PCons_L (p, _) ->
-        let exp_ty = 
+        let exp_ty =
           match exp_ty with
           | List t -> t
           | _ -> raise (TypeError "Expected list type")
@@ -77,14 +78,13 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_pattern ~current_term:p
           ~parent_term:(Some (ZPNode current_term)) ~exp_ty ~index:(index + 1)
     | PCons_R (p1, p2) ->
-        let exp_ty = 
+        let exp_ty =
           match exp_ty with
           | List t -> exp_ty
           | _ -> raise (TypeError "Expected list type")
         in
         get_cursor_info_pattern ~current_term:p2
-          ~parent_term:(Some (ZPNode current_term))
-          ~exp_ty
+          ~parent_term:(Some (ZPNode current_term)) ~exp_ty
           ~index:(index + Pattern.size p1 + 1)
   in
   let rec get_cursor_info_expr ~(current_term : Expr.z_t)
@@ -289,7 +289,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None -> raise (TypeError "Type cannot be inferred")
         in
         let t_pat = pattern_type (Pattern.strip p2) in
-        let exp_ty = 
+        let exp_ty =
           match Typing.get_common_type t_scrut t_pat with
           | Some t -> t
           | None ->
@@ -298,21 +298,29 @@ let get_cursor_info (tree : Syntax.z_t) : t =
                    "Conflicting types between expected type and type of pattern")
         in
         get_cursor_info_pattern ~current_term:p1
-          ~parent_term:(Some (Syntax.ZENode current_term)) ~exp_ty ~index:(index + Expr.size e + 1)
+          ~parent_term:(Some (Syntax.ZENode current_term)) ~exp_ty
+          ~index:(index + Expr.size e + 1)
     | EMatch_E1 (e, (p1, e1), (p2, e2)) ->
-        let exp_ty = 
+        let exp_ty =
           match pattern_common_type p1 p2 with
-          | Some t -> 
-            let t2 = match get_rule_type p2 e2 typ_ctx t with | Some t -> t | None -> raise (TypeError "Invalid rule type") in
-            begin match Typing.get_common_type exp_ty t2 with
-            | Some t -> t
-            | None -> raise (TypeError "Conflicting types between expected type and type of other rules")
-            end
+          | Some t -> (
+              let t2 =
+                match get_rule_type p2 e2 typ_ctx t with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid rule type")
+              in
+              match Typing.get_common_type exp_ty t2 with
+              | Some t -> t
+              | None ->
+                  raise
+                    (TypeError
+                       "Conflicting types between expected type and type of \
+                        other rules"))
           | None -> raise (TypeError "Conflicting types between patterns")
         in
-        get_cursor_info_expr ~current_term:e1
-          ~parent_term:(Some current_term) ~vars ~args ~typ_ctx
-          ~exp_ty ~index:(index + Expr.size e + Pattern.size p1 + 1)
+        get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty
+          ~index:(index + Expr.size e + Pattern.size p1 + 1)
     | EMatch_P2 (e, (p1, e1), (p2, _)) ->
         let t_scrut =
           match synthesis typ_ctx e with
@@ -320,7 +328,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None -> raise (TypeError "Type cannot be inferred")
         in
         let t_pat = pattern_type (Pattern.strip p1) in
-        let exp_ty = 
+        let exp_ty =
           match Typing.get_common_type t_scrut t_pat with
           | Some t -> t
           | None ->
@@ -329,21 +337,31 @@ let get_cursor_info (tree : Syntax.z_t) : t =
                    "Conflicting types between expected type and type of pattern")
         in
         get_cursor_info_pattern ~current_term:p2
-          ~parent_term:(Some (Syntax.ZENode current_term)) ~exp_ty ~index:(index + Expr.size e + Pattern.size p1 + Expr.size e1 + 1)
+          ~parent_term:(Some (Syntax.ZENode current_term)) ~exp_ty
+          ~index:(index + Expr.size e + Pattern.size p1 + Expr.size e1 + 1)
     | EMatch_E2 (e, (p1, e1), (p2, e2)) ->
-        let exp_ty = 
-            match pattern_common_type p1 p2 with
-            | Some t -> 
-              let t1 = match get_rule_type p1 e1 typ_ctx t with | Some t -> t | None -> raise (TypeError "Invalid rule type") in
-              begin match Typing.get_common_type exp_ty t1 with
+        let exp_ty =
+          match pattern_common_type p1 p2 with
+          | Some t -> (
+              let t1 =
+                match get_rule_type p1 e1 typ_ctx t with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid rule type")
+              in
+              match Typing.get_common_type exp_ty t1 with
               | Some t -> t
-              | None -> raise (TypeError "Conflicting types between expected type and type of other rules")
-              end
-            | None -> raise (TypeError "Conflicting types between patterns")
+              | None ->
+                  raise
+                    (TypeError
+                       "Conflicting types between expected type and type of \
+                        other rules"))
+          | None -> raise (TypeError "Conflicting types between patterns")
         in
-        get_cursor_info_expr ~current_term:e2
-          ~parent_term:(Some current_term) ~vars ~args ~typ_ctx
-          ~exp_ty ~index:(index + Expr.size e + Pattern.size p1 + Expr.size e1 + Pattern.size p2 + 1)
+        get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty
+          ~index:
+            (index + Expr.size e + Pattern.size p1 + Expr.size e1
+           + Pattern.size p2 + 1)
     | EAssert_L e ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Bool ~index:(index + 1)
@@ -353,7 +371,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
       get_cursor_info_expr ~current_term:e ~parent_term:None ~vars:[] ~args:[]
         ~typ_ctx:[] ~exp_ty:Type.Hole ~index:0
   | ZTNode t -> get_cursor_info_type ~current_term:t ~parent_term:None ~index:0
-  | ZPNode p -> get_cursor_info_pattern ~current_term:p ~parent_term:None ~exp_ty:Type.Hole ~index:0
+  | ZPNode p ->
+      get_cursor_info_pattern ~current_term:p ~parent_term:None
+        ~exp_ty:Type.Hole ~index:0
 
 let%test_module "Test get_cursor_info" =
   (module struct
@@ -389,7 +409,8 @@ let%test_module "Test get_cursor_info" =
 
     let%test _ = check e i
 
-    let e : Expr.z_t = { id = -1; node = Expr.Cursor (EConst (Int 1)); starter = false }
+    let e : Expr.z_t =
+      { id = -1; node = Expr.Cursor (EConst (Int 1)); starter = false }
     (* ^1 *)
 
     let i =
@@ -413,7 +434,11 @@ let%test_module "Test get_cursor_info" =
         node =
           Expr.EUnOp_L
             ( OpNeg,
-              { id = -1; node = Expr.Cursor (EConst (Bool true)); starter = false } );
+              {
+                id = -1;
+                node = Expr.Cursor (EConst (Bool true));
+                starter = false;
+              } );
         starter = false;
       }
     (* -(^true) *)
@@ -584,7 +609,8 @@ let ints =
     Construct (Const (Int 2));
   ]
 
-let bools = [ Action.Construct (Const (Bool true)); Construct (Const (Bool false)) ]
+let bools =
+  [ Action.Construct (Const (Bool true)); Construct (Const (Bool false)) ]
 
 let arith =
   [
@@ -622,15 +648,17 @@ let logic =
     Construct (BinOp_R OpOr);
   ]
 
-let pat_int = [
-  Action.Construct (PatConst (Int (-2)));
-  Construct (PatConst (Int (-1)));
-  Construct (PatConst (Int 0));
-  Construct (PatConst (Int 1));
-  Construct (PatConst (Int 2));
-]
+let pat_int =
+  [
+    Action.Construct (PatConst (Int (-2)));
+    Construct (PatConst (Int (-1)));
+    Construct (PatConst (Int 0));
+    Construct (PatConst (Int 1));
+    Construct (PatConst (Int 2));
+  ]
 
-let pat_bool = [ Action.Construct (PatConst (Bool true)); Construct (PatConst (Bool false)) ]
+let pat_bool =
+  [ Action.Construct (PatConst (Bool true)); Construct (PatConst (Bool false)) ]
 
 (* Given the info at the cursor, return a list of possible actions *)
 let cursor_info_to_actions (info : t) : Action.t list =
@@ -657,7 +685,14 @@ let cursor_info_to_actions (info : t) : Action.t list =
               | Some Type.Hole -> [ Move (Child 0) ]
               | Some _ -> [ Move (Child 0); Move (Child 1) ]
               | None -> raise (TypeError "Type cannot be inferred"))
-          | EMatch _ -> [ Move (Child 0); Move (Child 1) ; Move (Child 2); Move (Child 3); Move (Child 4) ])
+          | EMatch _ ->
+              [
+                Move (Child 0);
+                Move (Child 1);
+                Move (Child 2);
+                Move (Child 3);
+                Move (Child 4);
+              ])
       | TNode t -> (
           match t.node with
           | TInt | TBool | THole | TUnit -> []
@@ -666,8 +701,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       | PNode p -> (
           match p.node with
           | PVar _ | PConst _ | PWild -> []
-          | PCons _ -> [ Move (Child 0); Move (Child 1) ]
-      )
+          | PCons _ -> [ Move (Child 0); Move (Child 1) ])
     in
     handle_parent () @ handle_child ()
   in
@@ -811,7 +845,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       @ construct_arg_aux 0 info.args_in_scope
     in
     let construct_match _ =
-      [ Construct Match_L; Construct Match_E1; Construct Match_E2; ]
+      [ Construct Match_L; Construct Match_E1; Construct Match_E2 ]
     in
     let handle_unwrap _ =
       let rec check_var (e : Expr.t) (x : Var.t) : bool =
@@ -921,26 +955,38 @@ let cursor_info_to_actions (info : t) : Action.t list =
                 | Some t -> t
                 | None -> raise (TypeError "Invalid type")
               in
-              let t = match pattern_common_type p1 p2 with | Some t -> t | None -> raise (TypeError "Inconsistent pattern types") in
-              let t1 = match get_rule_type p1 e1 info.typ_ctx t with | Some t -> t | None -> raise (TypeError "Invalid rule type") in
-              let t2 = match get_rule_type p2 e2 info.typ_ctx t with | Some t -> t | None -> raise (TypeError "Invalid rule type") in
+              let t =
+                match pattern_common_type p1 p2 with
+                | Some t -> t
+                | None -> raise (TypeError "Inconsistent pattern types")
+              in
+              let t1 =
+                match get_rule_type p1 e1 info.typ_ctx t with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid rule type")
+              in
+              let t2 =
+                match get_rule_type p2 e2 info.typ_ctx t with
+                | Some t -> t
+                | None -> raise (TypeError "Invalid rule type")
+              in
               let scrut_consistent = Type.consistent exp_ty t_scrut in
               let t1_consistent = Type.consistent exp_ty t1 in
               let t2_consistent = Type.consistent exp_ty t2 in
-              if scrut_consistent && t1_consistent && t2_consistent 
-              then [Unwrap 0; Unwrap 1; Unwrap 2]
+              if scrut_consistent && t1_consistent && t2_consistent
+              then [ Unwrap 0; Unwrap 1; Unwrap 2 ]
               else if scrut_consistent && t1_consistent
-              then [Unwrap 0; Unwrap 1]
+              then [ Unwrap 0; Unwrap 1 ]
               else if scrut_consistent && t2_consistent
-              then [Unwrap 0; Unwrap 2]
+              then [ Unwrap 0; Unwrap 2 ]
               else if t1_consistent && t2_consistent
-              then [Unwrap 1; Unwrap 2]
+              then [ Unwrap 1; Unwrap 2 ]
               else if scrut_consistent
-              then [Unwrap 0]
+              then [ Unwrap 0 ]
               else if t1_consistent
-              then [Unwrap 1]
+              then [ Unwrap 1 ]
               else if t2_consistent
-              then [Unwrap 2]
+              then [ Unwrap 2 ]
               else [])
       | TNode _ -> []
       | PNode _ -> []
@@ -960,7 +1006,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_binop ();
           construct_pair ();
         ]
-      else if remaining_nodes = 3 then
+      else if remaining_nodes = 3
+      then
         [
           construct_atom ();
           construct_unop ();
@@ -989,22 +1036,34 @@ let cursor_info_to_actions (info : t) : Action.t list =
     List.concat actions
   in
   let handle_type _ = [] in
-  let handle_pattern _ = 
+  let handle_pattern _ =
     match info.expected_ty with
     | Some Int -> [ Construct PatVar; Construct PatWild ] @ pat_int
-    | Some Bool -> [Construct PatVar; Construct PatWild ] @ pat_bool
-    | Some (List t) -> 
-        let actual_ty = match info.actual_ty with | Some t -> t | None -> raise (TypeError "Invalid type") in
+    | Some Bool -> [ Construct PatVar; Construct PatWild ] @ pat_bool
+    | Some (List t) ->
+        let actual_ty =
+          match info.actual_ty with
+          | Some t -> t
+          | None -> raise (TypeError "Invalid type")
+        in
         let l_consistent = Type.consistent actual_ty t in
         let r_consistent = Type.consistent actual_ty (List t) in
         if l_consistent && r_consistent
-        then [ Construct PatVar; Construct PatWild; Construct PatCons_L; Construct PatCons_R ]
+        then
+          [
+            Construct PatVar;
+            Construct PatWild;
+            Construct PatCons_L;
+            Construct PatCons_R;
+          ]
         else if l_consistent
         then [ Construct PatVar; Construct PatWild; Construct PatCons_L ]
         else if r_consistent
         then [ Construct PatVar; Construct PatWild; Construct PatCons_R ]
         else [ Construct PatVar; Construct PatWild ]
-    | Some Hole -> [ Construct PatVar; Construct PatCons_L; Construct PatCons_R ] @ pat_int @ pat_bool
+    | Some Hole ->
+        [ Construct PatVar; Construct PatCons_L; Construct PatCons_R ]
+        @ pat_int @ pat_bool
     | _ -> [ Construct PatVar ]
   in
   match info.current_term with
