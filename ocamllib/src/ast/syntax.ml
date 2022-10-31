@@ -1,26 +1,17 @@
 (* Sum type combining the expressions and types *)
 
-type t = 
-  | ENode of Expr.t 
-  | TNode of Type.t 
-  | PNode of Pattern.t
+type t = ENode of Expr.t | TNode of Type.t | PNode of Pattern.t
 [@@deriving sexp]
 
-type z_t = 
-  | ZENode of Expr.z_t 
-  | ZTNode of Type.z_t 
-  | ZPNode of Pattern.z_t
+type z_t = ZENode of Expr.z_t | ZTNode of Type.z_t | ZPNode of Pattern.z_t
 [@@deriving sexp]
 
-type p_t = 
-  | PENode of Expr.p_t 
-  | PTNode of Type.p_t 
-  | PPNode of Pattern.p_t
+type p_t = PENode of Expr.p_t | PTNode of Type.p_t | PPNode of Pattern.p_t
 [@@deriving sexp]
 
 let size (tree : t) : int =
-  match tree with 
-  | ENode e -> Expr.size e 
+  match tree with
+  | ENode e -> Expr.size e
   | TNode t -> Type.size t
   | PNode p -> Pattern.size p
 

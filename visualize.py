@@ -62,7 +62,11 @@ def main(log_name, run_id):
             print(f"Reward: {info[0]['episode']['r']}")
             print()
 
+<<<<<<< HEAD
             if info[0]['episode']['r'] == 0:
+=======
+            if info[0]["episode"]["r"] == 0:
+>>>>>>> cf7b169ae15e7a6a6d30e81ad085b93024a68996
                 breakpoint()
 
             print("---------------Environment reset---------------")

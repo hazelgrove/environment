@@ -140,7 +140,6 @@ let print_code_c (root : int) : unit =
   print_endline s
 
 let init_c (seed : int) : unit = Random.init seed
-
 let _ = Callback.register "run_unit_tests" run_unit_tests_c2
 let _ = Callback.register "change_zast" change_zast_c
 let _ = Callback.register "get_ast" get_ast_c
@@ -149,4 +148,3 @@ let _ = Callback.register "load_starter_code" load_starter_code_c
 let _ = Callback.register "print_code" print_code_c
 let _ = Callback.register "init" init_c
 let _ = Callback.register "load_tests" load_tests_c
-

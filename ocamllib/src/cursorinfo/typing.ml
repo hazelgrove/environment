@@ -28,29 +28,29 @@ let rec get_common_type (t1 : Type.p_t) (t2 : Type.p_t) : Type.p_t option =
   else None
 
 let rec pattern_type (p : Pattern.p_t) : Type.p_t =
-    match p with
-    | Const (Int _) -> Type.Int
-    | Const (Bool _) -> Type.Bool
-    | Const Nil -> Type.List Type.Hole
-    | Var _ -> Type.Hole
-    | Cons (p1, p2) -> 
-        let t1 = pattern_type p1 in
-        let t2 = pattern_type p2 in
-        begin match t2 with
-        | Type.Hole -> Type.List t1
-        | Type.List t2 -> 
-            let t = get_common_type t1 t2 in
-            begin match t with
-            | Some t -> Type.List t
-            | None -> raise (Failure "List pattern type error")
-            end
-        | _ -> raise (Failure "List pattern type error")
-        end
-    | Wild -> Type.Hole
+  match p with
+  | Const (Int _) -> Type.Int
+  | Const (Bool _) -> Type.Bool
+  | Const Nil -> Type.List Type.Hole
+  | Var _ -> Type.Hole
+  | Cons (p1, p2) -> (
+      let t1 = pattern_type p1 in
+      let t2 = pattern_type p2 in
+      match t2 with
+      | Type.Hole -> Type.List t1
+      | Type.List t2 -> (
+          let t = get_common_type t1 t2 in
+          match t with
+          | Some t -> Type.List t
+          | None -> raise (Failure "List pattern type error"))
+      | _ -> raise (Failure "List pattern type error"))
+  | Wild -> Type.Hole
 
 (* Return Some t if t is the common type of the rules. Otherwise, return None *)
-let pattern_common_type (p1 : Pattern.t) (p2 : Pattern.t) : Type.p_t option = 
-    get_common_type (p1 |> Pattern.strip |> pattern_type) (p2 |> Pattern.strip |> pattern_type)
+let pattern_common_type (p1 : Pattern.t) (p2 : Pattern.t) : Type.p_t option =
+  get_common_type
+    (p1 |> Pattern.strip |> pattern_type)
+    (p2 |> Pattern.strip |> pattern_type)
 
 let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
   (*given an expression and its type-context, infer its type by looking
@@ -135,27 +135,23 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
         then Some vart
         else None
     | EHole -> Some Hole
-    | EMatch (escrut, (p1, e1), (p2, e2)) -> 
-        begin match synthesis context escrut with
-        | Some tscrut -> 
+    | EMatch (escrut, (p1, e1), (p2, e2)) -> (
+        match synthesis context escrut with
+        | Some tscrut -> (
             let trules = pattern_common_type p1 p2 in
-            begin match trules with
-            | Some trules -> 
-                if Type.consistent tscrut trules 
-                then 
-                    let t1 = get_rule_type p1 e1 context trules in
-                    let t2 = get_rule_type p2 e2 context trules in
-                    begin match (t1, t2) with
-                    | Some t1, Some t2 -> get_common_type t1 t2
-                    | _ -> None
-                    end
+            match trules with
+            | Some trules ->
+                if Type.consistent tscrut trules
+                then
+                  let t1 = get_rule_type p1 e1 context trules in
+                  let t2 = get_rule_type p2 e2 context trules in
+                  match (t1, t2) with
+                  | Some t1, Some t2 -> get_common_type t1 t2
+                  | _ -> None
                 else None
-            | None -> None
-            end
-        | None -> None
-        end
-  | EAssert e -> if analysis context e Bool then Some Unit else None
-
+            | None -> None)
+        | None -> None)
+    | EAssert e -> if analysis context e Bool then Some Unit else None
 and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
   (* given an epxression and an expected type,
       return a bool representing whether that's correct*)

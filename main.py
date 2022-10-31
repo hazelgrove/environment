@@ -98,6 +98,7 @@ def sweep(
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     runtime_env = {
         "working_dir": ".",
     }
@@ -105,6 +106,8 @@ def sweep(
     ray.init(runtime_env=runtime_env)
     num_cpus = 1#os.cpu_count()
 =======
+=======
+>>>>>>> cf7b169ae15e7a6a6d30e81ad085b93024a68996
     ray.init()
     num_cpus = os.cpu_count()
 >>>>>>> f0952d0de3e12cfdee076b6c1e1201571d8fe6ff

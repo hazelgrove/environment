@@ -88,7 +88,6 @@ class ASTEnv(gym.Env):
         self.code_per_assignment = code_per_assignment
         self.assignment_dir = assignment_dir
         self.cursor_start_pos = -1 if cursor_start_pos is None else cursor_start_pos
-        
         self.curriculum = curriculum
         self.curriculum_threshold = curriculum_threshold
         if self.curriculum is not None and self.curriculum_threshold is None:
@@ -114,7 +113,7 @@ class ASTEnv(gym.Env):
 
     def reset(self):
         if self.curriculum is not None:
-            assignment = random.sample(self.curriculum[:self.curriculum_index], 1)[0]
+            assignment = random.sample(self.curriculum[: self.curriculum_index], 1)[0]
         else:
             assignment = self.observation_space.spaces["assignment"].sample()
         code = random.randint(0, self.code_per_assignment[assignment] - 1)
@@ -142,6 +141,14 @@ class ASTEnv(gym.Env):
         if self.curriculum is None:
             return
         if reward >= self.curriculum_threshold and self.curriculum_index < len(self.curriculum):
+            self.curriclum_index += 1
+
+    def update_curriculum(self, reward: float):
+        if self.curriculum is None:
+            return
+        if reward >= self.curriculum_threshold and self.curriculum_index < len(
+            self.curriculum
+        ):
             self.curriclum_index += 1
 
     # Get Python dictionary for self.state

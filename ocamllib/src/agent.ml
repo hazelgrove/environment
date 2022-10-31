@@ -105,19 +105,26 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
   in
   let rec act_on_pattern (p : Pattern.z_t) : Pattern.z_t =
-    let build_pattern (subtr : Pattern.t) (shape : Action.shape) : Pattern.z_node =
+    let build_pattern (subtr : Pattern.t) (shape : Action.shape) :
+        Pattern.z_node =
       (* actually creates the desired type at the cursor.*)
       (*Also handles child wrapping logics *)
-      let rec free_vars (p : Pattern.t) : unit = 
+      let rec free_vars (p : Pattern.t) : unit =
         match p.node with
         | PConst _ | PWild -> ()
         | PVar x -> Var.free_var x
-        | PCons (p1, p2) -> free_vars p1; free_vars p2
+        | PCons (p1, p2) ->
+            free_vars p1;
+            free_vars p2
       in
       let node =
         match shape with
-        | PatConst c -> free_vars subtr; Pattern.PConst c
-        | PatVar -> free_vars subtr; Pattern.PVar (Var.get_new_var ())
+        | PatConst c ->
+            free_vars subtr;
+            Pattern.PConst c
+        | PatVar ->
+            free_vars subtr;
+            Pattern.PVar (Var.get_new_var ())
         | PatCons_L -> Pattern.PCons (subtr, Pattern.make_node Pattern.PWild)
         | PatCons_R -> Pattern.PCons (Pattern.make_node Pattern.PWild, subtr)
         | PatWild -> Pattern.PWild
@@ -125,7 +132,8 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       in
       Cursor node
     in
-    let rec construct (shape : Action.shape) (tree : Pattern.z_t) : Pattern.z_t =
+    let rec construct (shape : Action.shape) (tree : Pattern.z_t) : Pattern.z_t
+        =
       (*recurses to cursor in type tree and builds the appropriate tree*)
       (* at the cursor *)
       let construct_shape = construct shape in
@@ -150,8 +158,10 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         | _, PCons_L (tl, tr) -> PCons_L (move_n_child tl, tr)
         | _, PCons_R (tl, tr) -> PCons_R (tl, move_n_child tr)
         (* construct appropriate child, else do nothing *)
-        | 0, Pattern.Cursor (PCons (tl, tr)) -> PCons_L (Pattern.select_root tl, tr)
-        | 1, Pattern.Cursor (PCons (tl, tr)) -> PCons_R (tl, Pattern.select_root tr)
+        | 0, Pattern.Cursor (PCons (tl, tr)) ->
+            PCons_L (Pattern.select_root tl, tr)
+        | 1, Pattern.Cursor (PCons (tl, tr)) ->
+            PCons_R (tl, Pattern.select_root tr)
         | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         (*other values are invalid *)
       in
@@ -162,9 +172,11 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         match tree.node with
         (*if child of current tree is the cursor move upwards*)
         | PCons_L (({ node = Cursor subt; _ } as subtr), tr) ->
-            Pattern.Cursor (PCons ({ (Pattern.unzip subtr) with node = subt }, tr))
+            Pattern.Cursor
+              (PCons ({ (Pattern.unzip subtr) with node = subt }, tr))
         | PCons_R (tl, ({ node = Cursor subt; _ } as subtr)) ->
-            Pattern.Cursor (PCons (tl, { (Pattern.unzip subtr) with node = subt }))
+            Pattern.Cursor
+              (PCons (tl, { (Pattern.unzip subtr) with node = subt }))
         (* else recurse *)
         | PCons_L (tl, tr) -> PCons_L (act_on_pattern tl, tr)
         | PCons_R (tl, tr) -> PCons_R (tl, act_on_pattern tr)
@@ -177,24 +189,24 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       { tree with node }
     in
     let rec unwrap (tree : Pattern.z_t) (n : int) : Pattern.z_t =
-    match tree.node with
-    | Cursor e ->
-        let subtree =
-          match (n, e) with
-          | 0, PCons (p, _) -> p
-          | 1, PCons (_, p) -> p
-          | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
-        in
-        Pattern.select_root subtree
-    | _ ->
-        let node : Pattern.z_node =
-          match tree.node with
-          | PCons_L (l_child, r_child) -> PCons_L (unwrap l_child n, r_child)
-          | PCons_R (l_child, r_child) -> PCons_R (l_child, unwrap r_child n)
-          | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
-        in
-        { tree with node }
-  in
+      match tree.node with
+      | Cursor e ->
+          let subtree =
+            match (n, e) with
+            | 0, PCons (p, _) -> p
+            | 1, PCons (_, p) -> p
+            | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
+          in
+          Pattern.select_root subtree
+      | _ ->
+          let node : Pattern.z_node =
+            match tree.node with
+            | PCons_L (l_child, r_child) -> PCons_L (unwrap l_child n, r_child)
+            | PCons_R (l_child, r_child) -> PCons_R (l_child, unwrap r_child n)
+            | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
+          in
+          { tree with node }
+    in
     (* actual switch statement that uses action to determine which subfuncc to call *)
     match action with
     | Construct shape -> construct shape p
@@ -204,11 +216,13 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   in
   let build_expr (shape : Action.shape) (subtree : Expr.t) : Expr.z_node =
     let rec free_vars (e : Expr.t) : unit =
-      let rec pattern_free_vars (p : Pattern.t) : unit = 
+      let rec pattern_free_vars (p : Pattern.t) : unit =
         match p.node with
         | PConst _ | PWild -> ()
         | PVar x -> Var.free_var x
-        | PCons (p1, p2) -> pattern_free_vars p1; pattern_free_vars p2
+        | PCons (p1, p2) ->
+            pattern_free_vars p1;
+            pattern_free_vars p2
       in
       match e.node with
       | ELet (x, edef, ebody) ->
@@ -272,9 +286,22 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | Map_R -> EMap ( Expr.make_node EHole, subtree)
       | Filter_L -> EFilter (subtree, Expr.make_node EHole)
       | Filter_R -> EFilter ( Expr.make_node EHole, subtree)
-      | Match_L -> EMatch (subtree, (Pattern.make_node PWild, Expr.make_node EHole), (Pattern.make_node PWild, Expr.make_node EHole))
-      | Match_E1 -> EMatch (Expr.make_node EHole, (Pattern.make_node PWild, subtree), (Pattern.make_node PWild, Expr.make_node EHole))
-      | Match_E2 -> EMatch (Expr.make_node EHole, (Pattern.make_node PWild, Expr.make_node EHole), (Pattern.make_node PWild, subtree))
+      
+      | Match_L ->
+          EMatch
+            ( subtree,
+              (Pattern.make_node PWild, Expr.make_node EHole),
+              (Pattern.make_node PWild, Expr.make_node EHole) )
+      | Match_E1 ->
+          EMatch
+            ( Expr.make_node EHole,
+              (Pattern.make_node PWild, subtree),
+              (Pattern.make_node PWild, Expr.make_node EHole) )
+      | Match_E2 ->
+          EMatch
+            ( Expr.make_node EHole,
+              (Pattern.make_node PWild, Expr.make_node EHole),
+              (Pattern.make_node PWild, subtree) )
       (* throw invalid action if no actions match *)
       | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
       (* only other option is type 'shapes' which arent valid in this scope*)
@@ -309,11 +336,17 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EMap_R (l_child, r_child) -> EMap_R (l_child, construct_shape r_child)
       | EFilter_L (l_child, r_child) -> EFilter_L (construct_shape l_child, r_child)
       | EFilter_R (l_child, r_child) -> EFilter_R (l_child, construct_shape r_child)
-      | EMatch_L (l_child, (p1, e1), (p2, e2)) -> EMatch_L (construct_shape l_child, (p1, e1), (p2, e2))
-      | EMatch_P1 (l_child, (p1, e1), (p2, e2)) -> EMatch_P1 (l_child, (act_on_pattern p1, e1), (p2, e2))
-      | EMatch_E1 (l_child, (p1, e1), (p2, e2)) -> EMatch_E1 (l_child, (p1, construct_shape e1), (p2, e2))
-      | EMatch_P2 (l_child, (p1, e1), (p2, e2)) -> EMatch_P2 (l_child, (p1, e1), (act_on_pattern p2, e2))
-      | EMatch_E2 (l_child, (p1, e1), (p2, e2)) -> EMatch_E2 (l_child, (p1, e1), (p2, construct_shape e2))
+
+      | EMatch_L (l_child, (p1, e1), (p2, e2)) ->
+          EMatch_L (construct_shape l_child, (p1, e1), (p2, e2))
+      | EMatch_P1 (l_child, (p1, e1), (p2, e2)) ->
+          EMatch_P1 (l_child, (act_on_pattern p1, e1), (p2, e2))
+      | EMatch_E1 (l_child, (p1, e1), (p2, e2)) ->
+          EMatch_E1 (l_child, (p1, construct_shape e1), (p2, e2))
+      | EMatch_P2 (l_child, (p1, e1), (p2, e2)) ->
+          EMatch_P2 (l_child, (p1, e1), (act_on_pattern p2, e2))
+      | EMatch_E2 (l_child, (p1, e1), (p2, e2)) ->
+          EMatch_E2 (l_child, (p1, e1), (p2, construct_shape e2))
       | EAssert_L child -> EAssert_L (construct_shape child)
       (* at cursor, build the correct expression *)
       | Cursor subtree -> build_expr shape (Expr.unzip tree)
@@ -339,7 +372,8 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 0, EPair (arg_l, arg_r) -> EPair_L (Expr.select_root arg_l, arg_r)
     | 0, EMap (arg_l, arg_r) -> EMap_L (Expr.select_root arg_l, arg_r)
     | 0, EFilter (arg_l, arg_r) -> EFilter_L (Expr.select_root arg_l, arg_r)
-    | 0, EMatch (arg_l, (p1, e1), (p2, e2)) -> EMatch_L (Expr.select_root arg_l, (p1, e1), (p2, e2))
+    | 0, EMatch (arg_l, (p1, e1), (p2, e2)) ->
+        EMatch_L (Expr.select_root arg_l, (p1, e1), (p2, e2))
     | 0, EAssert arg -> EAssert_L (Expr.select_root arg)
     | 1, EBinOp (arg_l, op, arg_r) ->
         EBinOp_R (arg_l, op, Expr.select_root arg_r)
@@ -354,12 +388,16 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         EFun_R (varname, typ, Expr.select_root arg_l)
     | 1, EFix (varname, typ, arg_l) ->
         EFix_R (varname, typ, Expr.select_root arg_l)
-    | 1, EMatch (arg_l, (p1, e1), (p2, e2)) -> EMatch_P1 (arg_l, (Pattern.select_root p1, e1), (p2, e2))
+    | 1, EMatch (arg_l, (p1, e1), (p2, e2)) ->
+        EMatch_P1 (arg_l, (Pattern.select_root p1, e1), (p2, e2))
     | 2, EIf (arg_l, arg_c, arg_r) ->
         EIf_R (arg_l, arg_c, Expr.select_root arg_r)
-    | 2, EMatch (arg_l, (p1, e1), (p2, e2)) -> EMatch_E1 (arg_l, (p1, Expr.select_root e1), (p2, e2))
-    | 3, EMatch (arg_l, (p1, e1), (p2, e2)) -> EMatch_P2 (arg_l, (p1, e1), (Pattern.select_root p2, e2))
-    | 4, EMatch (arg_l, (p1, e1), (p2, e2)) -> EMatch_E2 (arg_l, (p1, e1), (p2, Expr.select_root e2))
+    | 2, EMatch (arg_l, (p1, e1), (p2, e2)) ->
+        EMatch_E1 (arg_l, (p1, Expr.select_root e1), (p2, e2))
+    | 3, EMatch (arg_l, (p1, e1), (p2, e2)) ->
+        EMatch_P2 (arg_l, (p1, e1), (Pattern.select_root p2, e2))
+    | 4, EMatch (arg_l, (p1, e1), (p2, e2)) ->
+        EMatch_E2 (arg_l, (p1, e1), (p2, Expr.select_root e2))
     | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
     (*all invalid actions are noops*)
   in
@@ -390,12 +428,16 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EMap_R (l_child, r_child) -> EMap_R (l_child, move_n_child r_child)
       | EFilter_L (l_child, r_child) -> EFilter_L (move_n_child l_child, r_child)
       | EFilter_R (l_child, r_child) -> EFilter_R (l_child, move_n_child r_child)
-
-      | EMatch_L (l, (p1, e1), (p2, e2)) -> EMatch_L (move_n_child l, (p1, e1), (p2, e2))
-      | EMatch_P1 (l, (p1, e1), (p2, e2)) -> EMatch_P1 (l, (act_on_pattern p1, e1), (p2, e2))
-      | EMatch_E1 (l, (p1, e1), (p2, e2)) -> EMatch_E1 (l, (p1, move_n_child e1), (p2, e2))
-      | EMatch_P2 (l, (p1, e1), (p2, e2)) -> EMatch_P2 (l, (p1, e1), (act_on_pattern p2, e2))
-      | EMatch_E2 (l, (p1, e1), (p2, e2)) -> EMatch_E2 (l, (p1, e1), (p2, move_n_child e2))
+      | EMatch_L (l, (p1, e1), (p2, e2)) ->
+          EMatch_L (move_n_child l, (p1, e1), (p2, e2))
+      | EMatch_P1 (l, (p1, e1), (p2, e2)) ->
+          EMatch_P1 (l, (act_on_pattern p1, e1), (p2, e2))
+      | EMatch_E1 (l, (p1, e1), (p2, e2)) ->
+          EMatch_E1 (l, (p1, move_n_child e1), (p2, e2))
+      | EMatch_P2 (l, (p1, e1), (p2, e2)) ->
+          EMatch_P2 (l, (p1, e1), (act_on_pattern p2, e2))
+      | EMatch_E2 (l, (p1, e1), (p2, e2)) ->
+          EMatch_E2 (l, (p1, e1), (p2, move_n_child e2))
       | EAssert_L r_child -> EAssert_L (move_n_child r_child)
       (*Once cursor is reached, use dedicated func to move to appropriate subtree*)
       | Cursor subtree -> shuffle_cursor n_child (Expr.unzip tree)
@@ -467,16 +509,23 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           Cursor (EFix (var, typ, { (Expr.unzip subtr) with node = arg }))
       | EFix_R (var, typ, child) -> EFix_R (var, typ, move_parent child)
       | EMatch_L (({ node = Cursor arg; _ } as subtr), (p1, e1), (p2, e2)) ->
-          Cursor (EMatch ({ (Expr.unzip subtr) with node = arg }, (p1, e1), (p2, e2)))
-      | EMatch_P1 (l, ({ node = Cursor arg; _ } as subtr, e1), (p2, e2)) ->
-          Cursor (EMatch (l, ({ (Pattern.unzip subtr) with node = arg }, e1), (p2, e2)))
+          Cursor
+            (EMatch ({ (Expr.unzip subtr) with node = arg }, (p1, e1), (p2, e2)))
+      | EMatch_P1 (l, (({ node = Cursor arg; _ } as subtr), e1), (p2, e2)) ->
+          Cursor
+            (EMatch
+               (l, ({ (Pattern.unzip subtr) with node = arg }, e1), (p2, e2)))
       | EMatch_E1 (l, (p1, ({ node = Cursor arg; _ } as subtr)), (p2, e2)) ->
-          Cursor (EMatch (l, (p1, { (Expr.unzip subtr) with node = arg }), (p2, e2)))
-      | EMatch_P2 (l, (p1, e1), ({ node = Cursor arg; _ } as subtr, e2)) ->
-          Cursor (EMatch (l, (p1, e1), ({ (Pattern.unzip subtr) with node = arg }, e2)))
+          Cursor
+            (EMatch (l, (p1, { (Expr.unzip subtr) with node = arg }), (p2, e2)))
+      | EMatch_P2 (l, (p1, e1), (({ node = Cursor arg; _ } as subtr), e2)) ->
+          Cursor
+            (EMatch
+               (l, (p1, e1), ({ (Pattern.unzip subtr) with node = arg }, e2)))
       | EMatch_E2 (l, (p1, e1), (p2, ({ node = Cursor arg; _ } as subtr))) ->
-          Cursor (EMatch (l, (p1, e1), (p2, { (Expr.unzip subtr) with node = arg })))
-      | EAssert_L (({ node = Cursor arg; _ } as subtr)) ->
+          Cursor
+            (EMatch (l, (p1, e1), (p2, { (Expr.unzip subtr) with node = arg })))
+      | EAssert_L ({ node = Cursor arg; _ } as subtr) ->
           Cursor (EAssert { (Expr.unzip subtr) with node = arg })
       | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
     in
