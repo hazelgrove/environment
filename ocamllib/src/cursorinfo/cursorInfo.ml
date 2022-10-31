@@ -970,9 +970,21 @@ let cursor_info_to_actions (info : t) : Action.t list =
                 | Some t -> t
                 | None -> raise (TypeError "Invalid rule type")
               in
+              let rec get_vars_pattern (p : Pattern.t) =
+                match p.node with
+                | PVar x -> [ x ]
+                | PCons (p1, p2) -> get_vars_pattern p1 @ get_vars_pattern p2
+                | PConst _ | PWild -> []
+              in
               let scrut_consistent = Type.consistent exp_ty t_scrut in
-              let t1_consistent = Type.consistent exp_ty t1 in
-              let t2_consistent = Type.consistent exp_ty t2 in
+              let check_var1 =
+                List.exists (check_var e1) (get_vars_pattern p1)
+              in
+              let t1_consistent = Type.consistent exp_ty t1 && not check_var1 in
+              let check_var2 =
+                List.exists (check_var e2) (get_vars_pattern p2)
+              in
+              let t2_consistent = Type.consistent exp_ty t2 && not check_var2 in
               if scrut_consistent && t1_consistent && t2_consistent
               then [ Unwrap 0; Unwrap 1; Unwrap 2 ]
               else if scrut_consistent && t1_consistent

@@ -9,7 +9,8 @@ let used_vars : bool Array.t = Array.make max_num_vars false
 
 (* Definition of special varaibles *)
 let starter_func : t = 0
-let undef_var : t = -2
+let undef_var : t = -1
+let num_special_vars = 1
 
 let get_new_var _ : t =
   let new_var =
