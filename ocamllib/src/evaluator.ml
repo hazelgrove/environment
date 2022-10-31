@@ -127,8 +127,26 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
         let unrolled = subst (Fix (x, ty, e_body)) x e_body in
         eval unrolled stack
 
-    | Map (func, e_list) 
-    | Filter (func, e_list)   -> raise NotImplemented
+    | Map (func, e_list) -> 
+        begin match e_list with 
+          |  Const Nil -> VConst (Nil)   (* base case *)
+          |  BinOp(head, OpCons, tail) ->
+               VCons(eval (BinOp (func, OpAp, head)) (stack-1),
+                     eval (Map(func, tail)) (stack-1))
+          | _ -> raise (RuntimeError "Expected list or nil") 
+        end
+    | Filter (func, e_list)   ->         
+      begin match e_list with 
+        |  Const Nil -> VConst (Nil)   (* base case *)
+        |  BinOp(head, OpCons, tail) -> 
+          let filtered_tail =  eval (Filter (func,tail)) (stack - 1) in 
+          begin match eval (BinOp (func, OpAp, head)) (stack-1) with 
+            | VBool true  ->  VCons (head,filtered_tail)
+            | VBool false -> filtered_tail
+            | _ -> raise (RuntimeError "Expected Bool")
+          end
+        | _ -> raise (RuntimeError "Expected list or nil") 
+      end
     | Assert e ->
         let v = eval e stack in
         if expecting_bool v
