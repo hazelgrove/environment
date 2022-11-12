@@ -481,22 +481,33 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EMatch_L (({ node = Cursor arg; _ } as subtr), (p1, e1), (p2, e2)) ->
           Cursor
             (EMatch ({ (Expr.unzip subtr) with node = arg }, (p1, e1), (p2, e2)))
-      | EMatch_P1 (l, (({ node = Cursor arg; _ } as subtr), e1), (p2, e2)) ->
+      | EMatch_L (e, (p1, e1), (p2, e2)) ->
+          EMatch_L (move_parent e, (p1, e1), (p2, e2))
+      | EMatch_P1 (e, (({ node = Cursor arg; _ } as subtr), e1), (p2, e2)) ->
           Cursor
             (EMatch
-               (l, ({ (Pattern.unzip subtr) with node = arg }, e1), (p2, e2)))
-      | EMatch_E1 (l, (p1, ({ node = Cursor arg; _ } as subtr)), (p2, e2)) ->
+               (e, ({ (Pattern.unzip subtr) with node = arg }, e1), (p2, e2)))
+      | EMatch_P1 (e, (p1, e1), (p2, e2)) ->
+          EMatch_P1 (e, (act_on_pattern p1, e1), (p2, e2))
+      | EMatch_E1 (e, (p1, ({ node = Cursor arg; _ } as subtr)), (p2, e2)) ->
           Cursor
-            (EMatch (l, (p1, { (Expr.unzip subtr) with node = arg }), (p2, e2)))
-      | EMatch_P2 (l, (p1, e1), (({ node = Cursor arg; _ } as subtr), e2)) ->
+            (EMatch (e, (p1, { (Expr.unzip subtr) with node = arg }), (p2, e2)))
+      | EMatch_E1 (e, (p1, e1), (p2, e2)) ->
+          EMatch_E1 (e, (p1, move_parent e1), (p2, e2))
+      | EMatch_P2 (e, (p1, e1), (({ node = Cursor arg; _ } as subtr), e2)) ->
           Cursor
             (EMatch
-               (l, (p1, e1), ({ (Pattern.unzip subtr) with node = arg }, e2)))
+               (e, (p1, e1), ({ (Pattern.unzip subtr) with node = arg }, e2)))
+      | EMatch_P2 (e, (p1, e1), (p2, e2)) ->
+          EMatch_P2 (e, (p1, e1), (act_on_pattern p2, e2))
       | EMatch_E2 (l, (p1, e1), (p2, ({ node = Cursor arg; _ } as subtr))) ->
           Cursor
             (EMatch (l, (p1, e1), (p2, { (Expr.unzip subtr) with node = arg })))
+      | EMatch_E2 (e, (p1, e1), (p2, e2)) ->
+          EMatch_E2 (e, (p1, e1), (p2, move_parent e2))
       | EAssert_L ({ node = Cursor arg; _ } as subtr) ->
           Cursor (EAssert { (Expr.unzip subtr) with node = arg })
+      | EAssert_L child -> EAssert_L (move_parent child)
       | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
     in
     { tree with node }
@@ -1210,3 +1221,35 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
          (EFun_L ("newvar", Cursor THole, EVar "hey"))
        = true
    end) *)
+
+let check_actions (actions : Action.t list) (e : Expr.z_t) : Action.t list =
+  let check_action (action : Action.t) : bool =
+    let new_var = 
+      match action with
+      | Construct Let_L
+      | Construct Let_R
+      | Construct Fun
+      | Construct Fix
+      | Construct PatVar -> Some (Var.get_new_var ())
+      | _ -> None
+    in
+    (match new_var with | Some x -> Var.free_var x | None -> ());
+    let e' = 
+      try Some (perform_action e action)
+      with _ -> None
+    in
+    (match new_var with | Some x -> Var.free_var x | None -> ());
+    match e' with
+    | Some e' -> 
+      let t = 
+        try Typing.synthesis Context.empty (Expr.unzip e')
+        with _ -> None
+      in
+      begin match t with
+      | Some _ -> true
+      | None -> false
+      end
+    | None -> false
+  in
+  List.filter check_action actions
+

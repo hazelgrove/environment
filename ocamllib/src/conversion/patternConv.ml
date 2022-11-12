@@ -103,8 +103,8 @@ let to_list (p : t) : graph * int * varlist =
     | PConst _ | PWild -> ((nodes, edges), root, vars)
     | PVar x -> ((nodes, edges), root, add_var x root vars)
     | PCons (p1, p2) ->
-        let (nodes, edges), vars = add_subtree p1 nodes edges root vars 1 in
-        let (nodes, edges), vars = add_subtree p2 nodes edges root vars 2 in
+        let (nodes, edges), vars = add_subtree p1 nodes edges root vars 0 in
+        let (nodes, edges), vars = add_subtree p2 nodes edges root vars 1 in
         ((nodes, edges), root, vars)
   in
   to_list_aux p [] [] []

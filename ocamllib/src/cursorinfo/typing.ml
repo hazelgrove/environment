@@ -27,6 +27,24 @@ let rec get_common_type (t1 : Type.p_t) (t2 : Type.p_t) : Type.p_t option =
     | _ -> None
   else None
 
+let%test_module "Test Typing.get_common_type" =
+   (module struct
+     let check t1 t2 t = 
+        match get_common_type t1 t2, t with
+        | Some t1, Some t2 -> t1 = t2
+        | None, None -> true
+        | _ -> false
+
+     let%test _ = check Int Hole (Some Int)
+
+     let%test _ = check Int (Arrow (Hole, Hole)) None
+
+     let%test _ = check (Prod (Hole, Bool)) (Prod (Int, Hole)) (Some (Prod (Int, Bool)))
+
+     let%test _ = check (List Int) (List Bool) None
+   end)
+
+(* Currently Incorrect!!!! *)
 let rec pattern_type (p : Pattern.p_t) : Type.p_t =
   match p with
   | Const (Int _) -> Type.Int
@@ -42,9 +60,23 @@ let rec pattern_type (p : Pattern.p_t) : Type.p_t =
           let t = get_common_type t1 t2 in
           match t with
           | Some t -> Type.List t
-          | None -> raise (Failure "List pattern type error"))
-      | _ -> raise (Failure "List pattern type error"))
+          (* | None -> raise (Failure ("List pattern type mismatch: " ^ TypeConv.to_string t1 ^ " and " ^ TypeConv.to_string t2))) *)
+          | None -> Type.Hole)
+      (* | _ -> raise (Failure ("Second pattern in list pattern is not a list: " ^ TypeConv.to_string t2))) *)
+      | _ -> Type.Hole)
   | Wild -> Type.Hole
+
+let%test_module "Test Typing.pattern_type" =
+   (module struct
+     let check p t = (pattern_type p = t)
+
+     let%test _ = check (Const (Int 1)) Int
+     let%test _ = check (Var 3) Hole
+     let%test _ = check (Cons (Const (Int 0), Wild)) (List Int)
+     let%test _ = check (Cons (Wild, Var 1)) (List Hole)
+     let%test _ = check (Cons (Const (Int 0), Var 1)) (List Int)
+     let%test _ = check (Cons (Wild, Wild)) (List Hole)
+   end)
 
 (* Return Some t if t is the common type of the rules. Otherwise, return None *)
 let pattern_common_type (p1 : Pattern.t) (p2 : Pattern.t) : Type.p_t option =
@@ -88,10 +120,13 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       | Some Hole -> if analysis context arg Hole then Some Hole else None
       | _ -> None)
   | EBinOp (hd, OpCons, tl) -> (
-      match synthesis context tl with
-      | Some (List list_t) ->
-          if analysis context hd list_t then Some (List list_t) else None
-      | Some Hole -> if analysis context hd Hole then Some (List Hole) else None
+      match synthesis context hd, synthesis context tl with
+      | Some t1, Some (List t2) ->
+          begin match get_common_type t1 t2 with
+          | Some t -> Some (List t)
+          | None -> None
+          end
+      | Some t, Some Hole -> Some (List t)
       | _ -> None)
   | EPair (l_pair, r_pair) -> (
       match (synthesis context l_pair, synthesis context r_pair) with
@@ -190,3 +225,21 @@ and get_rule_type (p : Pattern.t) (e : Expr.t) (ctx : Context.t) (t : Type.p_t)
   in
   let ctx = find_ctx ctx p t in
   synthesis ctx e
+
+let%test_module "Test Typing.synthesis & Typing.analysis" =
+   (module struct
+     let check_syn ctx e t = 
+        let e = e |> ParserUtils.parse |> Expr.add_metadata in
+        match synthesis ctx e, t with
+        | Some t1, Some t2 -> t1 = t2
+        | None, None -> true
+        | _ -> false
+     
+     let%test _ = check_syn Context.empty "2 :: 3 :: []" (Some (List Int))
+     let%test _ = check_syn Context.empty "let x1 = 2 in x1 + 2" (Some Int)
+     let%test _ = check_syn Context.empty "if true then 3 else ?" (Some Int)
+     let%test _ = check_syn Context.empty "if true then 3 else true" None
+     let%test _ = check_syn Context.empty "let f = fun x1 -> x1 + 3 in f ?" (Some Int)
+     let%test _ = check_syn Context.empty "let f = fun x1 -> x1 + 3 in f true" (Some Int)
+     let%test _ = check_syn Context.empty "match 2 :: ? :: [] with | x1 :: x2 :: [] -> 2 | _ -> 1" (Some Int)
+   end)

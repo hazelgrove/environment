@@ -4,7 +4,7 @@
 %token TRUE FALSE
 %token IF THEN ELSE
 %token FUN REC LET OFTYPE IN RIGHTARROW
-%token COMMA
+%token COMMA SEMI
 %token PLUS MINUS TIMES DIV
 %token LT LE GT GE EQ NE
 %token CON
@@ -14,6 +14,7 @@
 %token AND, OR
 %token F
 %token MATCH WITH BAR WILD
+%token HOLE
 
 %{ 
     open Expr
@@ -90,6 +91,15 @@ expr:
     }
 | ASSERT LPAREN e = expr RPAREN
     { Expr.Assert e }
+| LBRAC es = separated_list(SEMI, expr) RBRAC
+    { let rec resolve_list es =
+        match es with
+            | hd :: [] -> Expr.BinOp(hd, OpCons, Const Nil)
+            | hd :: tl -> Expr.BinOp(hd, OpCons, resolve_list tl)
+            | _ -> raise (Failure "Incorrect syntax")
+    in
+    resolve_list es
+    }
 
 logicor:
 | e = logicand
@@ -166,6 +176,8 @@ simple:
     { e }
 | LPAREN e1 = expr COMMA e2 = expr RPAREN
     { Expr.Pair (e1, e2) }
+| HOLE
+    { Expr.Hole }
 
 arg: 
 | x = identifiers
@@ -220,6 +232,8 @@ base_ty:
     { Type.Bool }
 | LPAREN t = ty RPAREN
     { t }
+| HOLE
+    { Type.Hole }
 
 scope:
 | IN e = expr 

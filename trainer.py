@@ -153,7 +153,7 @@ class Trainer:
 
                 if render:
                     print(f"Action: {action}")
-                    breakpoint()
+                    # breakpoint()
                 obs, reward, done, infos = envs.step(action.reshape((-1,)))
 
                 if render:

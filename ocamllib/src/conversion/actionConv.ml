@@ -53,13 +53,13 @@ let action_list =
     Construct If_C;
     Construct If_R;
     Construct Fun;
-    Construct Fix;
+    (* Construct Fix; *)
     Construct Pair_L;
     Construct Pair_R;
     Construct Match_L;
     Construct Match_E1;
     Construct Match_E2;
-    Construct TypInt;
+    (* Construct TypInt;
     Construct TypBool;
     Construct TypArrow_L;
     Construct TypArrow_R;
@@ -67,7 +67,7 @@ let action_list =
     Construct TypProd_R;
     Construct TypList;
     Construct TypHole;
-    Construct TypUnit;
+    Construct TypUnit; *)
     Construct (PatConst (Int (-2)));
     Construct (PatConst (Int (-1)));
     Construct (PatConst (Int 0));
@@ -75,6 +75,7 @@ let action_list =
     Construct (PatConst (Int 2));
     Construct (PatConst (Bool true));
     Construct (PatConst (Bool false));
+    Construct (PatConst Nil);
     Construct PatCons_L;
     Construct PatCons_R;
     Construct PatVar;

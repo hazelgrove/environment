@@ -11,9 +11,9 @@ save_interval: 100
 num_env_steps: 1.0e+7
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 4
-  perturbation: 4
-  assignment_dir: data/assertion
+  max_episode_steps: 2
+  perturbation: 2
+  assignment_dir: data/match
   cursor_start_pos: null
 base: 
   hidden_size: 32

@@ -73,6 +73,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         let exp_ty =
           match exp_ty with
           | List t -> t
+          | Hole -> Hole
           | _ -> raise (TypeError "Expected list type")
         in
         get_cursor_info_pattern ~current_term:p
@@ -81,6 +82,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         let exp_ty =
           match exp_ty with
           | List t -> exp_ty
+          | Hole -> List Hole
           | _ -> raise (TypeError "Expected list type")
         in
         get_cursor_info_pattern ~current_term:p2
@@ -178,6 +180,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
+    (* Prevent type incorrect changes of edef *)
     | ELet_L (_, edef, ebody) ->
         get_cursor_info_expr ~current_term:edef ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Hole ~index:(index + 2)
@@ -1065,18 +1068,19 @@ let cursor_info_to_actions (info : t) : Action.t list =
           [
             Construct PatVar;
             Construct PatWild;
+            Construct (PatConst Nil);
             Construct PatCons_L;
             Construct PatCons_R;
           ]
         else if l_consistent
-        then [ Construct PatVar; Construct PatWild; Construct PatCons_L ]
+        then [ Construct PatVar; Construct PatWild; Construct (PatConst Nil); Construct PatCons_L ]
         else if r_consistent
-        then [ Construct PatVar; Construct PatWild; Construct PatCons_R ]
-        else [ Construct PatVar; Construct PatWild ]
+        then [ Construct PatVar; Construct PatWild; Construct (PatConst Nil); Construct PatCons_R ]
+        else [ Construct PatVar; Construct PatWild; Construct (PatConst Nil) ]
     | Some Hole ->
-        [ Construct PatVar; Construct PatCons_L; Construct PatCons_R ]
+        [ Construct PatVar; Construct (PatConst Nil); Construct PatWild; Construct PatCons_L; Construct PatCons_R ]
         @ pat_int @ pat_bool
-    | _ -> [ Construct PatVar ]
+    | _ -> [ Construct PatVar; Construct PatWild; ]
   in
   match info.current_term with
   | ENode _ -> List.concat [ handle_move (); handle_expr () ]
@@ -1179,3 +1183,6 @@ let cursor_info_to_actions (info : t) : Action.t list =
 
        let%test _ = check e lst
      end) *)
+
+
+

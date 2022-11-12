@@ -27,10 +27,12 @@ rule read =
   | "("     { LPAREN }
   | ")"     { RPAREN }
   | ","     { COMMA }
+  | ";"     { SEMI }
   | "["     { LBRAC }
   | "]"     { RBRAC }
   | "&&"    { AND }
   | "||"    { OR }
+  | "?"     { HOLE }
   | "true"  { TRUE }
   | "false" { FALSE }
   | "let"   { LET }

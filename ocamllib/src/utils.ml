@@ -23,7 +23,7 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             if index = -1
             then (Pattern.zip_migrate p (PCons_L (zast1, p2)), -1)
             else
-              let zast2, _ = select_root_pattern p2 index in
+              let zast2, index = select_root_pattern p2 index in
               if index = -1
               then (Pattern.zip_migrate p (PCons_R (p1, zast2)), -1)
               else (Pattern.make_dummy_z_node (Pattern.Cursor PWild), index)
@@ -90,7 +90,7 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
           if index <= Type.size ty
           then (Expr.select_root e, -1)
           else
-            let zast, _ = select_root_index_aux ebody (index - 2) in
+            let zast, index = select_root_index_aux ebody (index - 2) in
             if index = -1
             then (Expr.zip_migrate e (EFix_R (x, ty, zast)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
@@ -99,7 +99,7 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
           if index = -1
           then (Expr.zip_migrate e (EPair_L (zast1, e2)), -1)
           else
-            let zast2, _ = select_root_index_aux e2 index in
+            let zast2, index = select_root_index_aux e2 index in
             if index = -1
             then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
@@ -112,17 +112,17 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             if index = -1
             then (Expr.zip_migrate e (EMatch_P1 (e, (zast2, e1), (p2, e2))), -1)
             else
-              let zast3, _ = select_root_index_aux e1 index in
+              let zast3, index = select_root_index_aux e1 index in
               if index = -1
               then
                 (Expr.zip_migrate e (EMatch_E1 (e, (p1, zast3), (p2, e2))), -1)
               else
-                let zast4, _ = select_root_pattern p2 index in
+                let zast4, index = select_root_pattern p2 index in
                 if index = -1
                 then
                   (Expr.zip_migrate e (EMatch_P2 (e, (p1, e1), (zast4, e2))), -1)
                 else
-                  let zast5, _ = select_root_index_aux e2 index in
+                  let zast5, index = select_root_index_aux e2 index in
                   if index = -1
                   then
                     ( Expr.zip_migrate e (EMatch_E2 (e, (p1, e1), (p2, zast5))),

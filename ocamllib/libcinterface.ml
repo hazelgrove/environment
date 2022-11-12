@@ -78,14 +78,7 @@ let get_cursor_info_c (ser_zast : string) : int =
   let zast = Utils.deserialize ser_zast in
   let cursorInfo = CursorInfo.get_cursor_info (Syntax.ZENode zast) in
   let actions =
-    try
-      cursorInfo |> CursorInfo.cursor_info_to_actions |> ActionConv.to_list
-      |> List.map (fun b -> if b then 1 else 0)
-    with CursorInfo.TypeError exn ->
-      raise
-        (CursorInfo.TypeError
-           ("Incorrect Type: "
-           ^ (zast |> Expr.unzip |> Expr.strip |> ExprConv.to_string)))
+    (Agent.check_actions ActionConv.action_list zast) |> ActionConv.to_list |> List.map (fun b -> if b then 1 else 0)
   in
   let vars_in_scope =
     List.filter_map
