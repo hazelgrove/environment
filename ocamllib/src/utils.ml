@@ -157,8 +157,7 @@ let load_tests (directory : string) (assignment : int) : (int * int) list =
   let tests_cons = ParserUtils.parse_file filename in
   let rec combine_tests (tests_cons : Expr.p_t) : (int * int) list =
     match tests_cons with
-    | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, Const Nil) ->
-        [ (a, b) ]
+    | Const Nil -> []
     | BinOp (Pair (Const (Int a), Const (Int b)), OpCons, tl) ->
         (a, b) :: combine_tests tl
     | _ -> raise (IOError "Test file in incorrect format.")

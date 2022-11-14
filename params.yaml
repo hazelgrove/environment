@@ -13,9 +13,10 @@ use_linear_lr_decay: True
 env: 
   max_episode_steps: 2
   perturbation: 2
-  assignment_dir: data/match
+  assignment_dir: data/mult_assign
   cursor_start_pos: null
 base: 
+  num_assignments: 3
   hidden_size: 32
   gnn_layer_size: [128, 64, 64]
   heads: [8, 8, 16, 1]

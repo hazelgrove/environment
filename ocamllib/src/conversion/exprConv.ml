@@ -54,7 +54,7 @@ let rec to_string (e : p_t) : string =
         "(fun (" ^ Var.to_string x ^ " : " ^ TypeConv.to_string ty ^ ") -> "
         ^ to_string e ^ ") "
   | Pair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
-  | Hole -> "<HOLE> "
+  | Hole -> "? "
   | Match (e, (p1, e1), (p2, e2)) ->
       "(match " ^ to_string e ^ " with | " ^ PatternConv.to_string p1 ^ " -> "
       ^ to_string e1 ^ " | " ^ PatternConv.to_string p2 ^ " -> " ^ to_string e2

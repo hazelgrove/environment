@@ -76,13 +76,25 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         match tree.node with
         (*if child of current tree is the cursor move upwards*)
         | Arrow_L (({ node = Cursor subt; _ } as subtr), tr) ->
-            Type.Cursor (TArrow ({ (Type.unzip subtr) with node = subt }, tr))
+            if tree.starter
+            then raise (InvalidAction (ActionConv.action_to_tag action))
+            else
+              Type.Cursor (TArrow ({ (Type.unzip subtr) with node = subt }, tr))
         | Arrow_R (tl, ({ node = Cursor subt; _ } as subtr)) ->
-            Type.Cursor (TArrow (tl, { (Type.unzip subtr) with node = subt }))
+            if tree.starter
+            then raise (InvalidAction (ActionConv.action_to_tag action))
+            else
+              Type.Cursor (TArrow (tl, { (Type.unzip subtr) with node = subt }))
         | Prod_L (({ node = Cursor subt; _ } as subtr), tr) ->
-            Type.Cursor (TProd ({ (Type.unzip subtr) with node = subt }, tr))
+            if tree.starter
+            then raise (InvalidAction (ActionConv.action_to_tag action))
+            else
+              Type.Cursor (TProd ({ (Type.unzip subtr) with node = subt }, tr))
         | Prod_R (tl, ({ node = Cursor subt; _ } as subtr)) ->
-            Type.Cursor (TProd (tl, { (Type.unzip subtr) with node = subt }))
+            if tree.starter
+            then raise (InvalidAction (ActionConv.action_to_tag action))
+            else
+              Type.Cursor (TProd (tl, { (Type.unzip subtr) with node = subt }))
         (* else recurse *)
         | Arrow_L (tl, tr) -> Arrow_L (act_on_type tl, tr)
         | Prod_L (tl, tr) -> Prod_L (act_on_type tl, tr)
@@ -92,7 +104,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         (* otherwise we've reached the cursor: this can only happen if act_on_type is
             called directly on a type cursor, which shouldn't be possible when the action
             is move parent. *)
-        | Cursor _ -> raise (InvalidAction (ActionConv.action_to_tag action))
+        | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         (* for when cursor is reached (shouldnt happen)*)
       in
       { tree with node }
@@ -172,11 +184,17 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         match tree.node with
         (*if child of current tree is the cursor move upwards*)
         | PCons_L (({ node = Cursor subt; _ } as subtr), tr) ->
-            Pattern.Cursor
-              (PCons ({ (Pattern.unzip subtr) with node = subt }, tr))
+            if tree.starter
+            then raise (InvalidAction (ActionConv.action_to_tag action))
+            else
+              Pattern.Cursor
+                (PCons ({ (Pattern.unzip subtr) with node = subt }, tr))
         | PCons_R (tl, ({ node = Cursor subt; _ } as subtr)) ->
-            Pattern.Cursor
-              (PCons (tl, { (Pattern.unzip subtr) with node = subt }))
+            if tree.starter
+            then raise (InvalidAction (ActionConv.action_to_tag action))
+            else
+              Pattern.Cursor
+                (PCons (tl, { (Pattern.unzip subtr) with node = subt }))
         (* else recurse *)
         | PCons_L (tl, tr) -> PCons_L (act_on_pattern tl, tr)
         | PCons_R (tl, tr) -> PCons_R (tl, act_on_pattern tr)
@@ -433,80 +451,134 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     let node : Expr.z_node =
       match tree.node with
       | EUnOp_L (op, ({ node = Cursor arg; _ } as subtr)) ->
-          Cursor (EUnOp (op, { (Expr.unzip subtr) with node = arg }))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EUnOp (op, { (Expr.unzip subtr) with node = arg }))
       | EUnOp_L (op, arg) -> EUnOp_L (op, move_parent arg)
       | EBinOp_L (({ node = Cursor arg; _ } as subtr), op, r_child) ->
-          Cursor (EBinOp ({ (Expr.unzip subtr) with node = arg }, op, r_child))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor
+              (EBinOp ({ (Expr.unzip subtr) with node = arg }, op, r_child))
       | EBinOp_L (l_child, op, r_child) ->
           EBinOp_L (move_parent l_child, op, r_child)
       | EBinOp_R (l_child, op, ({ node = Cursor arg; _ } as subtr)) ->
-          Cursor (EBinOp (l_child, op, { (Expr.unzip subtr) with node = arg }))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor
+              (EBinOp (l_child, op, { (Expr.unzip subtr) with node = arg }))
       | EBinOp_R (l_child, op, r_child) ->
           EBinOp_R (l_child, op, move_parent r_child)
       | EPair_L (({ node = Cursor arg; _ } as subtr), r_child) ->
-          Cursor (EPair ({ (Expr.unzip subtr) with node = arg }, r_child))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EPair ({ (Expr.unzip subtr) with node = arg }, r_child))
       | EPair_L (l_child, r_child) -> EPair_L (move_parent l_child, r_child)
       | EPair_R (l_child, ({ node = Cursor arg; _ } as subtr)) ->
-          Cursor (EPair (l_child, { (Expr.unzip subtr) with node = arg }))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EPair (l_child, { (Expr.unzip subtr) with node = arg }))
       | EPair_R (l_child, r_child) -> EPair_R (l_child, move_parent r_child)
       | ELet_L (var, ({ node = Cursor arg; _ } as subtr), r_child) ->
-          Cursor (ELet (var, { (Expr.unzip subtr) with node = arg }, r_child))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor (ELet (var, { (Expr.unzip subtr) with node = arg }, r_child))
       | ELet_L (var, l_child, r_child) ->
           ELet_L (var, move_parent l_child, r_child)
       | ELet_R (var, l_child, ({ node = Cursor arg; _ } as subtr)) ->
-          Cursor (ELet (var, l_child, { (Expr.unzip subtr) with node = arg }))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor (ELet (var, l_child, { (Expr.unzip subtr) with node = arg }))
       | ELet_R (var, l_child, r_child) ->
           ELet_R (var, l_child, move_parent r_child)
       | EIf_L (({ node = Cursor arg; _ } as subtr), c, r) ->
-          Cursor (EIf ({ (Expr.unzip subtr) with node = arg }, c, r))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EIf ({ (Expr.unzip subtr) with node = arg }, c, r))
       | EIf_L (l, c, r) -> EIf_L (move_parent l, c, r)
       | EIf_C (l, ({ node = Cursor arg; _ } as subtr), r) ->
-          Cursor (EIf (l, { (Expr.unzip subtr) with node = arg }, r))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EIf (l, { (Expr.unzip subtr) with node = arg }, r))
       | EIf_C (l, c, r) -> EIf_C (l, move_parent c, r)
       | EIf_R (l, c, ({ node = Cursor arg; _ } as subtr)) ->
-          Cursor (EIf (l, c, { (Expr.unzip subtr) with node = arg }))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EIf (l, c, { (Expr.unzip subtr) with node = arg }))
       | EIf_R (l, c, r) -> EIf_R (l, c, move_parent r)
       | EFun_L (var, ({ node = Cursor arg; _ } as subtr), ebody) ->
-          Cursor (EFun (var, { (Type.unzip subtr) with node = arg }, ebody))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor (EFun (var, { (Type.unzip subtr) with node = arg }, ebody))
       | EFun_L (var, typ, arg) -> EFun_L (var, act_on_type typ, arg)
       | EFix_L (var, ({ node = Cursor arg; _ } as subtr), ebody) ->
-          Cursor (EFix (var, { (Type.unzip subtr) with node = arg }, ebody))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor (EFix (var, { (Type.unzip subtr) with node = arg }, ebody))
       | EFix_L (var, typ, arg) -> EFix_L (var, act_on_type typ, arg)
       | EFun_R (var, typ, ({ node = Cursor arg; _ } as subtr)) ->
-          Cursor (EFun (var, typ, { (Expr.unzip subtr) with node = arg }))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EFun (var, typ, { (Expr.unzip subtr) with node = arg }))
       | EFun_R (var, typ, child) -> EFun_R (var, typ, move_parent child)
       | EFix_R (var, typ, ({ node = Cursor arg; _ } as subtr)) ->
-          Cursor (EFix (var, typ, { (Expr.unzip subtr) with node = arg }))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EFix (var, typ, { (Expr.unzip subtr) with node = arg }))
       | EFix_R (var, typ, child) -> EFix_R (var, typ, move_parent child)
       | EMatch_L (({ node = Cursor arg; _ } as subtr), (p1, e1), (p2, e2)) ->
-          Cursor
-            (EMatch ({ (Expr.unzip subtr) with node = arg }, (p1, e1), (p2, e2)))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor
+              (EMatch
+                 ({ (Expr.unzip subtr) with node = arg }, (p1, e1), (p2, e2)))
       | EMatch_L (e, (p1, e1), (p2, e2)) ->
           EMatch_L (move_parent e, (p1, e1), (p2, e2))
       | EMatch_P1 (e, (({ node = Cursor arg; _ } as subtr), e1), (p2, e2)) ->
-          Cursor
-            (EMatch
-               (e, ({ (Pattern.unzip subtr) with node = arg }, e1), (p2, e2)))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor
+              (EMatch
+                 (e, ({ (Pattern.unzip subtr) with node = arg }, e1), (p2, e2)))
       | EMatch_P1 (e, (p1, e1), (p2, e2)) ->
           EMatch_P1 (e, (act_on_pattern p1, e1), (p2, e2))
       | EMatch_E1 (e, (p1, ({ node = Cursor arg; _ } as subtr)), (p2, e2)) ->
-          Cursor
-            (EMatch (e, (p1, { (Expr.unzip subtr) with node = arg }), (p2, e2)))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor
+              (EMatch (e, (p1, { (Expr.unzip subtr) with node = arg }), (p2, e2)))
       | EMatch_E1 (e, (p1, e1), (p2, e2)) ->
           EMatch_E1 (e, (p1, move_parent e1), (p2, e2))
       | EMatch_P2 (e, (p1, e1), (({ node = Cursor arg; _ } as subtr), e2)) ->
-          Cursor
-            (EMatch
-               (e, (p1, e1), ({ (Pattern.unzip subtr) with node = arg }, e2)))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor
+              (EMatch
+                 (e, (p1, e1), ({ (Pattern.unzip subtr) with node = arg }, e2)))
       | EMatch_P2 (e, (p1, e1), (p2, e2)) ->
           EMatch_P2 (e, (p1, e1), (act_on_pattern p2, e2))
       | EMatch_E2 (l, (p1, e1), (p2, ({ node = Cursor arg; _ } as subtr))) ->
-          Cursor
-            (EMatch (l, (p1, e1), (p2, { (Expr.unzip subtr) with node = arg })))
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else
+            Cursor
+              (EMatch (l, (p1, e1), (p2, { (Expr.unzip subtr) with node = arg })))
       | EMatch_E2 (e, (p1, e1), (p2, e2)) ->
           EMatch_E2 (e, (p1, e1), (p2, move_parent e2))
       | EAssert_L ({ node = Cursor arg; _ } as subtr) ->
-          Cursor (EAssert { (Expr.unzip subtr) with node = arg })
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EAssert { (Expr.unzip subtr) with node = arg })
       | EAssert_L child -> EAssert_L (move_parent child)
       | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
     in
@@ -1224,32 +1296,25 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
 
 let check_actions (actions : Action.t list) (e : Expr.z_t) : Action.t list =
   let check_action (action : Action.t) : bool =
-    let new_var = 
+    let new_var =
       match action with
       | Construct Let_L
       | Construct Let_R
       | Construct Fun
       | Construct Fix
-      | Construct PatVar -> Some (Var.get_new_var ())
+      | Construct PatVar ->
+          Some (Var.get_new_var ())
       | _ -> None
     in
-    (match new_var with | Some x -> Var.free_var x | None -> ());
-    let e' = 
-      try Some (perform_action e action)
-      with _ -> None
-    in
-    (match new_var with | Some x -> Var.free_var x | None -> ());
+    (match new_var with Some x -> Var.free_var x | None -> ());
+    let e' = try Some (perform_action e action) with _ -> None in
+    (match new_var with Some x -> Var.free_var x | None -> ());
     match e' with
-    | Some e' -> 
-      let t = 
-        try Typing.synthesis Context.empty (Expr.unzip e')
-        with _ -> None
-      in
-      begin match t with
-      | Some _ -> true
-      | None -> false
-      end
+    | Some e' -> (
+        let t =
+          try Typing.synthesis Context.empty (Expr.unzip e') with _ -> None
+        in
+        match t with Some _ -> true | None -> false)
     | None -> false
   in
   List.filter check_action actions
-

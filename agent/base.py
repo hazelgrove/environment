@@ -187,7 +187,7 @@ class GNNBase(NNBase):
         hidden_size: int = 32,
         gnn_layer_size: List[int] = [128, 64, 64],
         heads: List[int] = [8, 8, 16, 1],
-        num_node_descriptor: int = 50,
+        num_node_descriptor: int = 51,
         num_edge_descriptor: int = 6,
         num_assignments: int = 1,
         embedding_dim: int = 512,
@@ -268,7 +268,7 @@ class GNNBase(NNBase):
         )
 
         self.node_embedding = nn.Embedding(
-            num_embeddings=num_node_descriptor + max_num_vars + 2,
+            num_embeddings=num_node_descriptor + max_num_vars * 2 + 1,
             embedding_dim=embedding_dim,
             padding_idx=-1,
         )
@@ -299,7 +299,7 @@ class GNNBase(NNBase):
 
         x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
         edge_index = torch.concat((edge_index, edge_index.flip(0)), dim=1)
-        edge_attr = torch.concat((edge_attr, edge_attr + 4), dim=0)
+        edge_attr = torch.concat((edge_attr, edge_attr + 6), dim=0)
 
         # Convert inputs to long
         x = x.long()

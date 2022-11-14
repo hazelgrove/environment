@@ -160,6 +160,10 @@ class Trainer:
                     envs.render(mode="human")
                     print()
 
+                    if done[0]:
+
+                        print("---------------Environment reset---------------")
+
                 for info in infos:
                     if "episode" in info.keys():
                         episode_rewards.append(info["episode"]["r"])

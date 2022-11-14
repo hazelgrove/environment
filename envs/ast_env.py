@@ -59,7 +59,9 @@ class ASTEnv(gym.Env):
         self.perturbation = perturbation
 
         # Plus one to account for -1
-        node_nvec = (num_node_descriptor + max_num_vars + 2) * np.ones(max_num_nodes)
+        node_nvec = (num_node_descriptor + max_num_vars * 2 + 1) * np.ones(
+            max_num_nodes
+        )
         edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes * 3, 3))
         vars_nvec = (max_num_nodes + 1) * np.ones(max_num_vars)
         args_nvec = (max_num_nodes + 1) * np.ones((max_num_vars, 2))

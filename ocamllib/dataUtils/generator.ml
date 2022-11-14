@@ -76,9 +76,8 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
   else
     let cursor_info = CursorInfo.get_cursor_info (Syntax.ZENode e) in
     let permitted_actions =
-        Environment.Agent.check_actions ActionConv.action_list e
+      Environment.Agent.check_actions ActionConv.action_list e
     in
-
     let action = Random.int (List.length permitted_actions) in
     let action = List.nth permitted_actions action in
 
@@ -112,7 +111,7 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
             then generate (Environment.Agent.perform_action e action) (n - 1)
             else generate e n
         | TNode t -> raise (Failure "Invalid action")
-        | PNode p -> 
+        | PNode p ->
             (* Forbid actions from erasing subtrees *)
             if check_child_pattern p x
             then generate (Environment.Agent.perform_action e action) (n - 1)

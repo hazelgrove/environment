@@ -3,4 +3,4 @@ let f x1 =
     | 0 -> 0
     | _ -> 1
 in
-assert (f 0 = 0)
+assert ((f 0 = 0) && (f 1 = 1) && (f 2 = 1))

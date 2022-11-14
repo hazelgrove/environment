@@ -213,8 +213,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None ->
               raise
                 (TypeError
-                   "Conflicting types between expected type and type of else \
-                    branch")
+                   ("Conflicting types between expected type "
+                  ^ TypeConv.to_string exp_ty ^ "and type of else branch "
+                  ^ TypeConv.to_string t_else))
         in
         get_cursor_info_expr ~current_term:ethen
           ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty
@@ -231,8 +232,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           | None ->
               raise
                 (TypeError
-                   "Conflicting types between expected type and type of then \
-                    branch")
+                   ("Conflicting types between expected type "
+                  ^ TypeConv.to_string exp_ty ^ "and type of then branch "
+                  ^ TypeConv.to_string t_then))
         in
         get_cursor_info_expr ~current_term:eelse
           ~parent_term:(Some current_term) ~vars ~args ~typ_ctx ~exp_ty
@@ -242,10 +244,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           ~parent_term:(Some (Syntax.ZENode current_term)) ~index:(index + 1)
     | EFun_R (x, t, e) | EFix_R (x, t, e) ->
         let exp_ty =
-          match exp_ty with
-          | Type.Arrow (tin, tout) -> tout
-          | Type.Hole -> Type.Hole
-          | _ -> raise (TypeError "Expected a function type")
+          match exp_ty with Type.Arrow (tin, tout) -> tout | _ -> Type.Hole
+          (* | Type.Hole -> Type.Hole
+             | _ -> raise (TypeError "Expected a function type") *)
         in
         let arg =
           match parent_term with
@@ -268,7 +269,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           match exp_ty with
           | Type.Prod (t1, t2) -> t1
           | Type.Hole -> Type.Hole
-          | _ -> raise (TypeError "Expected a function type")
+          | _ -> raise (TypeError "Expected a product type")
         in
         get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
@@ -277,7 +278,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           match exp_ty with
           | Type.Prod (t1, t2) -> t2
           | Type.Hole -> Type.Hole
-          | _ -> raise (TypeError "Expected a function type")
+          | _ -> raise (TypeError "Expected a product type")
         in
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
@@ -1073,14 +1074,32 @@ let cursor_info_to_actions (info : t) : Action.t list =
             Construct PatCons_R;
           ]
         else if l_consistent
-        then [ Construct PatVar; Construct PatWild; Construct (PatConst Nil); Construct PatCons_L ]
+        then
+          [
+            Construct PatVar;
+            Construct PatWild;
+            Construct (PatConst Nil);
+            Construct PatCons_L;
+          ]
         else if r_consistent
-        then [ Construct PatVar; Construct PatWild; Construct (PatConst Nil); Construct PatCons_R ]
+        then
+          [
+            Construct PatVar;
+            Construct PatWild;
+            Construct (PatConst Nil);
+            Construct PatCons_R;
+          ]
         else [ Construct PatVar; Construct PatWild; Construct (PatConst Nil) ]
     | Some Hole ->
-        [ Construct PatVar; Construct (PatConst Nil); Construct PatWild; Construct PatCons_L; Construct PatCons_R ]
+        [
+          Construct PatVar;
+          Construct (PatConst Nil);
+          Construct PatWild;
+          Construct PatCons_L;
+          Construct PatCons_R;
+        ]
         @ pat_int @ pat_bool
-    | _ -> [ Construct PatVar; Construct PatWild; ]
+    | _ -> [ Construct PatVar; Construct PatWild ]
   in
   match info.current_term with
   | ENode _ -> List.concat [ handle_move (); handle_expr () ]
@@ -1183,6 +1202,3 @@ let cursor_info_to_actions (info : t) : Action.t list =
 
        let%test _ = check e lst
      end) *)
-
-
-
