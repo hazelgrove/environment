@@ -203,8 +203,11 @@ and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
   | EIf (argl, argc, argr) ->
       (* for if statements, first arg is expected to be a bool,
          and second and third are expected to match *)
-      analysis context argl Bool && analysis context argc targ
-      && analysis context argr targ
+      if analysis context argl Bool 
+      then match synthesis context argc, synthesis context argr with
+      | Some t1, Some t2 -> Type.consistent t1 targ && Type.consistent t2 targ && Type.consistent t1 t2
+      | _ -> false
+      else false
   | ELet (varn, def, body) -> (
       (* for variable definitions, add variable type to context*)
       match synthesis context def with

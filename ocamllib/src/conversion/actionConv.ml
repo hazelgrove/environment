@@ -83,17 +83,12 @@ let action_list =
     Unwrap 0;
     Unwrap 1;
     Unwrap 2;
-  ]
+  ] @ List.init Var.max_num_vars (fun i -> Construct (Var i)) @ List.init Var.max_num_vars (fun i -> Construct (Arg i))
 
 let num_actions = List.length action_list
 
 let tag_to_action (action : int) : t =
-  if action >= num_actions + Var.max_num_vars
-  then Construct (Arg (action - num_actions - Var.max_num_vars))
-  else if action >= num_actions
-  then Construct (Var (action - num_actions))
-  else
-    try List.nth action_list action
+  try List.nth action_list action
     with Failure _ | Invalid_argument _ ->
       raise (Failure "Invalid action index")
 
@@ -103,10 +98,7 @@ let action_to_tag (action : t) : int =
     | [] -> raise (Failure "Invalid action")
     | hd :: tl -> if hd = x then c else find x tl (c + 1)
   in
-  match action with
-  | Construct (Var x) -> x + num_actions
-  | Construct (Arg x) -> x + num_actions + Var.max_num_vars
-  | _ -> find action action_list 0
+  find action action_list 0
 
 (*
    Converts a list of possible actions to a list of bools, where each possible action is marked as true while others are marked as false

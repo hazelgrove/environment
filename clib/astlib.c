@@ -31,7 +31,7 @@ Output:
 int check_ast(State *ast)
 {
     copy_ast(&curr_state, ast);
-    return run_unit_tests();
+    return run_private_tests() && run_public_tests();
 }
 
 /*

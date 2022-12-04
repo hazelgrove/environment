@@ -118,7 +118,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
             raise
               (TypeError
                  ("Incorrect type: "
-                 ^ Core.Sexp.to_string (Expr.sexp_of_z_t current_term))))
+                 ^ Core.Sexp.to_string (Syntax.sexp_of_z_t tree))))
     | EUnOp_L (OpNeg, e) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)

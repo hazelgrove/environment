@@ -96,11 +96,11 @@ let get_cursor_info_c (ser_zast : string) : int =
   cursorInfo.cursor_position
 
 (* run_unittests function that will be called by C *)
-let run_unit_tests_c (ser_zast : string) : bool =
+let run_public_tests_c (ser_zast : string) : bool =
   let zast = Utils.deserialize ser_zast in
   zast |> Expr.unzip |> Evaluator.run_unit_tests
 
-let run_unit_tests_c2 (root : int) : bool =
+let run_private_tests_c (root : int) : bool =
   let tests = array2_to_list (get_unit_tests ()) in
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
@@ -133,7 +133,8 @@ let print_code_c (root : int) : unit =
   print_endline s
 
 let init_c (seed : int) : unit = Random.init seed
-let _ = Callback.register "run_unit_tests" run_unit_tests_c2
+let _ = Callback.register "run_private_tests" run_private_tests_c
+let _ = Callback.register "run_public_tests" run_public_tests_c
 let _ = Callback.register "change_zast" change_zast_c
 let _ = Callback.register "get_ast" get_ast_c
 let _ = Callback.register "get_cursor_info" get_cursor_info_c
