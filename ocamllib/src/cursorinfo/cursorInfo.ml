@@ -283,6 +283,55 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
+    | EFilter_L (e1, e2) ->
+        let exp_ty =
+          match (exp_ty, synthesis typ_ctx e2) with
+          | List exptype, Some (Type.List foundtype) ->
+              if Type.equal (Type.add_metadata exp_ty)
+                   (Type.add_metadata foundtype)
+              then Type.Arrow (exp_ty, Type.Bool)
+              else raise (TypeError "List types do not match")
+          | _ -> raise (TypeError "Expected a List type")
+        in
+        get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
+    | EFilter_R (e1, e2) ->
+        let exp_ty =
+          match (exp_ty, synthesis typ_ctx e1) with
+          | List listtype, Some (Arrow (functype, Bool)) ->
+              if Type.equal
+                   (Type.add_metadata listtype)
+                   (Type.add_metadata functype)
+              then exp_ty
+              else raise (TypeError "List types do not match")
+          | _ -> raise (TypeError "Expected a List type")
+        in
+        get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty
+          ~index:(index + Expr.size e1 + 1)
+    | EMap_L (e1, e2) ->
+        let exp_ty =
+          match (exp_ty, synthesis typ_ctx e2) with
+          | List exptype, Some (Type.List foundtype) ->
+              Type.Arrow (foundtype, exptype)
+          | _ -> raise (TypeError "Expected a List type")
+        in
+        get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
+    | EMap_R (e1, e2) ->
+        let exp_ty =
+          match (exp_ty, synthesis typ_ctx e1) with
+          | List exptype, Some (Arrow (intype, outtype)) ->
+              if Type.equal
+                   (Type.add_metadata exptype)
+                   (Type.add_metadata outtype)
+              then Type.List intype
+              else raise (TypeError "Function type does not match list")
+          | _ -> raise (TypeError "Expected a List type")
+        in
+        get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty
+          ~index:(index + Expr.size e1 + 1)
     | EMatch_L (e, _, _) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Hole ~index:(index + 1)
@@ -681,7 +730,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
           match e.node with
           | EVar _ | EConst _ | EHole -> []
           | EUnOp _ | EAssert _ -> [ Move (Child 0) ]
-          | EBinOp _ | EFun _ | EFix _ | EPair _ ->
+          | EBinOp _ | EFun _ | EFix _ | EPair _ | EMap _ | EFilter _ ->
               [ Move (Child 0); Move (Child 1) ]
           | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ]
           | ELet (_, edef, _) -> (
@@ -822,6 +871,26 @@ let cursor_info_to_actions (info : t) : Action.t list =
       then [ Construct Pair_R ]
       else []
     in
+    let construct_map _ =
+      match actual_ty with
+      | Type.Arrow (tin, tout) ->
+          if Type.consistent exp_ty (Type.List tout)
+          then [ Construct Map_L ]
+          else []
+      | Type.List _ -> [ Construct Map_R ]
+      | Type.Hole -> [ Construct Map_L; Construct Map_L ]
+      | _ -> []
+    in
+    let construct_filter _ =
+      match actual_ty with
+      | Type.Arrow (tin, tout) ->
+          if Type.consistent exp_ty (Type.List tin)
+          then [ Construct Filter_L ]
+          else []
+      | Type.List _ -> [ Construct Filter_R ]
+      | Type.Hole -> [ Construct Filter_L; Construct Filter_L ]
+      | _ -> []
+    in
     let construct_var _ =
       let rec construct_var_aux n lst =
         match lst with
@@ -858,7 +927,11 @@ let cursor_info_to_actions (info : t) : Action.t list =
         | EHole | EConst _ -> false
         | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e ->
             check_var e x
-        | EBinOp (e1, _, e2) | EPair (e1, e2) | ELet (_, e1, e2) ->
+        | EBinOp (e1, _, e2)
+        | EPair (e1, e2)
+        | ELet (_, e1, e2)
+        | EMap (e1, e2)
+        | EFilter (e1, e2) ->
             check_var e1 x || check_var e2 x
         | EIf (e1, e2, e3) -> check_var e1 x || check_var e2 x || check_var e3 x
         | EMatch (e, (p1, e1), (p2, e2)) ->
@@ -869,6 +942,17 @@ let cursor_info_to_actions (info : t) : Action.t list =
           match e.node with
           | EHole | EConst _ | EVar _ | EAssert _ -> []
           | EUnOp _ -> [ Unwrap 0 ]
+          | EFilter _ -> [ Unwrap 1 ]
+          | EMap (func, listarg) -> (
+              match
+                (synthesis info.typ_ctx func, synthesis info.typ_ctx listarg)
+              with
+              | Some (Arrow (intype, outtype)), Some (List listtype) ->
+                  if Type.consistent intype outtype
+                     && Type.consistent outtype listtype
+                  then [ Unwrap 1 ]
+                  else []
+              | _ -> [])
           | EBinOp (e1, _, e2) | EPair (e1, e2) ->
               let t1 =
                 match Typing.synthesis info.typ_ctx e1 with
@@ -1021,6 +1105,23 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_unop ();
           construct_binop ();
           construct_pair ();
+          construct_pair ();
+          construct_filter ();
+        ]
+      else if remaining_nodes = 3
+      then
+        [
+          construct_atom ();
+          construct_unop ();
+          construct_binop ();
+          construct_pair ();
+          construct_filter ();
+          construct_let ();
+          construct_if ();
+          construct_fun_fix ();
+          construct_pair ();
+          construct_var ();
+          handle_unwrap ();
         ]
       else if remaining_nodes = 3
       then
@@ -1041,9 +1142,13 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_unop ();
           construct_binop ();
           construct_let ();
+          construct_pair ();
+          construct_filter ();
           construct_if ();
           construct_fun_fix ();
           construct_pair ();
+          construct_filter ();
+          construct_map ();
           construct_var ();
           construct_match ();
           handle_unwrap ();
@@ -1201,4 +1306,5 @@ let cursor_info_to_actions (info : t) : Action.t list =
          @ ints @ arith
 
        let%test _ = check e lst
-     end) *)
+     end) 
+    *)

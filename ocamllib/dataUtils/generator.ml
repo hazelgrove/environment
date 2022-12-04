@@ -4,7 +4,11 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
     let e = Expr.strip e in
     match e with
     | Const _ | Hole | Var _ -> 0
-    | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2) -> (
+    | BinOp (e1, _, e2)
+    | Pair (e1, e2)
+    | Let (_, e1, e2)
+    | Map (e1, e2)
+    | Filter (e1, e2) -> (
         match (e1, e2) with Hole, Hole -> 0 | Hole, _ | _, Hole -> 1 | _ -> 2)
     | If (e1, e2, e3) -> (
         match (e1, e2, e3) with
@@ -43,7 +47,11 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
     | Const _ | Hole | Var _ -> false (* Impossible to do unwrap on these *)
     | UnOp _ | Fun _ | Fix _ | Assert _ ->
         n = 1 (* No subtree to erase if we dont consider types *)
-    | BinOp (e1, _, e2) | Pair (e1, e2) | Let (_, e1, e2) -> (
+    | BinOp (e1, _, e2)
+    | Pair (e1, e2)
+    | Let (_, e1, e2)
+    | Map (e1, e2)
+    | Filter (e1, e2) -> (
         match n with
         | 0 -> ( match e2 with Hole -> true | _ -> false)
         | 1 -> ( match e1 with Hole -> true | _ -> false)

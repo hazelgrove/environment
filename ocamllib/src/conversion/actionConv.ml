@@ -56,18 +56,22 @@ let action_list =
     (* Construct Fix; *)
     Construct Pair_L;
     Construct Pair_R;
+    Construct Filter_L;
+    Construct Filter_R;
+    Construct Map_L;
+    Construct Map_R;
     Construct Match_L;
     Construct Match_E1;
     Construct Match_E2;
     (* Construct TypInt;
-    Construct TypBool;
-    Construct TypArrow_L;
-    Construct TypArrow_R;
-    Construct TypProd_L;
-    Construct TypProd_R;
-    Construct TypList;
-    Construct TypHole;
-    Construct TypUnit; *)
+       Construct TypBool;
+       Construct TypArrow_L;
+       Construct TypArrow_R;
+       Construct TypProd_L;
+       Construct TypProd_R;
+       Construct TypList;
+       Construct TypHole;
+       Construct TypUnit; *)
     Construct (PatConst (Int (-2)));
     Construct (PatConst (Int (-1)));
     Construct (PatConst (Int 0));
@@ -83,14 +87,16 @@ let action_list =
     Unwrap 0;
     Unwrap 1;
     Unwrap 2;
-  ] @ List.init Var.max_num_vars (fun i -> Construct (Var i)) @ List.init Var.max_num_vars (fun i -> Construct (Arg i))
+  ]
+  @ List.init Var.max_num_vars (fun i -> Construct (Var i))
+  @ List.init Var.max_num_vars (fun i -> Construct (Arg i))
 
 let num_actions = List.length action_list
 
 let tag_to_action (action : int) : t =
   try List.nth action_list action
-    with Failure _ | Invalid_argument _ ->
-      raise (Failure "Invalid action index")
+  with Failure _ | Invalid_argument _ ->
+    raise (Failure "Invalid action index")
 
 let action_to_tag (action : t) : int =
   let rec find x lst c =
@@ -172,6 +178,10 @@ let to_string (action : t) : string =
   | Construct Fix -> "Construct Fix"
   | Construct Pair_L -> "Construct Pair_L"
   | Construct Pair_R -> "Construct Pair_R"
+  | Construct Map_L -> "Constrcut Map_L"
+  | Construct Map_R -> "Constrcut Map_R"
+  | Construct Filter_L -> "Construct Filter_L"
+  | Construct Filter_R -> "Construct Filter_R"
   | Construct TypInt -> "Construct TypInt"
   | Construct TypBool -> "Construct TypBool"
   | Construct TypArrow_L -> "Construct TypArrow_L"

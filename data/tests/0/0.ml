@@ -1,5 +1,4 @@
 let f x1 =
-    let x2 = ? in
-    ? / (-(if ? then (match x1 with | 0 -> 0 | _ -> 1) else ?))
+    map (fun x2 -> x2 + 1) x1
 in
-assert ((f 0 = 0) && (f 1 = 1) && (f 2 = 1))
+assert ((f [] = 0) && (f (1 :: 2 :: []) = (2 :: 3 :: [])) && (f 2 = 1))

@@ -15,6 +15,10 @@ type shape =
   | If_R
   | Fun
   | Fix
+  | Map_L
+  | Map_R
+  | Filter_L
+  | Filter_R
   | Pair_L
   | Pair_R
   | Match_L
@@ -35,7 +39,9 @@ type shape =
   | PatVar
   | PatWild
 
-type dir = Parent | Child of int
+type dir = 
+  | Parent 
+  | Child of int
 
 (* write a numbered action to inser all of <- *)
 (* Have some sort of default value analog for type t *)

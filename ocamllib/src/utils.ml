@@ -103,6 +103,24 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             if index = -1
             then (Expr.zip_migrate e (EPair_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EMap (e1, e2) ->
+          let zast1, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EMap_L (zast1, e2)), -1)
+          else
+            let zast2, _ = select_root_index_aux e2 index in
+            if index = -1
+            then (Expr.zip_migrate e (EMap_R (e1, zast2)), -1)
+            else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EFilter (e1, e2) ->
+          let zast1, index = select_root_index_aux e1 (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EFilter_L (zast1, e2)), -1)
+          else
+            let zast2, _ = select_root_index_aux e2 index in
+            if index = -1
+            then (Expr.zip_migrate e (EFilter_R (e1, zast2)), -1)
+            else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
       | EMatch (e, (p1, e1), (p2, e2)) ->
           let zast1, index = select_root_index_aux e (index - 1) in
           if index = -1

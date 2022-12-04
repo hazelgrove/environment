@@ -153,6 +153,20 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       match synthesis context dec with
       | Some var_t -> synthesis (Context.extend context (varn, var_t)) body
       | _ -> None)
+  | EMap (left, right) -> (
+      match synthesis context left with
+      | Some (Type.Arrow (intype, outtype)) ->
+          if analysis context right (Type.List intype)
+          then Some (List outtype)
+          else None
+      | _ -> None)
+  | EFilter (func, list) -> (
+      match synthesis context list with
+      | Some (List listtype) ->
+          if analysis context func (Type.Arrow (listtype, Bool))
+          then Some (List listtype)
+          else None
+      | _ -> None)
   | EFun (varn, vart, body) -> (
       let vart = Type.strip vart in
       match synthesis (Context.extend context (varn, vart)) body with
@@ -203,16 +217,30 @@ and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
   | EIf (argl, argc, argr) ->
       (* for if statements, first arg is expected to be a bool,
          and second and third are expected to match *)
-      if analysis context argl Bool 
-      then match synthesis context argc, synthesis context argr with
-      | Some t1, Some t2 -> Type.consistent t1 targ && Type.consistent t2 targ && Type.consistent t1 t2
-      | _ -> false
+      if analysis context argl Bool
+      then
+        match (synthesis context argc, synthesis context argr) with
+        | Some t1, Some t2 ->
+            Type.consistent t1 targ && Type.consistent t2 targ
+            && Type.consistent t1 t2
+        | _ -> false
       else false
   | ELet (varn, def, body) -> (
       (* for variable definitions, add variable type to context*)
       match synthesis context def with
       | Some vart -> analysis (Context.extend context (varn, vart)) body targ
       | None -> false)
+  | EMap (func, list) -> (
+      match (targ, synthesis context list) with
+      | List outtype, Some (List intype) ->
+          analysis context func (Type.Arrow (outtype, intype))
+      | _ -> false)
+  | EFilter (func, list) -> (
+      match (targ, synthesis context list) with
+      | List outtype, Some (List intype) ->
+          analysis context func (Type.Arrow (outtype, Bool))
+          && Type.consistent intype outtype
+      | _ -> false)
   | _ -> (
       match synthesis context e with
       | None -> false

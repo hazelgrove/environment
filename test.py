@@ -22,7 +22,7 @@ def main():
                 num_node_descriptor=50,
                 num_assignments=2,
                 code_per_assignment=[1, 1],
-                num_actions=70,
+                num_actions=74,
                 perturbation=2,
                 seed=1,
                 assignment_dir="data/mult_assign",
