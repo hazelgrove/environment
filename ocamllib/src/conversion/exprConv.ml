@@ -57,7 +57,6 @@ let rec to_string (e : p_t) : string =
   | Hole -> "<HOLE> "
   | Map  (e1,e2)  -> "Map( " ^ to_string e1     ^ ", " ^ to_string e2 ^ ") "
   | Filter (e1,e2)-> "Filter ( " ^ to_string e2 ^ ", " ^ to_string e2 ^ ") "
-  | Nil -> "[] "
   | Match (e, (p1, e1), (p2, e2)) -> "(match " ^ to_string e ^ " with | " ^ PatternConv.to_string p1 ^ " -> " ^ to_string e1 ^ " | " ^ PatternConv.to_string p2 ^ " -> " ^ to_string e2 ^ ") "
   | Assert e -> "assert(" ^ to_string e ^ ") "
 
@@ -110,7 +109,7 @@ let node_list =
     EConst (Int 0);
     EConst (Int 1);
     EConst (Int 2);
-  ]
+  ])
   @ List.init Var.max_num_vars (fun i -> EVar i)
 
 let num_nodes = List.length node_list

@@ -356,7 +356,7 @@ let rec unzip (tree : z_t) : t =
 
 let rec add_vars (e : t) : unit =
   match e.node with
-  | EUnOp (unop, child) ->
+  | EUnOp (_, child) ->
       add_vars child
   | EMap (l_child, r_child) 
   | EFilter (l_child, r_child) 
@@ -364,10 +364,7 @@ let rec add_vars (e : t) : unit =
   | EPair (l_child, r_child) ->
       add_vars l_child; add_vars r_child
   | EConst _ | EHole | EVar _ -> ()
-  | EUnOp (_, child) | EAssert child -> add_vars child
-  | EBinOp (l_child, _, r_child) | EPair (l_child, r_child) ->
-      add_vars l_child;
-      add_vars r_child
+  | EAssert child -> add_vars child
   | ELet (x, l_child, r_child) ->
       if x < Var.max_num_vars then Var.used_vars.(x) <- true;
       Var.num_vars := !Var.num_vars + 1;
@@ -410,6 +407,7 @@ let rec add_vars (e : t) : unit =
    end) *)
 
 let rec set_starter (e : t) (b : bool) : t =
+  (* what does this do? *)
   let new_node =
     match e.node with
     | EVar _ | EConst _ | EHole -> e.node
@@ -424,6 +422,8 @@ let rec set_starter (e : t) (b : bool) : t =
     | EFix (var, typ, child) -> EFix (var, typ, set_starter child b)
     | EPair (l_child, r_child) ->
         EPair (set_starter l_child b, set_starter r_child b)
+    | EMap    (func, list) -> EMap (set_starter func b, set_starter list b)
+    | EFilter (func, list) -> EFilter (set_starter func b, set_starter list b)
     | EMatch (e, (p1, e1), (p2, e2)) ->
         EMatch
           ( set_starter e b,

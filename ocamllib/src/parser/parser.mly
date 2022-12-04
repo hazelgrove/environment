@@ -4,6 +4,7 @@
 %token TRUE FALSE
 %token IF THEN ELSE
 %token FUN REC LET OFTYPE IN RIGHTARROW
+%token MAP FILTER
 %token COMMA
 %token PLUS MINUS TIMES DIV
 %token LT LE GT GE EQ NE
@@ -146,6 +147,11 @@ app:
     { e }
 | e1 = app e2 = simple
     { Expr.BinOp (e1, OpAp, e2) }
+| MAP e1 = app e2 = simple 
+    {Expr.Map (e1, e2)}
+| FILTER e1 = app e2 = simple 
+    {Expr.Filter (e1, e2)}
+
 | MINUS e = simple
     { Expr.UnOp (OpNeg, e) }
 
@@ -166,6 +172,7 @@ simple:
     { e }
 | LPAREN e1 = expr COMMA e2 = expr RPAREN
     { Expr.Pair (e1, e2) }
+
 
 arg: 
 | x = identifiers

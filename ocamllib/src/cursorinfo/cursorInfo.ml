@@ -912,7 +912,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
         | EHole | EConst _ -> false
         | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e ->
             check_var e x
-        | EBinOp (e1, _, e2) | EPair (e1, e2) | ELet (_, e1, e2) ->
+        | EBinOp (e1, _, e2) | EPair (e1, e2) | ELet (_, e1, e2) 
+        | EMap(e1,e2) | EFilter (e1,e2)->
             check_var e1 x || check_var e2 x
         | EIf (e1, e2, e3) -> check_var e1 x || check_var e2 x || check_var e3 x
         | EMatch (e, (p1, e1), (p2, e2)) ->

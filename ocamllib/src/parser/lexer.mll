@@ -42,6 +42,8 @@ rule read =
   | "rec"   { REC }
   | "int"   { TINT }
   | "bool"  { TBOOL }
+  | "map"   { MAP }
+  | "filter" {FILTER }
   | "assert"{ ASSERT }
   | "f"     { F }
   | "match" { MATCH }
