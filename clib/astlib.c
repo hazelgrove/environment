@@ -31,7 +31,7 @@ Output:
 int check_ast(State *ast)
 {
     copy_ast(&curr_state, ast);
-    return run_unit_tests();
+    return run_private_tests() && run_public_tests();
 }
 
 /*
@@ -48,6 +48,7 @@ void init_assignment(State *ast, char *dir, int assignment, int code, int n, int
 {
     load_starter_code(dir, assignment, code, n, cursor);
     get_ast();
+    load_tests(dir, assignment);
 
     curr_state.assignment = assignment;
     curr_state.code = code;

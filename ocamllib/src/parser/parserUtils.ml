@@ -7,7 +7,7 @@
     Output : 
       - an ast corresponding to s
 *)
-let parse (s : string) : Expr.t =
+let parse (s : string) : Expr.p_t =
   let lexbuf = Lexing.from_string s in
   let ast = Parser.main Lexer.read lexbuf in
   ast
@@ -88,7 +88,7 @@ let parse (s : string) : Expr.t =
   Output :
     - an ast corresponding to the .ml file at the directory filename
 *)
-let parse_file filename =
+let parse_file (filename : string) : Expr.p_t =
   let read_whole_file filename =
     let ch = open_in filename in
     let s = really_input_string ch (in_channel_length ch) in

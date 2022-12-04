@@ -62,7 +62,7 @@ class Trainer:
             device,
             max_episode_steps,
         )
-        
+
     @staticmethod
     def update_curriculum(envs, reward):
         return
@@ -153,12 +153,16 @@ class Trainer:
 
                 if render:
                     print(f"Action: {action}")
-                    breakpoint()
+                    # breakpoint()
                 obs, reward, done, infos = envs.step(action.reshape((-1,)))
 
                 if render:
                     envs.render(mode="human")
                     print()
+
+                    if done[0]:
+
+                        print("---------------Environment reset---------------")
 
                 for info in infos:
                     if "episode" in info.keys():
@@ -213,7 +217,7 @@ class Trainer:
 
             mean_episode_reward = np.mean(episode_rewards)
             # cls.update_curriculum(envs, mean_episode_reward)
-            
+
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
                     (j + 1) * params["num_processes"] * params["num_steps"]
@@ -321,8 +325,8 @@ class GNNTrainer(Trainer):
             device,
             max_episode_steps,
         )
-    
-    @staticmethod 
+
+    @staticmethod
     def update_curriculum(envs, reward):
         envs.get_attr("update_curriculum")(reward)
 
@@ -358,5 +362,3 @@ if __name__ == "__main__":
         )
     else:
         Trainer.train(args.log_name, render=args.render, save_dir=args.save_dir)
-        
-    

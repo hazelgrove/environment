@@ -86,7 +86,8 @@ External functions from ocaml interface
 */
 extern void change_zast(int action);
 extern void get_ast();
-extern int run_unit_tests();
+extern int run_private_tests();
+extern int run_public_tests();
 extern void load_starter_code(char *dir, int assignment, int index, int n, int cursor);
 extern void print_code();
 extern void get_cursor_info();

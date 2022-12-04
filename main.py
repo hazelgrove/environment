@@ -22,6 +22,7 @@ def _log(
     graphql_endpoint: str,
     save_dir: str,
     sweep_id: Optional[int] = None,
+    render: bool = False,
     **kwargs
 ):
     logger = RunLogger(graphql_endpoint)
@@ -39,7 +40,7 @@ def _log(
     )
 
     GNNTrainer.train(
-        logger=logger, params=kwargs, log_name=name, render=False, save_dir=save_dir
+        logger=logger, params=kwargs, log_name=name, render=render, save_dir=save_dir
     )
 
 
@@ -48,6 +49,7 @@ def run(
     config_path: str,
     graphql_endpoint: str,
     save_dir: str,
+    render: bool = False,
 ):
     with open(config_path, "r") as file:
         params = yaml.safe_load(file)
@@ -58,6 +60,7 @@ def run(
         graphql_endpoint=graphql_endpoint,
         save_dir=save_dir,
         sweep_id=None,
+        render=render,
         **params,
     )
 
@@ -72,6 +75,7 @@ def sweep(
     graphql_endpoint: str,
     save_dir: str,
     random_search: bool = False,
+    render: bool = False,
 ):
     with open(config_path, "r") as file:
         params = yaml.safe_load(file)
@@ -118,6 +122,7 @@ if __name__ == "__main__":
             config_path="params.yaml",
             graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
             save_dir=args.save_dir,
+            render=args.render,
         )
     else:
         run(
@@ -125,4 +130,5 @@ if __name__ == "__main__":
             config_path="params.yaml",
             graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
             save_dir=args.save_dir,
+            render=args.render,
         )

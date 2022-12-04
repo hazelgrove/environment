@@ -11,25 +11,28 @@
 
 extern State curr_state;
 
-int run_unit_tests()
+int run_private_tests()
 {
     static const value *run_unit_test_closure = NULL;
     if (run_unit_test_closure == NULL)
     {
-        run_unit_test_closure = caml_named_value("run_unit_tests");
+        run_unit_test_closure = caml_named_value("run_private_tests");
+        if (run_unit_test_closure == NULL)
+            exit(1);
+    }
+    return Bool_val(caml_callback(*run_unit_test_closure, Val_int(0)));
+}
+
+int run_public_tests(){
+    static const value *run_unit_test_closure = NULL;
+    if (run_unit_test_closure == NULL)
+    {
+        run_unit_test_closure = caml_named_value("run_public_tests");
         if (run_unit_test_closure == NULL)
             exit(1);
     }
     value ser_zast = caml_alloc_initialized_string(strlen(curr_state.zast), curr_state.zast);
     return Bool_val(caml_callback(*run_unit_test_closure, ser_zast));
-    // static const value *run_unit_test_closure = NULL;
-    // if (run_unit_test_closure == NULL)
-    // {
-    //     run_unit_test_closure = caml_named_value("run_unit_tests");
-    //     if (run_unit_test_closure == NULL)
-    //         exit(1);
-    // }
-    // return Bool_val(caml_callback(*run_unit_test_closure, Val_int(0)));
 }
 
 void change_zast(int action)

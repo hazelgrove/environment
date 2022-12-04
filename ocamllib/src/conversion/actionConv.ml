@@ -7,15 +7,17 @@ let action_list =
     Move (Child 0);
     Move (Child 1);
     Move (Child 2);
+    Move (Child 3);
+    Move (Child 4);
     Construct Hole;
-    Construct Nil;
-    Construct (Int (-2));
-    Construct (Int (-1));
-    Construct (Int 0);
-    Construct (Int 1);
-    Construct (Int 2);
-    Construct (Bool true);
-    Construct (Bool false);
+    Construct (Const Nil);
+    Construct (Const (Int (-2)));
+    Construct (Const (Int (-1)));
+    Construct (Const (Int 0));
+    Construct (Const (Int 1));
+    Construct (Const (Int 2));
+    Construct (Const (Bool true));
+    Construct (Const (Bool false));
     Construct (UnOp OpNeg);
     Construct (BinOp_L OpPlus);
     Construct (BinOp_L OpMinus);
@@ -51,10 +53,13 @@ let action_list =
     Construct If_C;
     Construct If_R;
     Construct Fun;
-    Construct Fix;
+    (* Construct Fix; *)
     Construct Pair_L;
     Construct Pair_R;
-    Construct TypInt;
+    Construct Match_L;
+    Construct Match_E1;
+    Construct Match_E2;
+    (* Construct TypInt;
     Construct TypBool;
     Construct TypArrow_L;
     Construct TypArrow_R;
@@ -62,21 +67,28 @@ let action_list =
     Construct TypProd_R;
     Construct TypList;
     Construct TypHole;
-    Construct TypUnit;
+    Construct TypUnit; *)
+    Construct (PatConst (Int (-2)));
+    Construct (PatConst (Int (-1)));
+    Construct (PatConst (Int 0));
+    Construct (PatConst (Int 1));
+    Construct (PatConst (Int 2));
+    Construct (PatConst (Bool true));
+    Construct (PatConst (Bool false));
+    Construct (PatConst Nil);
+    Construct PatCons_L;
+    Construct PatCons_R;
+    Construct PatVar;
+    Construct PatWild;
     Unwrap 0;
     Unwrap 1;
     Unwrap 2;
-  ]
+  ] @ List.init Var.max_num_vars (fun i -> Construct (Var i)) @ List.init Var.max_num_vars (fun i -> Construct (Arg i))
 
 let num_actions = List.length action_list
 
 let tag_to_action (action : int) : t =
-  if action >= num_actions + Var.max_num_vars
-  then Construct (Arg (action - num_actions - Var.max_num_vars))
-  else if action >= num_actions
-  then Construct (Var (action - num_actions))
-  else
-    try List.nth action_list action
+  try List.nth action_list action
     with Failure _ | Invalid_argument _ ->
       raise (Failure "Invalid action index")
 
@@ -86,10 +98,7 @@ let action_to_tag (action : t) : int =
     | [] -> raise (Failure "Invalid action")
     | hd :: tl -> if hd = x then c else find x tl (c + 1)
   in
-  match action with
-  | Construct (Var x) -> x + num_actions
-  | Construct (Arg x) -> x + num_actions + Var.max_num_vars
-  | _ -> find action action_list 0
+  find action action_list 0
 
 (*
    Converts a list of possible actions to a list of bools, where each possible action is marked as true while others are marked as false
@@ -112,9 +121,9 @@ let to_string (action : t) : string =
   | Move Parent -> "Move Parent"
   | Move (Child x) -> "Move Child " ^ string_of_int x
   | Construct Hole -> "Construct Hole"
-  | Construct Nil -> "Construct Nil"
-  | Construct (Int x) -> "Construct Int " ^ string_of_int x
-  | Construct (Bool x) -> "Construct Bool " ^ string_of_bool x
+  | Construct (Const Nil) -> "Construct Nil"
+  | Construct (Const (Int x)) -> "Construct Int " ^ string_of_int x
+  | Construct (Const (Bool x)) -> "Construct Bool " ^ string_of_bool x
   | Construct (UnOp OpNeg) -> "Construct UnOp OpNeg"
   | Construct (BinOp_L op) ->
       let binop =
@@ -174,4 +183,12 @@ let to_string (action : t) : string =
   | Construct TypUnit -> "Construct TypUnit"
   | Construct (Var x) -> "Construct Var " ^ string_of_int x
   | Construct (Arg x) -> "Construct Arg " ^ string_of_int x
+  | Construct Match_L -> "Construct Match_L"
+  | Construct Match_E1 -> "Construct Match_E1"
+  | Construct Match_E2 -> "Construct Match_E2"
+  | Construct (PatConst c) -> "Construct PatConst " ^ ConstConv.to_string c
+  | Construct PatCons_L -> "Construct PatCons_L"
+  | Construct PatCons_R -> "Construct PatCons_R"
+  | Construct PatVar -> "Construct PatVar"
+  | Construct PatWild -> "Construct PatWild"
   | Unwrap x -> "Unwrap " ^ string_of_int x

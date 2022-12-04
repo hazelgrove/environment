@@ -11,11 +11,12 @@ save_interval: 100
 num_env_steps: 1.0e+7
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 4
-  perturbation: 4
-  assignment_dir: data/assertion
+  max_episode_steps: 9
+  perturbation: 9
+  assignment_dir: data/mult_assign
   cursor_start_pos: null
 base: 
+  num_assignments: 3
   hidden_size: 32
   gnn_layer_size: [128, 64, 64]
   heads: [8, 8, 16, 1]

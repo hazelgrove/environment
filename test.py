@@ -19,16 +19,20 @@ import gym
 def main():
     env = ASTEnv(
                 max_num_nodes=100,
-                num_node_descriptor=33,
-                num_assignments=1,
-                code_per_assignment=[2],
-                num_actions=58,
-                assignment_dir="data/random_action",
+                num_node_descriptor=50,
+                num_assignments=2,
+                code_per_assignment=[1, 1],
+                num_actions=70,
+                perturbation=2,
+                seed=1,
+                assignment_dir="data/mult_assign",
+                cursor_start_pos=None,
             )
     obs_space = Obs(**env.observation_space.spaces)
     env = FlattenObservation(env)
     
     obs = env.reset()
+    env.render()
     inputs = torch.tensor([obs, obs])
     
     inputs = Obs(
