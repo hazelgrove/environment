@@ -167,6 +167,13 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
           then Some (List listtype)
           else None
       | _ -> None)
+  | EListEq (left, right) -> (
+      match (synthesis context left, synthesis context right) with
+      | Some (List ltype), Some (List rtype) -> (
+          match get_common_type ltype rtype with
+          | Some t -> Some Bool
+          | None -> None)
+      | _ -> None)
   | EFun (varn, vart, body) -> (
       let vart = Type.strip vart in
       match synthesis (Context.extend context (varn, vart)) body with

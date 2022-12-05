@@ -13,7 +13,7 @@ use_linear_lr_decay: True
 env: 
   max_episode_steps: 3
   perturbation: 3
-  assignment_dir: data/mult_assign
+  assignment_dir: data/tests
   cursor_start_pos: null
 base: 
   num_assignments: 4

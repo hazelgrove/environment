@@ -30,6 +30,7 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
   | Pair (e_l, e_r) -> Pair (subx e_l, subx e_r)
   | Map (func, e_list) -> Map (subx func, subx e_list)
   | Filter (func, e_list) -> Filter (subx func, subx e_list)
+  | ListEq (e_l, e_r) -> ListEq (subx e_l, subx e_r)
   | Assert e -> Assert (subx e)
   | Match (e, (p1, e1), (p2, e2)) ->
       let rec find_x (p : Pattern.p_t) (x : Var.t) =
@@ -133,29 +134,37 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
         if expecting_bool v
         then VUnit
         else raise (RuntimeError "Assertion failed")
-    | Map (func, e_list) -> 
-         begin match e_list with 
-           |  Const Nil -> VConst (Nil)   (* base case *)
-           |  BinOp(head, OpCons, tail) ->
-                VCons(eval (BinOp (func, OpAp, head)) (stack-1),
-                      eval (Map(func, tail)) (stack-1))
-           | _ -> raise (RuntimeError "Expected list or nil") 
-         end
-    | Filter (func, e_list)   ->         
-       begin match e_list with 
-         |  Const Nil -> VConst (Nil)   (* base case *)
-         |  BinOp(head, OpCons, tail) -> 
-           let filtered_tail =  eval (Filter (func,tail)) (stack - 1) in 
-           begin match eval (BinOp (func, OpAp, head)) (stack-1) with 
-             | VConst (Bool true)  ->  
-              let evaled_head = eval head (stack-1) in 
-              VCons (evaled_head,filtered_tail)
-             | VConst (Bool false) -> filtered_tail
-             | _ -> raise (RuntimeError "Expected Bool")
-           end
-         | _ -> raise (RuntimeError "Expected list or nil") 
-       end
-
+    | Map (func, e_list) -> (
+        match e_list with
+        | Const Nil -> VConst Nil (* base case *)
+        | BinOp (head, OpCons, tail) ->
+            VCons
+              ( eval (BinOp (func, OpAp, head)) (stack - 1),
+                eval (Map (func, tail)) (stack - 1) )
+        | _ -> raise (RuntimeError "Expected list or nil"))
+    | Filter (func, e_list) -> (
+        match e_list with
+        | Const Nil -> VConst Nil (* base case *)
+        | BinOp (head, OpCons, tail) -> (
+            let filtered_tail = eval (Filter (func, tail)) (stack - 1) in
+            match eval (BinOp (func, OpAp, head)) (stack - 1) with
+            | VConst (Bool true) ->
+                let evaled_head = eval head (stack - 1) in
+                VCons (evaled_head, filtered_tail)
+            | VConst (Bool false) -> filtered_tail
+            | _ -> raise (RuntimeError "Expected Bool"))
+        | _ -> raise (RuntimeError "Expected list or nil"))
+    | ListEq (e1, e2) -> (
+        match (e1, e2) with
+        | Const Nil, Const Nil -> VConst (Bool true)
+        | Const Nil, _ | _, Const Nil -> VConst (Bool false)
+        | BinOp (head1, OpCons, tail1), BinOp (head2, OpCons, tail2) -> (
+            let head_eq = eval (BinOp (head1, OpEq, head2)) (stack - 1) in
+            let tail_eq = eval (ListEq (tail1, tail2)) (stack - 1) in
+            match (head_eq, tail_eq) with
+            | VConst (Bool true), VConst (Bool true) -> VConst (Bool true)
+            | _ -> VConst (Bool false))
+        | _ -> raise (RuntimeError "Expected list or nil"))
     | Match (e, (p1, e1), (p2, e2)) -> (
         let v = eval e stack in
         let rec find_match (pattern : Pattern.p_t) (value : Expr.value) :
@@ -192,63 +201,74 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
     | Hole -> raise (SyntaxError "Hole in expression")
 
 let%test_module "Test eval" =
-   (module struct
-     let parse = ParserUtils.parse
-     let eval_string s = eval (parse s) 100
+  (module struct
+    let parse = ParserUtils.parse
+    let eval_string s = eval (parse s) 100
 
-     (* Ints *)
-     let%test _ = eval_string "32" = (VConst (Const.Int 32))
-     let%test _ = eval_string "-5" = (VConst (Const.Int (-5)))
-     let%test _ = eval_string "0" = (VConst (Const.Int  0))
-     (* Bools *)
-     let%test _ = eval_string "true" =  (VConst (Bool true))
-     let%test _ = eval_string "false" = (VConst (Bool false))
+    (* Ints *)
+    let%test _ = eval_string "32" = VConst (Const.Int 32)
+    let%test _ = eval_string "-5" = VConst (Const.Int (-5))
+    let%test _ = eval_string "0" = VConst (Const.Int 0)
+    (* Bools *)
+    let%test _ = eval_string "true" = VConst (Bool true)
+    let%test _ = eval_string "false" = VConst (Bool false)
 
-     (* Functions *)
-     let%test _ =
-       eval_string "fun x1 -> 2 * x1 + 1" = VFun (1, Hole, parse "2 * x1 + 1")
+    (* Functions *)
+    let%test _ =
+      eval_string "fun x1 -> 2 * x1 + 1" = VFun (1, Hole, parse "2 * x1 + 1")
 
-     let%test _ = eval_string "fun x2 -> x2 2" = VFun (2, Hole, parse "x2 2")
-     let%test _ = eval_string "(fun x1 -> 3 * x1 - 1) 4" = VConst (Const.Int 11)
-     (* Arithmetic Operations *)
-     let%test _ = eval_string "- (4 * 3) / 2 + -1" = VConst (Const.Int (-7))
+    let%test _ = eval_string "fun x2 -> x2 2" = VFun (2, Hole, parse "x2 2")
+    let%test _ = eval_string "(fun x1 -> 3 * x1 - 1) 4" = VConst (Const.Int 11)
+    (* Arithmetic Operations *)
+    let%test _ = eval_string "- (4 * 3) / 2 + -1" = VConst (Const.Int (-7))
 
-     (* If Expressions *)
-     let%test _ =
-       eval_string "if (6 > 4) then if (2 != 3) then 5 else 8 else 10" = VConst (Const.Int 5)
+    (* If Expressions *)
+    let%test _ =
+      eval_string "if (6 > 4) then if (2 != 3) then 5 else 8 else 10"
+      = VConst (Const.Int 5)
 
-     (* Let Expressions *)
-     let%test _ = eval_string "let x1 = 1 in let x1 = x1 + 3 in 2 * x1" = VConst (Const.Int 8)
-     let%test _ = eval_string "let f x1 = 2 - x1 * 6 in f 3" = VConst (Const.Int (-16))
-     let%test _ = eval_string "let f x1 x2 = x1 + x2 in f 2 3" = VConst (Const.Int 5)
+    (* Let Expressions *)
+    let%test _ =
+      eval_string "let x1 = 1 in let x1 = x1 + 3 in 2 * x1"
+      = VConst (Const.Int 8)
 
-     (* let%test _ =
+    let%test _ =
+      eval_string "let f x1 = 2 - x1 * 6 in f 3" = VConst (Const.Int (-16))
+
+    let%test _ =
+      eval_string "let f x1 x2 = x1 + x2 in f 2 3" = VConst (Const.Int 5)
+
+    (* let%test _ =
        eval_string
          "let rec fact x1 = if x1 < 1 then 1 else x1 * fact (x1 - 1) in fact 4"
        = VConst (Const.Int 24)
- *)
-     (* Pairs *)
-     let%test _ =
-       eval_string "(8 <= 20, fun x1 -> 2 * x1 + 1)"
-       = VPair (VConst (Bool true), VFun (1, Hole, parse "2 * x1 + 1"))
+    *)
+    (* Pairs *)
+    let%test _ =
+      eval_string "(8 <= 20, fun x1 -> 2 * x1 + 1)"
+      = VPair (VConst (Bool true), VFun (1, Hole, parse "2 * x1 + 1"))
 
-      (* lists  (map and filter) *)
+    (* lists  (map and filter) *)
 
-      let%test _ =
-      eval_string " 1 :: 2 ::3 ::[]" 
-        = VCons (VConst (Int 1), VCons (VConst (Int 2), VCons (VConst  (Int 3), VConst Nil)))
-      let%test _ = 
-        eval_string "map (fun x1 -> 2* x1 ) (1 :: 2 ::3 :: 4 ::[])" 
-        = VCons (VConst (Int 2), VCons (VConst (Int 4), VCons (VConst  (Int 6), VCons (VConst (Int 8), VConst Nil))))
-      let%test _ = 
-        eval_string "filter (fun x1 -> x1 - 1 = 2 || x1 - 1 = 0 ) (3 :: 2 ::1 :: 4 ::[])" 
-        = VCons (VConst (Int 3), VCons (VConst  (Int 1), VConst Nil))
+    let%test _ =
+      eval_string " 1 :: 2 ::3 ::[]"
+      = VCons
+          ( VConst (Int 1),
+            VCons (VConst (Int 2), VCons (VConst (Int 3), VConst Nil)) )
 
+    let%test _ =
+      eval_string "map (fun x1 -> 2* x1 ) (1 :: 2 ::3 :: 4 ::[])"
+      = VCons
+          ( VConst (Int 2),
+            VCons
+              ( VConst (Int 4),
+                VCons (VConst (Int 6), VCons (VConst (Int 8), VConst Nil)) ) )
 
-   end
-   )
-
-
+    let%test _ =
+      eval_string
+        "filter (fun x1 -> x1 - 1 = 2 || x1 - 1 = 0 ) (3 :: 2 ::1 :: 4 ::[])"
+      = VCons (VConst (Int 3), VCons (VConst (Int 1), VConst Nil))
+  end)
 
 (*
    Given a unit test set and AST, check if AST passes tests

@@ -47,6 +47,7 @@ rule read =
   | "map"   { MAP }
   | "filter" {FILTER }
   | "assert"{ ASSERT }
+  | "equal" { LISTEQ }
   | "f"     { F }
   | "match" { MATCH }
   | "with"  { WITH }

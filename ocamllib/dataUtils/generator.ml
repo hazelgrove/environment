@@ -8,7 +8,8 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
     | Pair (e1, e2)
     | Let (_, e1, e2)
     | Map (e1, e2)
-    | Filter (e1, e2) -> (
+    | Filter (e1, e2)
+    | ListEq (e1, e2) -> (
         match (e1, e2) with Hole, Hole -> 0 | Hole, _ | _, Hole -> 1 | _ -> 2)
     | If (e1, e2, e3) -> (
         match (e1, e2, e3) with
@@ -51,7 +52,8 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
     | Pair (e1, e2)
     | Let (_, e1, e2)
     | Map (e1, e2)
-    | Filter (e1, e2) -> (
+    | Filter (e1, e2)
+    | ListEq (e1, e2) -> (
         match n with
         | 0 -> ( match e2 with Hole -> true | _ -> false)
         | 1 -> ( match e1 with Hole -> true | _ -> false)

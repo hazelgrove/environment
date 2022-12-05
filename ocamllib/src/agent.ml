@@ -251,8 +251,11 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           Var.free_var x;
           free_vars e
       | EUnOp (_, e) -> free_vars e
-      | EBinOp (e1, _, e2) | EPair (e1, e2) | EMap (e1, e2) | EFilter (e1, e2)
-        ->
+      | EBinOp (e1, _, e2)
+      | EPair (e1, e2)
+      | EMap (e1, e2)
+      | EFilter (e1, e2)
+      | EListEq (e1, e2) ->
           free_vars e1;
           free_vars e2
       | EIf (e1, e2, e3) ->
@@ -355,6 +358,10 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           EFilter_L (construct_shape l_child, r_child)
       | EFilter_R (l_child, r_child) ->
           EFilter_R (l_child, construct_shape r_child)
+      | EListEq_L (l_child, r_child) ->
+          EListEq_L (construct_shape l_child, r_child)
+      | EListEq_R (l_child, r_child) ->
+          EListEq_R (l_child, construct_shape r_child)
       | EMatch_L (l_child, (p1, e1), (p2, e2)) ->
           EMatch_L (construct_shape l_child, (p1, e1), (p2, e2))
       | EMatch_P1 (l_child, (p1, e1), (p2, e2)) ->
@@ -446,6 +453,8 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EMap_R (l_child, r_child) -> EMap_R (l_child, move_n_child r_child)
       | EFilter_L (l_child, r_child) -> EFilter_L (move_n_child l_child, r_child)
       | EFilter_R (l_child, r_child) -> EFilter_R (l_child, move_n_child r_child)
+      | EListEq_L (l_child, r_child) -> EListEq_L (move_n_child l_child, r_child)
+      | EListEq_R (l_child, r_child) -> EListEq_R (l_child, move_n_child r_child)
       | EMatch_L (l, (p1, e1), (p2, e2)) ->
           EMatch_L (move_n_child l, (p1, e1), (p2, e2))
       | EMatch_P1 (l, (p1, e1), (p2, e2)) ->

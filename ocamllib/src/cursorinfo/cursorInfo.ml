@@ -332,6 +332,23 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
+    | EListEq_L (e1, e2) ->
+        let exp_ty =
+          match synthesis typ_ctx e2 with
+          | Some (Type.List t) -> Type.List t
+          | _ -> raise (TypeError "Expected a List type")
+        in
+        get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
+    | EListEq_R (e1, e2) ->
+        let exp_ty =
+          match synthesis typ_ctx e1 with
+          | Some (Type.List t) -> Type.List t
+          | _ -> raise (TypeError "Expected a List type")
+        in
+        get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty
+          ~index:(index + Expr.size e1 + 1)
     | EMatch_L (e, _, _) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Hole ~index:(index + 1)
@@ -730,7 +747,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
           match e.node with
           | EVar _ | EConst _ | EHole -> []
           | EUnOp _ | EAssert _ -> [ Move (Child 0) ]
-          | EBinOp _ | EFun _ | EFix _ | EPair _ | EMap _ | EFilter _ ->
+          | EBinOp _ | EFun _ | EFix _ | EPair _ | EMap _ | EFilter _
+          | EListEq _ ->
               [ Move (Child 0); Move (Child 1) ]
           | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ]
           | ELet (_, edef, _) -> (
@@ -931,7 +949,8 @@ let cursor_info_to_actions (info : t) : Action.t list =
         | EPair (e1, e2)
         | ELet (_, e1, e2)
         | EMap (e1, e2)
-        | EFilter (e1, e2) ->
+        | EFilter (e1, e2)
+        | EListEq (e1, e2) ->
             check_var e1 x || check_var e2 x
         | EIf (e1, e2, e3) -> check_var e1 x || check_var e2 x || check_var e3 x
         | EMatch (e, (p1, e1), (p2, e2)) ->
@@ -940,7 +959,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
       match info.current_term with
       | ENode e -> (
           match e.node with
-          | EHole | EConst _ | EVar _ | EAssert _ -> []
+          | EHole | EConst _ | EVar _ | EAssert _ | EListEq _ -> []
           | EUnOp _ -> [ Unwrap 0 ]
           | EFilter _ -> [ Unwrap 1 ]
           | EMap (func, listarg) -> (
