@@ -11,7 +11,11 @@ def get_args():
     parser.add_argument(
         "--save-dir", default="None", help="Directory to save checkpoints"
     )
-    parser.add_argument("--sweep-id",default="None","the ID of the sweep, appended to the end of the save dir")
+    parser.add_argument(
+        "--sweep-id",
+        default="None",
+        help="the ID of the sweep, appended to the end of the save dir",
+    )
     args = parser.parse_args()
 
     return args

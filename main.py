@@ -101,12 +101,6 @@ def sweep(
         },
     }
 
-    runtime_env = {
-        "working_dir": ".",
-    }
-
-    ray.init(runtime_env=runtime_env)
-    num_cpus = 1  # os.cpu_count()
     ray.init()
     num_cpus = os.cpu_count()
     analysis = ray.tune.run(
@@ -123,7 +117,6 @@ if __name__ == "__main__":
     print("Python started.")
 
     if args.sweep:
-        print("sweeping")
         sweep(
             name=args.log_name,
             config_path="params.yaml",
@@ -132,19 +125,10 @@ if __name__ == "__main__":
             render=args.render,
         )
     else:
-        if not args.sweep_id:
-            run(
-                name=args.log_name,
-                config_path="params.yaml",
-                graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
-                save_dir=args.save_dir,
-                render=args.render,
-            )
-        else:
-            run(
-                name=args.log_name,
-                config_path="params.yaml",
-                graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
-                save_dir=args.save_dir + args.sweep_id,
-                render=args.render,
-            )
+        run(
+            name=args.log_name,
+            config_path="params.yaml",
+            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+            save_dir=args.save_dir,
+            render=args.render,
+        )

@@ -155,6 +155,10 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       | _ -> None)
   | EMap (left, right) -> (
       match synthesis context left with
+      | Some Hole ->
+          if analysis context right (Type.List Hole)
+          then Some (List Hole)
+          else None
       | Some (Type.Arrow (intype, outtype)) ->
           if analysis context right (Type.List intype)
           then Some (List outtype)
@@ -162,6 +166,10 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       | _ -> None)
   | EFilter (func, list) -> (
       match synthesis context list with
+      | Some Hole ->
+          if analysis context func (Type.Arrow (Hole, Bool))
+          then Some (List Hole)
+          else None
       | Some (List listtype) ->
           if analysis context func (Type.Arrow (listtype, Bool))
           then Some (List listtype)
@@ -239,13 +247,23 @@ and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
       | None -> false)
   | EMap (func, list) -> (
       match (targ, synthesis context list) with
+      | Hole, Some Hole -> analysis context func (Type.Arrow (Hole, Hole))
+      | Hole, Some (List intype) ->
+          analysis context func (Type.Arrow (intype, Hole))
+      | List outtype, Some Hole ->
+          analysis context func (Type.Arrow (Hole, outtype))
       | List outtype, Some (List intype) ->
-          analysis context func (Type.Arrow (outtype, intype))
+          analysis context func (Type.Arrow (intype, outtype))
       | _ -> false)
   | EFilter (func, list) -> (
       match (targ, synthesis context list) with
+      | Hole, Some Hole -> analysis context func (Type.Arrow (Hole, Bool))
+      | Hole, Some (List intype) ->
+          analysis context func (Type.Arrow (intype, Bool))
+      | List outtype, Some Hole ->
+          analysis context func (Type.Arrow (Hole, Bool))
       | List outtype, Some (List intype) ->
-          analysis context func (Type.Arrow (outtype, Bool))
+          analysis context func (Type.Arrow (intype, Bool))
           && Type.consistent intype outtype
       | _ -> false)
   | _ -> (

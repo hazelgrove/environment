@@ -135,32 +135,42 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
         then VUnit
         else raise (RuntimeError "Assertion failed")
     | Map (func, e_list) -> (
-        match e_list with
-        | Const Nil -> VConst Nil (* base case *)
-        | BinOp (head, OpCons, tail) ->
+        match eval e_list stack with
+        | VConst Nil -> VConst Nil (* base case *)
+        | VCons (head, tail) ->
             VCons
-              ( eval (BinOp (func, OpAp, head)) (stack - 1),
-                eval (Map (func, tail)) (stack - 1) )
+              ( eval (BinOp (func, OpAp, Expr.from_val head)) (stack - 1),
+                eval (Map (func, Expr.from_val tail)) (stack - 1) )
         | _ -> raise (RuntimeError "Expected list or nil"))
     | Filter (func, e_list) -> (
-        match e_list with
-        | Const Nil -> VConst Nil (* base case *)
-        | BinOp (head, OpCons, tail) -> (
-            let filtered_tail = eval (Filter (func, tail)) (stack - 1) in
-            match eval (BinOp (func, OpAp, head)) (stack - 1) with
+        match eval e_list stack with
+        | VConst Nil -> VConst Nil (* base case *)
+        | VCons (head, tail) -> (
+            let filtered_tail =
+              eval (Filter (func, Expr.from_val tail)) (stack - 1)
+            in
+            match eval (BinOp (func, OpAp, Expr.from_val head)) (stack - 1) with
             | VConst (Bool true) ->
-                let evaled_head = eval head (stack - 1) in
+                let evaled_head = eval (Expr.from_val head) (stack - 1) in
                 VCons (evaled_head, filtered_tail)
             | VConst (Bool false) -> filtered_tail
             | _ -> raise (RuntimeError "Expected Bool"))
         | _ -> raise (RuntimeError "Expected list or nil"))
     | ListEq (e1, e2) -> (
-        match (e1, e2) with
-        | Const Nil, Const Nil -> VConst (Bool true)
-        | Const Nil, _ | _, Const Nil -> VConst (Bool false)
-        | BinOp (head1, OpCons, tail1), BinOp (head2, OpCons, tail2) -> (
-            let head_eq = eval (BinOp (head1, OpEq, head2)) (stack - 1) in
-            let tail_eq = eval (ListEq (tail1, tail2)) (stack - 1) in
+        match (eval e1 stack, eval e2 stack) with
+        | VConst Nil, VConst Nil -> VConst (Bool true)
+        | VConst Nil, _ | _, VConst Nil -> VConst (Bool false)
+        | VCons (head1, tail1), VCons (head2, tail2) -> (
+            let head_eq =
+              eval
+                (BinOp (Expr.from_val head1, OpEq, Expr.from_val head2))
+                (stack - 1)
+            in
+            let tail_eq =
+              eval
+                (ListEq (Expr.from_val tail1, Expr.from_val tail2))
+                (stack - 1)
+            in
             match (head_eq, tail_eq) with
             | VConst (Bool true), VConst (Bool true) -> VConst (Bool true)
             | _ -> VConst (Bool false))

@@ -56,7 +56,7 @@ let rec to_string (e : p_t) : string =
   | Pair (e1, e2) -> "(" ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
   | Hole -> "? "
   | Map (e1, e2) -> "Map ( " ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
-  | Filter (e1, e2) -> "Filter ( " ^ to_string e2 ^ ", " ^ to_string e2 ^ ") "
+  | Filter (e1, e2) -> "Filter ( " ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
   | ListEq (e1, e2) ->
       "List.equal ( " ^ to_string e1 ^ ", " ^ to_string e2 ^ ") "
   | Match (e, (p1, e1), (p2, e2)) ->
@@ -134,6 +134,7 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
     | EAssert _, EAssert _
     | EMap _, EMap _
     | EFilter _, EFilter _
+    | EListEq _, EListEq _
     | EMatch _, EMatch _ ->
         true
     | _ -> false
@@ -187,22 +188,22 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
         EBinOp
           ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
             op,
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
     | EMap (_, _) ->
         let adj_nodes = get_adj_nodes edges root in
         EMap
-          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
     | EFilter (_, _) ->
         let adj_nodes = get_adj_nodes edges root in
         EFilter
-          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
     | EListEq (_, _) ->
         let adj_nodes = get_adj_nodes edges root in
         EListEq
-          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
-            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1) )
     | ELet (_, _, _) ->
         let adj_nodes = get_adj_nodes edges root in
         let varname =

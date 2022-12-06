@@ -108,7 +108,7 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
           if index = -1
           then (Expr.zip_migrate e (EMap_L (zast1, e2)), -1)
           else
-            let zast2, _ = select_root_index_aux e2 index in
+            let zast2, index = select_root_index_aux e2 index in
             if index = -1
             then (Expr.zip_migrate e (EMap_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
@@ -117,7 +117,7 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
           if index = -1
           then (Expr.zip_migrate e (EFilter_L (zast1, e2)), -1)
           else
-            let zast2, _ = select_root_index_aux e2 index in
+            let zast2, index = select_root_index_aux e2 index in
             if index = -1
             then (Expr.zip_migrate e (EFilter_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
@@ -126,7 +126,7 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
           if index = -1
           then (Expr.zip_migrate e (EListEq_L (zast1, e2)), -1)
           else
-            let zast2, _ = select_root_index_aux e2 index in
+            let zast2, index = select_root_index_aux e2 index in
             if index = -1
             then (Expr.zip_migrate e (EListEq_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)

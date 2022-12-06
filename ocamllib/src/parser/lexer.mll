@@ -44,6 +44,7 @@ rule read =
   | "rec"   { REC }
   | "int"   { TINT }
   | "bool"  { TBOOL }
+  | "list"  { TLIST }
   | "map"   { MAP }
   | "filter" {FILTER }
   | "assert"{ ASSERT }

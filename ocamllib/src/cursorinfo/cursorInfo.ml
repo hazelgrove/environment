@@ -286,10 +286,12 @@ let get_cursor_info (tree : Syntax.z_t) : t =
     | EFilter_L (e1, e2) ->
         let exp_ty =
           match (exp_ty, synthesis typ_ctx e2) with
+          | Hole, Some Hole -> Type.Arrow (Hole, Bool)
+          | Hole, Some (Type.List foundtype) -> Type.Arrow (foundtype, Bool)
+          | List exptype, Some Hole -> Type.Arrow (exptype, Bool)
           | List exptype, Some (Type.List foundtype) ->
-              if Type.equal (Type.add_metadata exp_ty)
-                   (Type.add_metadata foundtype)
-              then Type.Arrow (exp_ty, Type.Bool)
+              if Type.consistent exptype foundtype
+              then Type.Arrow (foundtype, Type.Bool)
               else raise (TypeError "List types do not match")
           | _ -> raise (TypeError "Expected a List type")
         in
@@ -298,13 +300,19 @@ let get_cursor_info (tree : Syntax.z_t) : t =
     | EFilter_R (e1, e2) ->
         let exp_ty =
           match (exp_ty, synthesis typ_ctx e1) with
-          | List listtype, Some (Arrow (functype, Bool)) ->
-              if Type.equal
-                   (Type.add_metadata listtype)
-                   (Type.add_metadata functype)
+          | Hole, Some Hole -> Type.List Hole
+          | Hole, Some (Arrow (t, (Bool | Hole))) | List t, Some Hole ->
+              Type.List t
+          | List listtype, Some (Arrow (functype, (Bool | Hole))) ->
+              if Type.consistent listtype functype
               then exp_ty
               else raise (TypeError "List types do not match")
-          | _ -> raise (TypeError "Expected a List type")
+          | _, Some t ->
+              raise
+                (TypeError
+                   ("Expected a List type but got " ^ TypeConv.to_string exp_ty
+                  ^ " and " ^ TypeConv.to_string t))
+          | _, None -> raise (TypeError "Type cannot be inferred")
         in
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
@@ -312,6 +320,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
     | EMap_L (e1, e2) ->
         let exp_ty =
           match (exp_ty, synthesis typ_ctx e2) with
+          | Hole, Some Hole -> Type.Arrow (Hole, Hole)
+          | Hole, Some (Type.List foundtype) -> Type.Arrow (foundtype, Hole)
+          | List exptype, Some Hole -> Type.Arrow (Hole, exptype)
           | List exptype, Some (Type.List foundtype) ->
               Type.Arrow (foundtype, exptype)
           | _ -> raise (TypeError "Expected a List type")
@@ -321,10 +332,11 @@ let get_cursor_info (tree : Syntax.z_t) : t =
     | EMap_R (e1, e2) ->
         let exp_ty =
           match (exp_ty, synthesis typ_ctx e1) with
+          | Hole, Some Hole -> Type.List Hole
+          | Hole, Some (Arrow (functype, _)) -> Type.List functype
+          | List exptype, Some Hole -> Type.List Hole
           | List exptype, Some (Arrow (intype, outtype)) ->
-              if Type.equal
-                   (Type.add_metadata exptype)
-                   (Type.add_metadata outtype)
+              if Type.consistent exptype outtype
               then Type.List intype
               else raise (TypeError "Function type does not match list")
           | _ -> raise (TypeError "Expected a List type")

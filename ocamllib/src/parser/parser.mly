@@ -1,6 +1,6 @@
 %token <int> INT
 %token <int> ID
-%token TINT TBOOL
+%token TINT TBOOL TLIST
 %token TRUE FALSE
 %token IF THEN ELSE
 %token FUN REC LET OFTYPE IN RIGHTARROW
@@ -227,10 +227,16 @@ ty:
     { Type.Arrow (t1, t2) }
 
 ty_prod:
+| t = ty_list
+    { t }
+| t1 = ty_list TIMES t2 = ty_prod
+    { Type.Prod (t1, t2) }
+
+ty_list:
 | t = base_ty
     { t }
-| t1 = base_ty TIMES t2 = ty_prod
-    { Type.Prod (t1, t2) }
+| t1 = base_ty TLIST
+    { Type.List t1 }
 
 base_ty:
 | TINT

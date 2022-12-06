@@ -131,8 +131,8 @@ class PLEnv(Env):
             env = ASTEnv(
                 max_num_nodes=100,
                 num_node_descriptor=54,
-                num_assignments=4,
-                code_per_assignment=[1, 1, 1, 1],
+                num_assignments=3,
+                code_per_assignment=[1, 1, 1],
                 num_actions=74,
                 perturbation=perturbation,
                 seed=seed,

@@ -11,6 +11,7 @@ torch = [
     {platform = 'linux', url = "https://download.pytorch.org/whl/cu115/torch-1.11.0%2Bcu115-cp38-cp38-linux_x86_64.whl"}
 ]
 numpy = "^1.22.3"
+run-logger = { git = "https://github.com/run-tracker/run-logger.git" }
 atari-py = "^0.3.0"
 ale-py = "0.7.4"
 stable-baselines3 = "^1.5.0"
@@ -27,10 +28,9 @@ torch-sparse = [
 ]
 torch-geometric = "^2.0.4"
 GitPython = "^3.1.27"
+PyYAML = "^6.0"
 ray = { version = "^2.0.0", extras = ["tune"] }
 requests-toolbelt = "^0.9.1"
-sweep-logger = {git = "https://github.com/zacheichen/sweep-logger.git", rev = "bce155909fa728a2728b4ffc6f7657a8b7b2604f"}
-run-logger = {git = "https://github.com/run-tracker/run-logger.git", rev = "0be4d4e144dd54f459d2d91245730c985fd4e62d"}
 
 [tool.poetry.dev-dependencies]
 ipython = "^8.0.1"
