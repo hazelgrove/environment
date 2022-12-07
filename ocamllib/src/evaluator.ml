@@ -165,9 +165,7 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
         let folded_head = eval (BinOp (curried_head, OpAp, (Expr.from_val head))) (stack - 1) in 
         eval (Fold(func, Expr.from_val folded_head, Expr.from_val tail)) (stack - 1)
       | _ -> raise (RuntimeError "Expected list or nil")
-
       )
-        
     | ListEq (e1, e2) -> (
         match (eval e1 stack, eval e2 stack) with
         | VConst Nil, VConst Nil -> VConst (Bool true)

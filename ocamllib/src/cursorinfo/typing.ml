@@ -193,17 +193,29 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       then Some vart
       else None
   | EHole -> Some Hole
-  | EFold (func,acc,list) -> 
-    ( match (synthesis context func, synthesis context acc,synthesis context list) with
+  | EFold (func, acc, list) -> 
+    ( match (synthesis context func, synthesis context acc, synthesis context list) with
     | Some Hole, Some Hole, Some Hole -> Some Hole
-    | Some (Type.Arrow(intype, Type.Arrow(functype,outtype))), Some Hole, Some Hole -> 
-        get_common_type intype outtype
-    | Some (Type.Arrow(intype, Type.Arrow(functype,outtype))), Some aggt, Some Hole -> 
-        if Type.consistent functype aggt then get_common_type intype outtype else None 
-    | Some (Type.Arrow(intype, Type.Arrow(functype,outtype))), Some aggt, Some (List listtype) -> 
-        if (Type.consistent functype aggt) && (Type.consistent intype listtype)  
-            then get_common_type intype outtype else None
     | Some Hole, Some aggtype, Some _ -> Some aggtype
+    | Some (Type.Arrow (intype, Type.Arrow (functype, outtype))), Some Hole, Some Hole -> 
+        begin match functype with
+        | List _ | Hole -> get_common_type intype outtype
+        | _ -> None
+        end
+    | Some (Type.Arrow(intype, Type.Arrow(functype, outtype))), Some aggt, Some Hole -> 
+        begin match get_common_type intype outtype with
+        | Some t -> 
+            begin match functype with
+            | List _ | Hole -> if Type.consistent t aggt then Some t else None
+            | _ -> None
+            end
+        | None -> None
+        end
+    | Some (Type.Arrow(intype, Type.Arrow(functype, outtype))), Some aggt, Some listtype -> 
+        begin match get_common_type intype outtype with
+        | Some t -> if Type.consistent t aggt && Type.consistent functype listtype then Some t else None
+        | None -> None
+        end
     | _ -> None
     )
 | EMatch (escrut, (p1, e1), (p2, e2)) -> (
@@ -279,22 +291,28 @@ and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
           analysis context func (Type.Arrow (intype, Bool))
           && Type.consistent intype outtype
       | _ -> false)
-  | EFold (func,acc, list) -> (
+  | EFold (func, acc, list) -> (
     match (targ, synthesis context func) with 
     | Hole, Some Hole -> 
-        analysis context acc Hole  && analysis context list (List Hole)
+        analysis context list (List Hole)
     | Hole, Some (Type.Arrow(intype, Type.Arrow(functype, outtype))) -> 
-        (analysis context acc intype) 
-        && (analysis context list (Type.List functype))
-        && (Type.consistent intype outtype)
+        begin match get_common_type intype outtype with
+        | Some t -> 
+            (analysis context acc t) && (analysis context list functype)
+        | None -> false
+        end
     | targtype, Some Hole -> 
-        analysis context acc targtype  && analysis context list (List Hole)
+        analysis context acc targtype && analysis context list (List Hole)
     | targtype, Some (Type.Arrow(intype, Type.Arrow(functype, outtype))) -> 
-        Type.consistent intype targtype 
-        && Type.consistent outtype targtype 
-        && analysis context acc targtype 
-        && analysis context list (List functype)
-    |_ -> false 
+        begin match get_common_type intype outtype with
+        | Some t -> 
+            begin match get_common_type t targtype with
+            | Some t -> (analysis context acc t) && (analysis context list functype)
+            | None -> false
+            end
+        | None -> false
+        end
+    | _ -> false 
   )
   | _ -> (
       match synthesis context e with
