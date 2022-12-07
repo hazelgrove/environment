@@ -258,6 +258,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EListEq (e1, e2) ->
           free_vars e1;
           free_vars e2
+      | EFold (e1, e2, e3)
       | EIf (e1, e2, e3) ->
           free_vars e1;
           free_vars e2;
@@ -299,6 +300,9 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | If_L -> EIf (subtree, Expr.make_node EHole, Expr.make_node EHole)
       | If_C -> EIf (Expr.make_node EHole, subtree, Expr.make_node EHole)
       | If_R -> EIf (Expr.make_node EHole, Expr.make_node EHole, subtree)
+      | Fold_L -> EFold (subtree, Expr.make_node EHole, Expr.make_node EHole)
+      | Fold_C -> EFold (Expr.make_node EHole, subtree, Expr.make_node EHole)
+      | Fold_R -> EFold (Expr.make_node EHole, Expr.make_node EHole, subtree)
       | Fun -> EFun (Var.get_new_var (), Type.make_node THole, subtree)
       | Fix -> EFix (Var.get_new_var (), Type.make_node THole, subtree)
       | Pair_L -> EPair (subtree, Expr.make_node EHole)
@@ -346,6 +350,9 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EIf_L (l, c, r) -> EIf_L (construct_shape l, c, r)
       | EIf_C (l, c, r) -> EIf_C (l, construct_shape c, r)
       | EIf_R (l, c, r) -> EIf_R (l, c, construct_shape r)
+      | EFold_L (l, c, r) -> EFold_L (construct_shape l, c, r)
+      | EFold_C (l, c, r) -> EFold_C (l, construct_shape c, r)
+      | EFold_R (l, c, r) -> EFold_R (l, c, construct_shape r)
       | EFun_R (var, typ, child) -> EFun_R (var, typ, construct_shape child)
       | EFun_L (var, typ, child) -> EFun_L (var, act_on_type typ, child)
       | EFix_R (var, typ, child) -> EFix_R (var, typ, construct_shape child)
@@ -400,6 +407,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 0, EMatch (arg_l, (p1, e1), (p2, e2)) ->
         EMatch_L (Expr.select_root arg_l, (p1, e1), (p2, e2))
     | 0, EAssert arg -> EAssert_L (Expr.select_root arg)
+    | 0, EFold (e1, e2, e3) -> EFold_L(Expr.select_root e1, e2, e3)
     | 1, EBinOp (arg_l, op, arg_r) ->
         EBinOp_R (arg_l, op, Expr.select_root arg_r)
     | 1, ELet (varn, arg_l, arg_r) ->
@@ -409,6 +417,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 1, EPair (arg_l, arg_r) -> EPair_R (arg_l, Expr.select_root arg_r)
     | 1, EMap (arg_l, arg_r) -> EMap_R (arg_l, Expr.select_root arg_r)
     | 1, EFilter (arg_l, arg_r) -> EFilter_R (arg_l, Expr.select_root arg_r)
+    | 1, EFold (e1,e2, e3 ) -> EFold_C( e1, Expr.select_root e2, e3)
     | 1, EFun (varname, typ, arg_l) ->
         EFun_R (varname, typ, Expr.select_root arg_l)
     | 1, EFix (varname, typ, arg_l) ->
@@ -417,6 +426,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         EMatch_P1 (arg_l, (Pattern.select_root p1, e1), (p2, e2))
     | 2, EIf (arg_l, arg_c, arg_r) ->
         EIf_R (arg_l, arg_c, Expr.select_root arg_r)
+    | 2, EFold (e1,e2, e3 ) -> EFold_R( e1,e2, Expr.select_root e3)
     | 2, EMatch (arg_l, (p1, e1), (p2, e2)) ->
         EMatch_E1 (arg_l, (p1, Expr.select_root e1), (p2, e2))
     | 3, EMatch (arg_l, (p1, e1), (p2, e2)) ->
@@ -443,6 +453,9 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EIf_L (l, c, r) -> EIf_L (move_n_child l, c, r)
       | EIf_C (l, c, r) -> EIf_C (l, move_n_child c, r)
       | EIf_R (l, c, r) -> EIf_R (l, c, move_n_child r)
+      | EFold_L (l, c, r) -> EFold_L (move_n_child l, c, r)
+      | EFold_C (l, c, r) -> EFold_C (l, move_n_child c, r)
+      | EFold_R (l, c, r) -> EFold_R (l, c, move_n_child r)
       | EFun_R (var, typ, child) -> EFun_R (var, typ, move_n_child child)
       | EFun_L (var, typ, child) -> EFun_L (var, act_on_type typ, child)
       | EFix_R (var, typ, child) -> EFix_R (var, typ, move_n_child child)
@@ -553,6 +566,23 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           then raise (InvalidAction (ActionConv.action_to_tag action))
           else Cursor (EIf (l, c, { (Expr.unzip subtr) with node = arg }))
       | EIf_R (l, c, r) -> EIf_R (l, c, move_parent r)
+      (* working on Fold*)
+      | EFold_L (({ node = Cursor arg; _ } as subtr), c, r) ->
+        if tree.starter
+        then raise (InvalidAction (ActionConv.action_to_tag action))
+        else Cursor (EIf ({ (Expr.unzip subtr) with node = arg }, c, r))
+    | EFold_L (l, c, r) -> EFold_L (move_parent l, c, r)
+    | EFold_C (l, ({ node = Cursor arg; _ } as subtr), r) ->
+        if tree.starter
+        then raise (InvalidAction (ActionConv.action_to_tag action))
+        else Cursor (EFold (l, { (Expr.unzip subtr) with node = arg }, r))
+    | EFold_C (l, c, r) -> EFold_C (l, move_parent c, r)
+    | EFold_R (l, c, ({ node = Cursor arg; _ } as subtr)) ->
+        if tree.starter
+        then raise (InvalidAction (ActionConv.action_to_tag action))
+        else Cursor (EFold (l, c, { (Expr.unzip subtr) with node = arg }))
+    | EFold_R (l, c, r) -> EFold_R (l, c, move_parent r)
+    (* done working on fold*)
       | EFun_L (var, ({ node = Cursor arg; _ } as subtr), ebody) ->
           if tree.starter
           then raise (InvalidAction (ActionConv.action_to_tag action))
@@ -646,6 +676,9 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | 1, EPair (_, e) -> e
           | 0, EMap (_, e) -> e
           | 1, EMap (_, e) -> e
+          | 0, EFold (e,_,_) -> e
+          | 1, EFold (_,e,_) -> e
+          | 2, EFold (_,_,e) -> e
           | 0, EFilter (_, e) -> e
           | 1, EFilter (_, e) -> e
           | 0, EMatch (e, _, _) -> e
@@ -670,6 +703,9 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | EIf_L (l, c, r) -> EIf_L (unwrap l n, c, r)
           | EIf_C (l, c, r) -> EIf_C (l, unwrap c n, r)
           | EIf_R (l, c, r) -> EIf_R (l, c, unwrap r n)
+          | EFold_L (l, c, r) -> EFold_L (unwrap l n, c, r)
+          | EFold_C (l, c, r) -> EFold_C (l, unwrap c n, r)
+          | EFold_R (l, c, r) -> EFold_R (l, c, unwrap r n)
           | EFun_R (var, typ, child) -> EFun_R (var, typ, unwrap child n)
           | EFix_R (var, typ, child) -> EFix_R (var, typ, unwrap child n)
           | EPair_L (l_child, r_child) -> EPair_L (unwrap l_child n, r_child)

@@ -64,6 +64,7 @@ let rec to_string (e : p_t) : string =
       ^ to_string e1 ^ " | " ^ PatternConv.to_string p2 ^ " -> " ^ to_string e2
       ^ ") "
   | Assert e -> "assert(" ^ to_string e ^ ") "
+  | Fold (func, acc, list) -> "Fold ( " ^ to_string func ^ ", " ^ to_string acc ^ ", " ^ to_string list ^ ")"
 
 and resolve_fun (e : p_t) : string =
   match e with
@@ -99,6 +100,7 @@ let node_list =
     EPair (make_dummy_node EHole, make_dummy_node EHole);
     EMap (make_dummy_node EHole, make_dummy_node EHole);
     EFilter (make_dummy_node EHole, make_dummy_node EHole);
+    EFold (make_dummy_node EHole, make_dummy_node EHole, make_dummy_node EHole);
     EListEq (make_dummy_node EHole, make_dummy_node EHole);
     EAssert (make_dummy_node EHole);
     EMatch
@@ -134,6 +136,7 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
     | EAssert _, EAssert _
     | EMap _, EMap _
     | EFilter _, EFilter _
+    | EFold _, EFold _ 
     | EListEq _, EListEq _
     | EMatch _, EMatch _ ->
         true
@@ -220,6 +223,12 @@ let rec from_list ~(nodes : int list) ~(edges : edge list) ~(root : int) : t =
     | EIf _ ->
         let adj_nodes = get_adj_nodes edges root in
         EIf
+          ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
+            from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
+    | EFold _ ->
+        let adj_nodes = get_adj_nodes edges root in
+        EFold
           ( from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 0),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 1),
             from_list ~nodes ~edges ~root:(get_nth_child adj_nodes 2) )
@@ -371,10 +380,11 @@ let to_list (e : z_t) : graph =
         let nodes, edges = add_subtree edef nodes edges vars root 1 in
         let vars = add_var x new_root vars in
         (add_subtree ebody nodes edges vars root 2, root, vars)
-    | EIf (econd, ethen, eelse) ->
-        let nodes, edges = add_subtree econd nodes edges vars root 0 in
-        let nodes, edges = add_subtree ethen nodes edges vars root 1 in
-        (add_subtree eelse nodes edges vars root 2, root, vars)
+    | EFold (e1, e2, e3) 
+    | EIf (e1, e2, e3) ->
+        let nodes, edges = add_subtree e1 nodes edges vars root 0 in
+        let nodes, edges = add_subtree e2 nodes edges vars root 1 in
+        (add_subtree e3 nodes edges vars root 2, root, vars)
     | EMatch (escrut, (p1, e1), (p2, e2)) ->
         let nodes, edges = add_subtree escrut nodes edges vars root 0 in
         let (p_nodes, p_edges), new_root, p_vars = PatternConv.to_list p1 in
@@ -450,9 +460,10 @@ let rec get_starter_list (e : Expr.t) : bool list =
       @ get_starter_list body
   | ELet (x, edef, ebody) ->
       [ e.starter; e.starter ] @ get_starter_list edef @ get_starter_list ebody
-  | EIf (econd, ethen, eelse) ->
-      (e.starter :: get_starter_list econd)
-      @ get_starter_list ethen @ get_starter_list eelse
+  | EFold (e1, e2, e3)
+  | EIf (e1, e2, e3) ->
+      (e.starter :: get_starter_list e1)
+      @ get_starter_list e2 @ get_starter_list e3
   | EMatch (escrut, (p1, e1), (p2, e2)) ->
       (e.starter :: get_starter_list escrut)
       @ PatternConv.get_starter_list p1

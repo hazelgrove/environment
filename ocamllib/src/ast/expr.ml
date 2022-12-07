@@ -35,6 +35,7 @@ type node =
   | EPair of t * t
   | EMap of t * t
   | EFilter of t * t
+  | EFold of t * t * t
   | EListEq of t * t
   | EHole
   | EMatch of t * (Pattern.t * t) * (Pattern.t * t)
@@ -60,6 +61,7 @@ type p_t =
   | Pair of p_t * p_t
   | Map of p_t * p_t
   | Filter of p_t * p_t
+  | Fold of p_t * p_t * p_t
   | ListEq of p_t * p_t
   | Hole
   | Match of p_t * (Pattern.p_t * p_t) * (Pattern.p_t * p_t)
@@ -85,6 +87,9 @@ type z_node =
   | EMap_R of t * z_t
   | EFilter_L of z_t * t
   | EFilter_R of t * z_t
+  | EFold_L of z_t * t * t
+  | EFold_C of t * z_t * t 
+  | EFold_R of t * t * z_t 
   | EListEq_L of z_t * t
   | EListEq_R of t * z_t
   | EPair_L of z_t * t
@@ -136,6 +141,7 @@ let rec strip (e : t) : p_t =
   | EFix (x, t, e) -> Fix (x, Type.strip t, strip e)
   | EMap (e1, e2) -> Map (strip e1, strip e2)
   | EFilter (e1, e2) -> Filter (strip e1, strip e2)
+  | EFold (e1, e2, e3) -> Fold (strip e1, strip e2, strip e3)
   | EListEq (e1, e2) -> ListEq (strip e1, strip e2)
   | EPair (e1, e2) -> Pair (strip e1, strip e2)
   | EHole -> Hole
@@ -158,6 +164,7 @@ let rec add_metadata (e : p_t) : t =
   | Pair (e1, e2) -> make_node (EPair (add_metadata e1, add_metadata e2))
   | Map (e1, e2) -> make_node (EMap (add_metadata e1, add_metadata e2))
   | Filter (e1, e2) -> make_node (EFilter (add_metadata e1, add_metadata e2))
+  | Fold (e1, e2, e3) -> make_node (EFold  (add_metadata e1, add_metadata e2, add_metadata e3))
   | ListEq (e1, e2) -> make_node (EListEq (add_metadata e1, add_metadata e2))
   | Hole -> make_node EHole
   | Match (e, (p1, e1), (p2, e2)) ->
@@ -181,7 +188,8 @@ let rec size (e : t) : int =
   | EUnOp (_, e) | EAssert e -> 1 + size e
   | EBinOp (e1, _, e2) | EPair (e1, e2) -> 1 + size e1 + size e2
   | ELet (_, edef, ebody) -> 1 + 1 + size edef + size ebody
-  | EIf (econd, ethen, eelse) -> 1 + size econd + size ethen + size eelse
+  | EFold (e1, e2, e3)
+  | EIf (e1, e2, e3) -> 1 + size e1 + size e2 + size e3
   | EMap (e1, e2) -> 1 + size e1 + size e2
   | EFilter (e1, e2) -> 1 + size e1 + size e2
   | EListEq (e1, e2) -> 1 + size e1 + size e2
@@ -254,6 +262,7 @@ let rec equal (t1 : t) (t2 : t) : bool =
       binop_equal b1 b2 && equal subl1 subl2 && equal subr1 subr2
   | ELet (var1, subl1, subr1), ELet (var2, subl2, subr2) ->
       Var.equal var1 var2 && equal subl1 subl2 && equal subr1 subr2
+  | EFold (argl1, argc1, argr1) , EFold (argl2, argc2, argr2) 
   | EIf (argl1, argc1, argr1), EIf (argl2, argc2, argr2) ->
       equal argl1 argl2 && equal argc1 argc2 && equal argr1 argr2
   | EFun (var1, t1, sub1), EFun (var2, t2, sub2)
@@ -286,6 +295,9 @@ let rec z_equal (t1 : z_t) (t2 : z_t) : bool =
   | ELet_L (var1, zsub1, sub1), ELet_L (var2, zsub2, sub2)
   | ELet_R (var1, sub1, zsub1), ELet_R (var2, sub2, zsub2) ->
       Var.equal var1 var2 && z_equal zsub1 zsub2 && equal sub1 sub2
+  | EFold_L (zsub1, lsub1, rsub1), EFold_L (zsub2, lsub2, rsub2)
+  | EFold_C (lsub1, zsub1, rsub1), EFold_C (lsub2, zsub2, rsub2)
+  | EFold_R (lsub1, rsub1, zsub1), EFold_R (lsub2, rsub2, zsub2)
   | EIf_L (zsub1, lsub1, rsub1), EIf_L (zsub2, lsub2, rsub2)
   | EIf_C (lsub1, zsub1, rsub1), EIf_C (lsub2, zsub2, rsub2)
   | EIf_R (lsub1, rsub1, zsub1), EIf_R (lsub2, rsub2, zsub2) ->
@@ -343,6 +355,9 @@ let rec unzip (tree : z_t) : t =
         EBinOp (l_child, binop, unzip r_child)
     | ELet_L (var, l_child, r_child) -> ELet (var, unzip l_child, r_child)
     | ELet_R (var, l_child, r_child) -> ELet (var, l_child, unzip r_child)
+    | EFold_L (l, c, r) -> EFold (unzip l, c, r)
+    | EFold_C (l, c, r) -> EFold (l, unzip c, r)
+    | EFold_R (l, c, r) -> EFold (l, c, unzip r)
     | EIf_L (l, c, r) -> EIf (unzip l, c, r)
     | EIf_C (l, c, r) -> EIf (l, unzip c, r)
     | EIf_R (l, c, r) -> EIf (l, c, unzip r)
@@ -388,6 +403,7 @@ let rec add_vars (e : t) : unit =
       Var.num_vars := !Var.num_vars + 1;
       add_vars l_child;
       add_vars r_child
+  | EFold(l_child, c_child,r_child)
   | EIf (l_child, c_child, r_child) ->
       add_vars l_child;
       add_vars c_child;
@@ -436,12 +452,15 @@ let rec set_starter (e : t) (b : bool) : t =
         ELet (var, set_starter l_child b, set_starter r_child b)
     | EIf (l_child, c_child, r_child) ->
         EIf (set_starter l_child b, set_starter c_child b, set_starter r_child b)
+    | EFold (l_child, c_child, r_child) -> 
+        EFold (set_starter l_child b, set_starter c_child b, set_starter r_child b)
     | EFun (var, typ, child) -> EFun (var, typ, set_starter child b)
     | EFix (var, typ, child) -> EFix (var, typ, set_starter child b)
     | EPair (l_child, r_child) ->
         EPair (set_starter l_child b, set_starter r_child b)
     | EMap (func, list) -> EMap (set_starter func b, set_starter list b)
     | EFilter (func, list) -> EFilter (set_starter func b, set_starter list b)
+    
     | EListEq (l_child, r_child) ->
         EListEq (set_starter l_child b, set_starter r_child b)
     | EMatch (e, (p1, e1), (p2, e2)) ->

@@ -19,6 +19,9 @@ type shape =
   | Map_R
   | Filter_L
   | Filter_R
+  | Fold_L
+  | Fold_C
+  | Fold_R
   | Pair_L
   | Pair_R
   | Match_L

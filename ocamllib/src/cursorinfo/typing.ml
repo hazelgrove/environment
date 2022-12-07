@@ -193,7 +193,20 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
       then Some vart
       else None
   | EHole -> Some Hole
-  | EMatch (escrut, (p1, e1), (p2, e2)) -> (
+  | EFold (func,acc,list) -> 
+    ( match (synthesis context func, synthesis context acc,synthesis context list) with
+    | Some Hole, Some Hole, Some Hole -> Some Hole
+    | Some (Type.Arrow(intype, Type.Arrow(functype,outtype))), Some Hole, Some Hole -> 
+        get_common_type intype outtype
+    | Some (Type.Arrow(intype, Type.Arrow(functype,outtype))), Some aggt, Some Hole -> 
+        if Type.consistent functype aggt then get_common_type intype outtype else None 
+    | Some (Type.Arrow(intype, Type.Arrow(functype,outtype))), Some aggt, Some (List listtype) -> 
+        if (Type.consistent functype aggt) && (Type.consistent intype listtype)  
+            then get_common_type intype outtype else None
+    | Some Hole, Some aggtype, Some _ -> Some aggtype
+    | _ -> None
+    )
+| EMatch (escrut, (p1, e1), (p2, e2)) -> (
       match synthesis context escrut with
       | Some tscrut -> (
           let trules = pattern_common_type p1 p2 in
@@ -266,6 +279,23 @@ and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
           analysis context func (Type.Arrow (intype, Bool))
           && Type.consistent intype outtype
       | _ -> false)
+  | EFold (func,acc, list) -> (
+    match (targ, synthesis context func) with 
+    | Hole, Some Hole -> 
+        analysis context acc Hole  && analysis context list (List Hole)
+    | Hole, Some (Type.Arrow(intype, Type.Arrow(functype, outtype))) -> 
+        (analysis context acc intype) 
+        && (analysis context list (Type.List functype))
+        && (Type.consistent intype outtype)
+    | targtype, Some Hole -> 
+        analysis context acc targtype  && analysis context list (List Hole)
+    | targtype, Some (Type.Arrow(intype, Type.Arrow(functype, outtype))) -> 
+        Type.consistent intype targtype 
+        && Type.consistent outtype targtype 
+        && analysis context acc targtype 
+        && analysis context list (List functype)
+    |_ -> false 
+  )
   | _ -> (
       match synthesis context e with
       | None -> false

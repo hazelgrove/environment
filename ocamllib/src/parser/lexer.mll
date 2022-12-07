@@ -46,6 +46,7 @@ rule read =
   | "bool"  { TBOOL }
   | "list"  { TLIST }
   | "map"   { MAP }
+  | "fold"  { FOLD }
   | "filter" {FILTER }
   | "assert"{ ASSERT }
   | "equal" { LISTEQ }

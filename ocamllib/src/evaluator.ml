@@ -23,6 +23,7 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
   | UnOp (op, e) -> UnOp (op, subx e)
   | BinOp (e_l, op, e_r) -> BinOp (subx e_l, op, subx e_r)
   | If (e_cond, e_then, e_else) -> If (subx e_cond, subx e_then, subx e_else)
+  | Fold (efunc, eacc, elist) -> If (subx efunc, subx eacc, subx elist)
   | Fun (y, ty, e_body) -> Fun (y, ty, subx_unless (Var.equal x y) e_body)
   | Let (y, e_def, e_body) ->
       Let (y, subx e_def, subx_unless (Var.equal x y) e_body)
@@ -156,6 +157,17 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
             | VConst (Bool false) -> filtered_tail
             | _ -> raise (RuntimeError "Expected Bool"))
         | _ -> raise (RuntimeError "Expected list or nil"))
+    | Fold (func, acc, e_list) -> (
+      match eval e_list stack with
+      | VConst Nil -> (eval acc (stack -1 ) )(* base case *)
+      | VCons (head, tail) -> 
+        let curried_head = Expr.from_val(eval (BinOp (func, OpAp, acc)) (stack - 1)) in 
+        let folded_head = eval (BinOp (curried_head, OpAp, (Expr.from_val head))) (stack - 1) in 
+        eval (Fold(func, Expr.from_val folded_head, Expr.from_val tail)) (stack - 1)
+      | _ -> raise (RuntimeError "Expected list or nil")
+
+      )
+        
     | ListEq (e1, e2) -> (
         match (eval e1 stack, eval e2 stack) with
         | VConst Nil, VConst Nil -> VConst (Bool true)
@@ -273,6 +285,14 @@ let%test_module "Test eval" =
             VCons
               ( VConst (Int 4),
                 VCons (VConst (Int 6), VCons (VConst (Int 8), VConst Nil)) ) )
+    (* fold  base case *)
+    let%test _ =
+    eval_string "fold (fun x1 -> fun x2 -> x1 + x2 ) (1) ( []) "
+    = VConst (Int 1)
+    (* test that order and evaluation is correct*)
+    let%test _ =
+      eval_string "fold (fun x1 -> fun x2 -> x1 * x1 + x2 ) (0) (1 :: 2 ::3 :: 4 ::[]) "
+      = VConst (Int 148)
 
     let%test _ =
       eval_string

@@ -60,6 +60,9 @@ let action_list =
     Construct Filter_R;
     Construct Map_L;
     Construct Map_R;
+    Construct Fold_L;
+    Construct Fold_C;
+    Construct Fold_R;
     Construct Match_L;
     Construct Match_E1;
     Construct Match_E2;
@@ -182,6 +185,9 @@ let to_string (action : t) : string =
   | Construct Map_R -> "Constrcut Map_R"
   | Construct Filter_L -> "Construct Filter_L"
   | Construct Filter_R -> "Construct Filter_R"
+  | Construct Fold_L -> "Construct Fold_L"
+  | Construct Fold_C -> "Construct Fold_C"
+  | Construct Fold_R -> "Construct Fold_R"
   | Construct TypInt -> "Construct TypInt"
   | Construct TypBool -> "Construct TypBool"
   | Construct TypArrow_L -> "Construct TypArrow_L"

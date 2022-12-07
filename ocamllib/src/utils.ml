@@ -73,6 +73,19 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
               if index = -1
               then (Expr.zip_migrate e (EIf_R (econd, ethen, zast3)), -1)
               else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EFold (econd, ethen, eelse) ->
+          let zast1, index = select_root_index_aux econd (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EFold_L (zast1, ethen, eelse)), -1)
+          else
+            let zast2, index = select_root_index_aux ethen index in
+            if index = -1
+            then (Expr.zip_migrate e (EFold_C (econd, zast2, eelse)), -1)
+            else
+              let zast3, index = select_root_index_aux eelse index in
+              if index = -1
+              then (Expr.zip_migrate e (EFold_R (econd, ethen, zast3)), -1)
+              else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
       | EFun (x, ty, ebody) ->
           (* Forbid entering type subtree *)
           let t_size = Type.size ty in

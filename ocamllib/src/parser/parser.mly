@@ -4,7 +4,7 @@
 %token TRUE FALSE
 %token IF THEN ELSE
 %token FUN REC LET OFTYPE IN RIGHTARROW
-%token MAP FILTER LISTEQ
+%token MAP FILTER FOLD LISTEQ
 %token COMMA SEMI
 %token PLUS MINUS TIMES DIV
 %token LT LE GT GE EQ NE
@@ -161,6 +161,8 @@ app:
     { Expr.Map (e1, e2) }
 | FILTER e1 = app e2 = simple 
     { Expr.Filter (e1, e2) }
+| FOLD e1 = app e2 = simple e3 = simple
+    { Expr.Fold (e1, e2, e3) }
 | LISTEQ e1 = app e2 = simple 
     { Expr.ListEq (e1, e2) }
 | MINUS e = simple

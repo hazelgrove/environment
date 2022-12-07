@@ -317,7 +317,75 @@ let get_cursor_info (tree : Syntax.z_t) : t =
         get_cursor_info_expr ~current_term:e2 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty
           ~index:(index + Expr.size e1 + 1)
-    | EMap_L (e1, e2) ->
+  |EFold_L ( efunc, eaccum, elist) -> 
+      let exp_ty = 
+        match (exp_ty,synthesis typ_ctx eaccum, synthesis typ_ctx elist) with
+        | Hole, Some Hole, Some Hole 
+        | Hole, Some Hole, Some (Type.List Hole) -> Type.Arrow (Hole, Type.Arrow(Hole, Hole))
+        | Hole, Some Hole ,Some (Type.List listtype) -> Type.Arrow (Hole, Type.Arrow(listtype, Hole))
+        | Hole, Some acctype, Some (Type.List Hole) -> Type.Arrow (acctype, Type.Arrow(Hole, acctype))
+        | Hole, Some acctype ,Some (Type.List listtype) -> Type.Arrow (acctype, Type.Arrow(listtype, acctype))
+        | exptype, Some acctype, Some (Type.List listtype) ->
+            if Type.consistent exptype acctype
+            then Type.Arrow (acctype, Type.Arrow(listtype, acctype))
+            else raise (TypeError "Expected type does not match")
+        | _ -> raise (TypeError "Expected a List type")
+      in
+      get_cursor_info_expr ~current_term:efunc ~parent_term:(Some current_term)
+        ~vars ~args ~typ_ctx ~exp_ty
+        ~index:(index + 1)
+|EFold_C (efunc, eaccum, elist) -> 
+      let exp_ty = 
+        match (exp_ty,synthesis typ_ctx efunc, synthesis typ_ctx elist) with
+        | Hole, Some Hole, Some Hole
+        | Hole, Some Hole, Some (Type.List _ ) -> Type.Hole 
+        | Hole, Some Type.Arrow(intype, Type.Arrow(Hole, outtype)), Some (Type.List _ ) -> 
+          if Type.consistent intype outtype  then intype 
+          else raise (TypeError "Function in and outs for fold do not match")
+        | Hole, Some (Type.Arrow (intype, Type.Arrow(listfunctype, outtype))), Some (Type.List listtype ) -> 
+            if (Type.consistent intype outtype) && (Type.consistent listfunctype listtype) 
+              then intype  
+              else raise (TypeError "inconsistent types in fold ")
+        | exptype, Some (Type.Arrow (intype, Type.Arrow(listfunctype, outtype))), Some (Type.List listtype ) ->
+            if (Type.consistent intype outtype) 
+              && (Type.consistent listfunctype listtype)
+              && (Type.consistent exptype intype)
+            then exptype
+            else raise (TypeError "inconsistent types in fold ")
+        | _ -> raise (TypeError "inconsistent types in fold")
+      in
+      get_cursor_info_expr ~current_term:eaccum  ~parent_term:(Some current_term)
+        ~vars ~args ~typ_ctx ~exp_ty
+        ~index:(index + Expr.size efunc + 1)
+  | EFold_R (efunc, eaccum, elist) -> 
+      let exp_ty = 
+        match (exp_ty,synthesis typ_ctx efunc, synthesis typ_ctx eaccum) with
+        | Hole, Some Hole, Some Hole -> Type.Hole
+        | Hole, Some Type.Arrow(intype, Type.Arrow(Hole, outtype)), Some Hole -> 
+          if Type.consistent intype outtype  then Type.List Hole 
+          else raise (TypeError "Function in and outs for fold do not match")
+        | Hole, Some Type.Arrow(intype, Type.Arrow(accumfunctype, outtype)), Some accumtype -> 
+          if (Type.consistent intype outtype) 
+            && (Type.consistent intype accumtype) 
+            && (Type.consistent outtype accumtype) 
+            then Type.List accumfunctype  
+            else raise (TypeError "inconsistent types in fold ")
+        | exptype, Some Type.Arrow(intype, Type.Arrow(accumfunctype, outtype)), Some accumtype -> 
+          if (Type.consistent intype outtype) 
+            && (Type.consistent intype accumtype) 
+            && (Type.consistent outtype accumtype) 
+            (* check all three because consistency isnt necessarily transitive*)
+            && (Type.consistent exptype intype)
+            && (Type.consistent exptype outtype)
+            && (Type.consistent exptype accumtype)
+            then Type.List accumfunctype  
+            else raise (TypeError "inconsistent types in fold ")
+        | _ -> raise (TypeError "inconsistent types in fold")
+      in
+      get_cursor_info_expr ~current_term:elist  ~parent_term:(Some current_term)
+        ~vars ~args ~typ_ctx ~exp_ty
+        ~index:(index + Expr.size efunc + Expr.size eaccum + 1)
+  | EMap_L (e1, e2) ->
         let exp_ty =
           match (exp_ty, synthesis typ_ctx e2) with
           | Hole, Some Hole -> Type.Arrow (Hole, Hole)
@@ -762,7 +830,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
           | EBinOp _ | EFun _ | EFix _ | EPair _ | EMap _ | EFilter _
           | EListEq _ ->
               [ Move (Child 0); Move (Child 1) ]
-          | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ]
+          | EFold _ | EIf _ -> [ Move (Child 0); Move (Child 1); Move (Child 2) ]
           | ELet (_, edef, _) -> (
               match synthesis info.typ_ctx edef with
               | Some Type.Hole -> [ Move (Child 0) ]
@@ -921,6 +989,16 @@ let cursor_info_to_actions (info : t) : Action.t list =
       | Type.Hole -> [ Construct Filter_L; Construct Filter_L ]
       | _ -> []
     in
+    let construct_fold _ =
+      match actual_ty with
+      | Type.Arrow (tin, Type.Arrow(tlist,tout)) ->
+          if (Type.consistent exp_ty tin)  && (Type.consistent exp_ty tout)
+          then [ Construct Fold_L; Construct Fold_C;]
+          else [Construct Fold_C;]
+      | Type.List _ -> [ Construct Fold_C; Construct Fold_R;]
+      | Type.Hole -> [Construct Fold_L; Construct Fold_C; Construct Fold_R ]
+      | _ -> [Construct Fold_C]
+    in
     let construct_var _ =
       let rec construct_var_aux n lst =
         match lst with
@@ -964,6 +1042,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
         | EFilter (e1, e2)
         | EListEq (e1, e2) ->
             check_var e1 x || check_var e2 x
+        | EFold (e1,e2, e3)
         | EIf (e1, e2, e3) -> check_var e1 x || check_var e2 x || check_var e3 x
         | EMatch (e, (p1, e1), (p2, e2)) ->
             check_var e x || check_var e1 x || check_var e2 x
@@ -984,6 +1063,15 @@ let cursor_info_to_actions (info : t) : Action.t list =
                   then [ Unwrap 1 ]
                   else []
               | _ -> [])
+          | EFold (e1, e2, e3) -> 
+            if analysis info.typ_ctx e1 exp_ty
+            then 
+              if analysis info.typ_ctx e3 exp_ty
+              then [ Unwrap 0; Unwrap 1; Unwrap 3;]
+              else 
+                [ Unwrap 0; Unwrap 1]
+            else 
+              [Unwrap 1]
           | EBinOp (e1, _, e2) | EPair (e1, e2) ->
               let t1 =
                 match Typing.synthesis info.typ_ctx e1 with
@@ -1149,6 +1237,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_filter ();
           construct_let ();
           construct_if ();
+          construct_fold();
           construct_fun_fix ();
           construct_pair ();
           construct_var ();
@@ -1162,6 +1251,7 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_binop ();
           construct_let ();
           construct_if ();
+          construct_fold();
           construct_fun_fix ();
           construct_pair ();
           construct_var ();
@@ -1176,11 +1266,12 @@ let cursor_info_to_actions (info : t) : Action.t list =
           construct_pair ();
           construct_filter ();
           construct_if ();
+          construct_fold();
           construct_fun_fix ();
           construct_pair ();
           construct_filter ();
-          construct_map ();
-          construct_var ();
+          construct_map ();  
+          construct_var ();  
           construct_match ();
           handle_unwrap ();
         ]
