@@ -73,19 +73,6 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
               if index = -1
               then (Expr.zip_migrate e (EIf_R (econd, ethen, zast3)), -1)
               else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
-      | EFold (econd, ethen, eelse) ->
-          let zast1, index = select_root_index_aux econd (index - 1) in
-          if index = -1
-          then (Expr.zip_migrate e (EFold_L (zast1, ethen, eelse)), -1)
-          else
-            let zast2, index = select_root_index_aux ethen index in
-            if index = -1
-            then (Expr.zip_migrate e (EFold_C (econd, zast2, eelse)), -1)
-            else
-              let zast3, index = select_root_index_aux eelse index in
-              if index = -1
-              then (Expr.zip_migrate e (EFold_R (econd, ethen, zast3)), -1)
-              else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
       | EFun (x, ty, ebody) ->
           (* Forbid entering type subtree *)
           let t_size = Type.size ty in
@@ -143,6 +130,19 @@ let select_root_index (e : Expr.t) (index : int) : Expr.z_t =
             if index = -1
             then (Expr.zip_migrate e (EListEq_R (e1, zast2)), -1)
             else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
+      | EFold (efunc, eacc, elist) ->
+          let zast1, index = select_root_index_aux efunc (index - 1) in
+          if index = -1
+          then (Expr.zip_migrate e (EFold_L (zast1, eacc, elist)), -1)
+          else
+            let zast2, index = select_root_index_aux eacc index in
+            if index = -1
+            then (Expr.zip_migrate e (EFold_C (efunc, zast2, elist)), -1)
+            else
+              let zast3, index = select_root_index_aux elist index in
+              if index = -1
+              then (Expr.zip_migrate e (EFold_R (efunc, eacc, zast3)), -1)
+              else (Expr.make_dummy_z_node (Expr.Cursor EHole), index)
       | EMatch (e, (p1, e1), (p2, e2)) ->
           let zast1, index = select_root_index_aux e (index - 1) in
           if index = -1

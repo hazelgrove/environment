@@ -78,7 +78,9 @@ let get_cursor_info_c (ser_zast : string) : int =
   let zast = Utils.deserialize ser_zast in
   let cursorInfo = CursorInfo.get_cursor_info (Syntax.ZENode zast) in
   let actions =
-    (Agent.check_actions ActionConv.action_list zast) |> ActionConv.to_list |> List.map (fun b -> if b then 1 else 0)
+    Agent.check_actions ActionConv.action_list zast
+    |> ActionConv.to_list
+    |> List.map (fun b -> if b then 1 else 0)
   in
   let vars_in_scope =
     List.filter_map
@@ -105,7 +107,7 @@ let run_private_tests_c (root : int) : bool =
   let nodes = array1_to_list (get_nodes ()) in
   let edges = edge_to_list (get_edges ()) in
   let e = ExprConv.from_list ~nodes ~edges ~root in
-  Evaluator.run_unit_tests_private tests e
+  Evaluator.run_unit_tests_private tests e && Evaluator.check_holes e
 
 (* load_assignment function that will be called by C *)
 let load_tests_c (directory : string) (assignment : int) : unit =

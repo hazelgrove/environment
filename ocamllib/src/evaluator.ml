@@ -23,7 +23,6 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
   | UnOp (op, e) -> UnOp (op, subx e)
   | BinOp (e_l, op, e_r) -> BinOp (subx e_l, op, subx e_r)
   | If (e_cond, e_then, e_else) -> If (subx e_cond, subx e_then, subx e_else)
-  | Fold (efunc, eacc, elist) -> If (subx efunc, subx eacc, subx elist)
   | Fun (y, ty, e_body) -> Fun (y, ty, subx_unless (Var.equal x y) e_body)
   | Let (y, e_def, e_body) ->
       Let (y, subx e_def, subx_unless (Var.equal x y) e_body)
@@ -31,6 +30,7 @@ let rec subst (e1 : Expr.p_t) (x : Var.t) (e2 : Expr.p_t) : Expr.p_t =
   | Pair (e_l, e_r) -> Pair (subx e_l, subx e_r)
   | Map (func, e_list) -> Map (subx func, subx e_list)
   | Filter (func, e_list) -> Filter (subx func, subx e_list)
+  | Fold (efunc, eacc, elist) -> Fold (subx efunc, subx eacc, subx elist)
   | ListEq (e_l, e_r) -> ListEq (subx e_l, subx e_r)
   | Assert e -> Assert (subx e)
   | Match (e, (p1, e1), (p2, e2)) ->
@@ -158,14 +158,19 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
             | _ -> raise (RuntimeError "Expected Bool"))
         | _ -> raise (RuntimeError "Expected list or nil"))
     | Fold (func, acc, e_list) -> (
-      match eval e_list stack with
-      | VConst Nil -> (eval acc (stack -1 ) )(* base case *)
-      | VCons (head, tail) -> 
-        let curried_head = Expr.from_val(eval (BinOp (func, OpAp, acc)) (stack - 1)) in 
-        let folded_head = eval (BinOp (curried_head, OpAp, (Expr.from_val head))) (stack - 1) in 
-        eval (Fold(func, Expr.from_val folded_head, Expr.from_val tail)) (stack - 1)
-      | _ -> raise (RuntimeError "Expected list or nil")
-      )
+        match eval e_list stack with
+        | VConst Nil -> eval acc (stack - 1) (* base case *)
+        | VCons (head, tail) ->
+            let curried_head =
+              Expr.from_val (eval (BinOp (func, OpAp, acc)) (stack - 1))
+            in
+            let folded_head =
+              eval (BinOp (curried_head, OpAp, Expr.from_val head)) (stack - 1)
+            in
+            eval
+              (Fold (func, Expr.from_val folded_head, Expr.from_val tail))
+              (stack - 1)
+        | _ -> raise (RuntimeError "Expected list or nil"))
     | ListEq (e1, e2) -> (
         match (eval e1 stack, eval e2 stack) with
         | VConst Nil, VConst Nil -> VConst (Bool true)
@@ -283,13 +288,16 @@ let%test_module "Test eval" =
             VCons
               ( VConst (Int 4),
                 VCons (VConst (Int 6), VCons (VConst (Int 8), VConst Nil)) ) )
+
     (* fold  base case *)
     let%test _ =
-    eval_string "fold (fun x1 -> fun x2 -> x1 + x2 ) (1) ( []) "
-    = VConst (Int 1)
+      eval_string "fold (fun x1 -> fun x2 -> x1 + x2 ) (1) ( []) "
+      = VConst (Int 1)
+
     (* test that order and evaluation is correct*)
     let%test _ =
-      eval_string "fold (fun x1 -> fun x2 -> x1 * x1 + x2 ) (0) (1 :: 2 ::3 :: 4 ::[]) "
+      eval_string
+        "fold (fun x1 -> fun x2 -> x1 * x1 + x2 ) (0) (1 :: 2 ::3 :: 4 ::[]) "
       = VConst (Int 148)
 
     let%test _ =
@@ -298,43 +306,20 @@ let%test_module "Test eval" =
       = VCons (VConst (Int 3), VCons (VConst (Int 1), VConst Nil))
   end)
 
-(*
-   Given a unit test set and AST, check if AST passes tests
-   Input:
-     - test_set : a list of tests of testType with inputs and their corresponding output
-     - code : the code to be evaluated upon
-   Output:
-     true, if code passes all tests
-     false, otherwise
-*)
-(* let rec run_unit_tests (test_set : (int * int) list) (code : Expr.t) : bool =
-   let run_test (test : int * int) (code : Expr.t) : bool =
-     (* Assume code is a function in an ELet (_, EFun/EFix (_ , _), EHole) *)
-     match code.node with
-     | ELet (id, f, _) -> (
-         match f.node with
-         | EFun _ | EFix _ -> (
-             let test_input, test_output = test in
-             let output =
-               try
-                 eval
-                   (Expr.Let
-                      ( id,
-                        Expr.strip f,
-                        BinOp (Var id, Expr.OpAp, IntLit test_input) ))
-                   100
-               with _ -> VError
-             in
-             match output with
-             | VInt n -> n = test_output
-             | VError -> false
-             | _ -> false)
-         | _ -> false)
-     | _ -> false
-   in
-   match test_set with
-   | [] -> true
-   | hd :: tl -> if run_test hd code then run_unit_tests tl code else false *)
+let rec check_holes (e : Expr.t) : bool =
+  match e.node with
+  | EHole -> false
+  | EConst _ | EVar _ -> true
+  | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e -> check_holes e
+  | EBinOp (e1, _, e2)
+  | ELet (_, e1, e2)
+  | EPair (e1, e2)
+  | EMap (e1, e2)
+  | EFilter (e1, e2)
+  | EListEq (e1, e2) ->
+      check_holes e1 && check_holes e2
+  | EIf (e1, e2, e3) | EFold (e1, e2, e3) | EMatch (e1, (_, e2), (_, e3)) ->
+      check_holes e1 && check_holes e2 && check_holes e3
 
 let rec run_unit_tests_private (test_set : (int * int) list) (code : Expr.t) :
     bool =

@@ -157,7 +157,7 @@ class Trainer:
 
                 if render:
                     print(f"Action: {action}")
-                    # breakpoint()
+                    breakpoint()
                 obs, reward, done, infos = envs.step(action.reshape((-1,)))
 
                 if render:
@@ -165,7 +165,7 @@ class Trainer:
                     print()
 
                     if done[0]:
-
+                        print(f"Reward: {reward}")
                         print("---------------Environment reset---------------")
 
                 for info in infos:
