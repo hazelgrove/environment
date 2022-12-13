@@ -1,0 +1,4 @@
+let f (x1 : int list) = 
+    fold (fun x2 -> fun x3 -> x2 * x3) 1 x1
+in
+assert ((f [] = 1) && (f (-1 :: []) = -1) && (f (-2 :: 2 :: []) = (-2 * 2)))

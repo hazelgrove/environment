@@ -12,9 +12,6 @@ from agent.policy import GNNPolicy
 def main(log_name, run_id):
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     params = get_load_params(run_id, logger)
-    # Account for changes in logging
-    # params["base"]["num_assignments"] = 1
-
     path = os.path.join("save", log_name, str(run_id) + ".pt")
 
     torch.manual_seed(params["seed"])

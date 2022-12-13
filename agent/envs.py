@@ -129,10 +129,10 @@ class PLEnv(Env):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
-                max_num_nodes=100,
+                max_num_nodes=200,
                 num_node_descriptor=55,
-                num_assignments=1,
-                code_per_assignment=[1],
+                num_assignments=10,
+                code_per_assignment=[3,1,3,3,1,1,3,1,3,2],
                 num_actions=77,
                 perturbation=perturbation,
                 seed=seed,

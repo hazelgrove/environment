@@ -12,26 +12,32 @@ let starter_func : t = 0
 let undef_var : t = -1
 let num_special_vars = 1
 
-let get_new_var _ : t =
-  let new_var =
-    let rec find n =
-      if n < max_num_vars
-      then if used_vars.(n) then find (n + 1) else n
-      else raise (Failure "No free variables")
-    in
-    find 0
+let next_var _ : t = 
+  let rec find n =
+    if n < max_num_vars
+    then if used_vars.(n) then find (n + 1) else n
+    else raise (Failure "No free variables")
   in
+  find 0
+
+let get_new_var _ : t =
+  let new_var = next_var () in
   used_vars.(new_var) <- true;
   num_vars := !num_vars + 1;
   new_var
 
 let free_var (x : t) : unit =
-  used_vars.(x) <- false;
-  num_vars := !num_vars - 1
+  if used_vars.(x) then
+    (used_vars.(x) <- false;
+    num_vars := !num_vars - 1)
+  else ()
 
 let reset _ : unit =
   num_vars := 0;
   Array.fill used_vars 0 max_num_vars false
+
+let copy_vars (v : bool Array.t) : unit = 
+  Array.blit v 0 used_vars 0 max_num_vars
 
 (* Check if two variable identifiers are equal *)
 let equal (x1 : t) (x2 : t) : bool = x1 = x2

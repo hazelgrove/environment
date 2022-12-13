@@ -18,7 +18,7 @@ import gym
 
 def main():
     env = ASTEnv(
-                max_num_nodes=100,
+                max_num_nodes=200,
                 num_node_descriptor=50,
                 num_assignments=2,
                 code_per_assignment=[1, 1],

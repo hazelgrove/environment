@@ -11,12 +11,12 @@ save_interval: 100
 num_env_steps: 1.0e+7
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 3
-  perturbation: 3
-  assignment_dir: data/unit_tests/fold
+  max_episode_steps: 10
+  perturbation: 10
+  assignment_dir: data/tests
   cursor_start_pos: null
 base: 
-  num_assignments: 1
+  num_assignments: 10
   hidden_size: 32
   gnn_layer_size: [128, 64, 64]
   heads: [8, 8, 16, 1]

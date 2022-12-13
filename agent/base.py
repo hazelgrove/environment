@@ -321,6 +321,7 @@ class GNNBase(NNBase):
 
         # Append assignment index to node and edge embeddings
         if self.assignment_aggr is not None:
+            breakpoint()
             if self.assignment_aggr == "add":
                 x += assignment
                 edge_attr += assignment

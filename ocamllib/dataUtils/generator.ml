@@ -43,14 +43,30 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
         match (p1, p2) with Wild, Wild -> 0 | Wild, _ | _, Wild -> 1 | _ -> 2)
   in
   let check_child (e : Expr.t) (n : int) : bool =
+    let rec check_var (e : Expr.p_t) (x : Var.t) : bool =
+        match e with
+        | Var v -> not (Var.equal x v)
+        | Hole | Const _ -> true
+        | UnOp (_, e) | Fun (_, _, e) | Fix (_, _, e) | Assert e -> check_var e x
+        | BinOp (e1, _, e2)
+        | Pair (e1, e2)
+        | Let (_, e1, e2)
+        | Map (e1, e2)
+        | Filter (e1, e2)
+        | ListEq (e1, e2) ->
+            check_var e1 x && check_var e2 x
+        | Fold (e1, e2, e3) | If (e1, e2, e3) ->
+            check_var e1 x && check_var e2 x && check_var e3 x
+        | Match (e, (p1, e1), (p2, e2)) ->
+            check_var e x && check_var e1 x && check_var e2 x
+    in
     let e = Expr.strip e in
     match e with
     | Const _ | Hole | Var _ -> false (* Impossible to do unwrap on these *)
-    | UnOp _ | Fun _ | Fix _ | Assert _ ->
+    | UnOp _ | Assert _ ->
         n = 1 (* No subtree to erase if we dont consider types *)
     | BinOp (e1, _, e2)
     | Pair (e1, e2)
-    | Let (_, e1, e2)
     | Map (e1, e2)
     | Filter (e1, e2)
     | ListEq (e1, e2) -> (
@@ -67,9 +83,16 @@ let rec generate (e : Expr.z_t) (n : int) : Expr.z_t =
     | Match (e, (p1, e1), (p2, e2)) -> (
         match n with
         | 0 -> ( match (e1, e2) with Hole, Hole -> true | _ -> false)
-        | 1 -> ( match (e, e2) with Hole, Hole -> true | _ -> false)
-        | 2 -> ( match (e, e1) with Hole, Hole -> true | _ -> false)
+        | 1 -> ( match (e, e2) with Hole, Hole -> (match p1 with | Var x -> check_var e1 x | _ -> true) | _ -> false)
+        | 2 -> ( match (e, e1) with Hole, Hole -> (match p2 with | Var x -> check_var e2 x | _ -> true) | _ -> false)
         | _ -> false)
+    | Fun (x, _, e) | Fix (x, _, e) -> check_var e x
+    | Let (x, e1, e2) ->
+        (match n with
+        | 0 -> ( match e2 with Hole -> true | _ -> false)
+        | 1 -> ( match e1 with Hole -> check_var e2 x | _ -> false)
+        | _ -> false
+        )
   in
   let check_child_pattern (p : Pattern.t) (n : int) : bool =
     let p = Pattern.strip p in
