@@ -258,8 +258,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EListEq (e1, e2) ->
           free_vars e1;
           free_vars e2
-      | EFold (e1, e2, e3)
-      | EIf (e1, e2, e3) ->
+      | EFold (e1, e2, e3) | EIf (e1, e2, e3) ->
           free_vars e1;
           free_vars e2;
           free_vars e3
@@ -407,7 +406,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 0, EMatch (arg_l, (p1, e1), (p2, e2)) ->
         EMatch_L (Expr.select_root arg_l, (p1, e1), (p2, e2))
     | 0, EAssert arg -> EAssert_L (Expr.select_root arg)
-    | 0, EFold (e1, e2, e3) -> EFold_L(Expr.select_root e1, e2, e3)
+    | 0, EFold (e1, e2, e3) -> EFold_L (Expr.select_root e1, e2, e3)
     | 1, EBinOp (arg_l, op, arg_r) ->
         EBinOp_R (arg_l, op, Expr.select_root arg_r)
     | 1, ELet (varn, arg_l, arg_r) ->
@@ -417,7 +416,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
     | 1, EPair (arg_l, arg_r) -> EPair_R (arg_l, Expr.select_root arg_r)
     | 1, EMap (arg_l, arg_r) -> EMap_R (arg_l, Expr.select_root arg_r)
     | 1, EFilter (arg_l, arg_r) -> EFilter_R (arg_l, Expr.select_root arg_r)
-    | 1, EFold (e1,e2, e3 ) -> EFold_C( e1, Expr.select_root e2, e3)
+    | 1, EFold (e1, e2, e3) -> EFold_C (e1, Expr.select_root e2, e3)
     | 1, EFun (varname, typ, arg_l) ->
         EFun_R (varname, typ, Expr.select_root arg_l)
     | 1, EFix (varname, typ, arg_l) ->
@@ -426,7 +425,7 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
         EMatch_P1 (arg_l, (Pattern.select_root p1, e1), (p2, e2))
     | 2, EIf (arg_l, arg_c, arg_r) ->
         EIf_R (arg_l, arg_c, Expr.select_root arg_r)
-    | 2, EFold (e1,e2, e3 ) -> EFold_R( e1,e2, Expr.select_root e3)
+    | 2, EFold (e1, e2, e3) -> EFold_R (e1, e2, Expr.select_root e3)
     | 2, EMatch (arg_l, (p1, e1), (p2, e2)) ->
         EMatch_E1 (arg_l, (p1, Expr.select_root e1), (p2, e2))
     | 3, EMatch (arg_l, (p1, e1), (p2, e2)) ->
@@ -568,21 +567,21 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
       | EIf_R (l, c, r) -> EIf_R (l, c, move_parent r)
       (* working on Fold*)
       | EFold_L (({ node = Cursor arg; _ } as subtr), c, r) ->
-        if tree.starter
-        then raise (InvalidAction (ActionConv.action_to_tag action))
-        else Cursor (EFold ({ (Expr.unzip subtr) with node = arg }, c, r))
-    | EFold_L (l, c, r) -> EFold_L (move_parent l, c, r)
-    | EFold_C (l, ({ node = Cursor arg; _ } as subtr), r) ->
-        if tree.starter
-        then raise (InvalidAction (ActionConv.action_to_tag action))
-        else Cursor (EFold (l, { (Expr.unzip subtr) with node = arg }, r))
-    | EFold_C (l, c, r) -> EFold_C (l, move_parent c, r)
-    | EFold_R (l, c, ({ node = Cursor arg; _ } as subtr)) ->
-        if tree.starter
-        then raise (InvalidAction (ActionConv.action_to_tag action))
-        else Cursor (EFold (l, c, { (Expr.unzip subtr) with node = arg }))
-    | EFold_R (l, c, r) -> EFold_R (l, c, move_parent r)
-    (* done working on fold*)
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EFold ({ (Expr.unzip subtr) with node = arg }, c, r))
+      | EFold_L (l, c, r) -> EFold_L (move_parent l, c, r)
+      | EFold_C (l, ({ node = Cursor arg; _ } as subtr), r) ->
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EFold (l, { (Expr.unzip subtr) with node = arg }, r))
+      | EFold_C (l, c, r) -> EFold_C (l, move_parent c, r)
+      | EFold_R (l, c, ({ node = Cursor arg; _ } as subtr)) ->
+          if tree.starter
+          then raise (InvalidAction (ActionConv.action_to_tag action))
+          else Cursor (EFold (l, c, { (Expr.unzip subtr) with node = arg }))
+      | EFold_R (l, c, r) -> EFold_R (l, c, move_parent r)
+      (* done working on fold*)
       | EFun_L (var, ({ node = Cursor arg; _ } as subtr), ebody) ->
           if tree.starter
           then raise (InvalidAction (ActionConv.action_to_tag action))
@@ -659,21 +658,22 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
   in
   let rec unwrap (tree : Expr.z_t) (n : int) : Expr.z_t =
     let rec check_var (e : Expr.t) (x : Var.t) : bool =
-        match e.node with
-        | EVar v -> not (Var.equal x v)
-        | EHole | EConst _ -> true
-        | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e -> check_var e x
-        | EBinOp (e1, _, e2)
-        | EPair (e1, e2)
-        | ELet (_, e1, e2)
-        | EMap (e1, e2)
-        | EFilter (e1, e2)
-        | EListEq (e1, e2) ->
-            check_var e1 x && check_var e2 x
-        | EFold (e1, e2, e3) | EIf (e1, e2, e3) ->
-            check_var e1 x && check_var e2 x && check_var e3 x
-        | EMatch (e, (p1, e1), (p2, e2)) ->
-            check_var e x && check_var e1 x && check_var e2 x
+      match e.node with
+      | EVar v -> not (Var.equal x v)
+      | EHole | EConst _ -> true
+      | EUnOp (_, e) | EFun (_, _, e) | EFix (_, _, e) | EAssert e ->
+          check_var e x
+      | EBinOp (e1, _, e2)
+      | EPair (e1, e2)
+      | ELet (_, e1, e2)
+      | EMap (e1, e2)
+      | EFilter (e1, e2)
+      | EListEq (e1, e2) ->
+          check_var e1 x && check_var e2 x
+      | EFold (e1, e2, e3) | EIf (e1, e2, e3) ->
+          check_var e1 x && check_var e2 x && check_var e3 x
+      | EMatch (e, (p1, e1), (p2, e2)) ->
+          check_var e x && check_var e1 x && check_var e2 x
     in
     match tree.node with
     | Cursor e ->
@@ -683,35 +683,45 @@ let perform_action (tree : Expr.z_t) (action : Action.t) : Expr.z_t =
           | 0, EBinOp (e, _, _) -> e
           | 1, EBinOp (_, _, e) -> e
           | 0, ELet (_, e, _) -> e
-          | 1, ELet (x, _, e) -> 
-            if check_var e x then e else raise (InvalidAction (ActionConv.action_to_tag action))
+          | 1, ELet (x, _, e) ->
+              if check_var e x
+              then e
+              else raise (InvalidAction (ActionConv.action_to_tag action))
           | 0, EIf (e, _, _) -> e
           | 1, EIf (_, e, _) -> e
           | 2, EIf (_, _, e) -> e
-          | 1, EFun (x, _, e) -> 
-            if check_var e x then e else raise (InvalidAction (ActionConv.action_to_tag action))
-          | 1, EFix (x, _, e) -> 
-            if check_var e x then e else raise (InvalidAction (ActionConv.action_to_tag action))
+          | 1, EFun (x, _, e) ->
+              if check_var e x
+              then e
+              else raise (InvalidAction (ActionConv.action_to_tag action))
+          | 1, EFix (x, _, e) ->
+              if check_var e x
+              then e
+              else raise (InvalidAction (ActionConv.action_to_tag action))
           | 0, EPair (e, _) -> e
           | 1, EPair (_, e) -> e
           | 0, EMap (e, _) -> e
           | 1, EMap (_, e) -> e
-          | 0, EFold (e,_,_) -> e
-          | 1, EFold (_,e,_) -> e
-          | 2, EFold (_,_,e) -> e
+          | 0, EFold (e, _, _) -> e
+          | 1, EFold (_, e, _) -> e
+          | 2, EFold (_, _, e) -> e
           | 0, EFilter (e, _) -> e
           | 1, EFilter (_, e) -> e
           | 0, EMatch (e, _, _) -> e
-          | 1, EMatch (_, (p, e), _) -> 
-            begin match p.node with
-            | PVar x -> if check_var e x then e else raise (InvalidAction (ActionConv.action_to_tag action))
-            | _ -> e
-            end
-          | 2, EMatch (_, (_, _), (p, e)) -> 
-            begin match p.node with
-            | PVar x -> if check_var e x then e else raise (InvalidAction (ActionConv.action_to_tag action))
-            | _ -> e
-            end
+          | 1, EMatch (_, (p, e), _) -> (
+              match p.node with
+              | PVar x ->
+                  if check_var e x
+                  then e
+                  else raise (InvalidAction (ActionConv.action_to_tag action))
+              | _ -> e)
+          | 2, EMatch (_, (_, _), (p, e)) -> (
+              match p.node with
+              | PVar x ->
+                  if check_var e x
+                  then e
+                  else raise (InvalidAction (ActionConv.action_to_tag action))
+              | _ -> e)
           | 0, EAssert e -> e
           | _ -> raise (InvalidAction (ActionConv.action_to_tag action))
         in

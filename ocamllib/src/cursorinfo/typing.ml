@@ -294,7 +294,8 @@ and analysis (context : Context.t) (e : Expr.t) (targ : Type.p_t) : bool =
       | _ -> false)
   | EFold (func, acc, list) -> (
       match (targ, synthesis context func) with
-      | Hole, Some Hole -> analysis context acc Hole && analysis context list (List Hole)
+      | Hole, Some Hole ->
+          analysis context acc Hole && analysis context list (List Hole)
       | Hole, Some (Arrow (intype, Hole)) ->
           analysis context acc intype && analysis context list (List Hole)
       | Hole, Some (Type.Arrow (intype, Type.Arrow (functype, outtype))) -> (

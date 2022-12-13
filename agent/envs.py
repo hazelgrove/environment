@@ -132,7 +132,7 @@ class PLEnv(Env):
                 max_num_nodes=200,
                 num_node_descriptor=55,
                 num_assignments=10,
-                code_per_assignment=[3,1,3,3,1,1,3,1,3,2],
+                code_per_assignment=[3, 1, 3, 3, 1, 1, 3, 1, 3, 2],
                 num_actions=77,
                 perturbation=perturbation,
                 seed=seed,
