@@ -27,7 +27,7 @@ class ASTEnv(gym.Env):
         max_num_vars: int = 11,
         seed: int = 0,
         cursor_start_pos: Optional[int] = None,
-        curriculum: Optional[List[int]] = None,
+        curriculum: Optional[Union[List[int], int]] = None,
         curriculum_threshold: Optional[int] = None,
     ):
         super(ASTEnv, self).__init__()
@@ -89,7 +89,7 @@ class ASTEnv(gym.Env):
 
         self.code_per_assignment = code_per_assignment
         self.assignment_dir = assignment_dir
-        self.cursor_start_pos = -1 if cursor_start_pos is None else cursor_start_pos
+        self.cursor_start_pos = cursor_start_pos
         self.curriculum = curriculum
         self.curriculum_threshold = curriculum_threshold
         if self.curriculum is not None and self.curriculum_threshold is None:
@@ -121,15 +121,26 @@ class ASTEnv(gym.Env):
         code = random.randint(0, self.code_per_assignment[assignment] - 1)
 
         self.state = State()
-        self.astclib.init_assignment(
-            ctypes.byref(self.state),
-            bytes(self.assignment_dir, encoding="utf8"),
-            ctypes.c_int(assignment),
-            ctypes.c_int(code),
-            ctypes.c_int(self.perturbation),
-            ctypes.c_int(self.cursor_start_pos),
-        )
-
+        
+        if self.cursor_start_pos is None:
+            self.astclib.init_assignment(
+                ctypes.byref(self.state),
+                bytes(self.assignment_dir, encoding="utf8"),
+                ctypes.c_int(assignment),
+                ctypes.c_int(code),
+                ctypes.c_int(self.perturbation),
+                ctypes.c_int(-1),
+            )
+        else:
+            self.astclib.init_assignment(
+                ctypes.byref(self.state),
+                bytes(self.assignment_dir, encoding="utf8"),
+                ctypes.c_int(assignment),
+                ctypes.c_int(code),
+                ctypes.c_int(self.perturbation),
+                ctypes.c_int(self.cursor_start_pos[assignment]),
+            )
+        
         return self.get_state()
 
     def render(self, mode=None) -> None:

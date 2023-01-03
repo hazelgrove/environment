@@ -116,6 +116,9 @@ let node_list =
     EConst (Int 0);
     EConst (Int 1);
     EConst (Int 2);
+    EConst (Int 3);
+    EConst (Int 4);
+    EConst (Int 5);
   ]
   @ List.init Var.max_num_vars (fun i -> EVar i)
 
@@ -146,7 +149,7 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
 let node_to_tag (e : t) : int =
   let rec find_node x lst c =
     match lst with
-    | [] -> raise (Failure "Invalid node")
+    | [] -> raise (Failure ("Invalid node " ^ (e |> Expr.strip |> to_string)))
     | hd :: tl -> if node_list_equal x hd then c else find_node x tl (c + 1)
   in
   find_node e.node node_list (PatternConv.num_nodes + TypeConv.num_nodes)

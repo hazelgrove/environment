@@ -11,26 +11,29 @@ def get_charts():
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "description": "Mean Episode Reward Over Update",
         "data": {"data": "data", "values": []},
-        "mark": "line",
-        "encoding": {
-            "x": {
-                "field": "update",
-                "type": "quantitative",
-                "title": "Update Number",
-                "axis": {
-                    "titleFontSize": 18,
-                    "labelFontSize": 14,
+        "repeat": {
+            "layer": ["eval_reward", "mean_episode_rewards"]
+        },
+        "spec": {
+            "mark": "line",
+            "encoding": {
+                "x": {
+                    "axis": {"labelFontSize": 14, "titleFontSize": 18},
+                    "field": "update",
+                    "type": "quantitative",
+                    "title": "Update Number"
                 },
-            },
-            "y": {
-                "field": "mean_episode_rewards",
-                "type": "quantitative",
-                "title": "Mean Episode Reward",
-                "axis": {
-                    "titleFontSize": 18,
-                    "labelFontSize": 14,
+                "y": {
+                    "axis": {"labelFontSize": 14, "titleFontSize": 18},
+                    "field": {"repeat": "layer"},
+                    "type": "quantitative",
+                    "title": "Reward"
                 },
-            },
+                "color": {
+                    "datum": {"repeat": "layer"},
+                    "type": "nominal"
+                }
+            }
         },
         "width": 600,
         "height": 600,

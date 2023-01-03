@@ -13,7 +13,13 @@ def main(log_name, run_id):
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     params = get_load_params(run_id, logger)
     # Account for changes in logging
-    # params["base"]["num_assignments"] = 1
+    # params["env"]["cursor_start_pos"] = [6, 6]
+    # params["env"]["perturbation"] = 0
+    # params["env"]["max_episode_steps"] = 2
+    # params["env"]["assignment_dir"] = "data/tests"
+    
+    params["base"]["num_assignments"] = params["env"]["num_assignments"]
+
 
     path = os.path.join("save", log_name, str(run_id) + ".pt")
 
@@ -55,7 +61,7 @@ def main(log_name, run_id):
                 None,
             )
         print(f"Action: {action}")
-        # breakpoint()
+        breakpoint()
         obs, reward, done, info = env.step(action.reshape((-1,)))
 
         if done[0]:

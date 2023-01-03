@@ -16,6 +16,9 @@ let action_list =
     Construct (Const (Int 0));
     Construct (Const (Int 1));
     Construct (Const (Int 2));
+    Construct (Const (Int 3));
+    Construct (Const (Int 4));
+    Construct (Const (Int 5));
     Construct (Const (Bool true));
     Construct (Const (Bool false));
     Construct (UnOp OpNeg);

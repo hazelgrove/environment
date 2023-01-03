@@ -269,7 +269,7 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           match exp_ty with
           | Type.Prod (t1, t2) -> t1
           | Type.Hole -> Type.Hole
-          | _ -> raise (TypeError "Expected a product type")
+          | _ -> raise (TypeError ("Expected a product type, but got " ^ (match tree with | ZENode e -> e |> Expr.unzip |> Expr.strip |> ExprConv.to_string | _ -> raise (Failure ""))))
         in
         get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)

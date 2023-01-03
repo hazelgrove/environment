@@ -44,23 +44,23 @@ class Trainer:
     @staticmethod
     def evaluate(
         actor_critic,
-        obs_rms,
+        logger,
         env_name,
         seed,
         num_processes,
-        eval_log_dir,
         device,
+        update,
         max_episode_steps,
+        eval_kwargs,
     ):
         Evaluator.evaluate(
             actor_critic,
-            obs_rms,
             env_name,
             seed,
             num_processes,
-            eval_log_dir,
             device,
             max_episode_steps,
+            eval_kwargs,
         )
 
     @staticmethod
@@ -87,6 +87,8 @@ class Trainer:
         # Only use one process if we are rendering
         if render:
             params["num_processes"] = 1
+        
+        params["base"]["num_assignments"] = params["env"]["num_assignments"]
 
         torch.manual_seed(params["seed"])
         torch.cuda.manual_seed_all(params["seed"])
@@ -257,6 +259,36 @@ class Trainer:
                     )
                 )
 
+            if (
+                params["eval_interval"] > 0
+                and len(episode_rewards) > 1
+                and j % params["eval_interval"] == 0
+            ):
+                # obs_rms = utils.get_vec_normalize(envs).obs_rms
+                eval_reward = cls.evaluate(
+                    actor_critic,
+                    # obs_rms,
+                    params["env_name"],
+                    params["seed"],
+                    params["num_processes"],
+                    device,
+                    params["env"]["max_episode_steps"],
+                    params["eval"],
+                )
+            
+                if logger is not None:
+                    logger.log(
+                        update=j,
+                        mean_episode_rewards=mean_episode_reward,
+                        eval_reward=eval_reward,
+                        fps=fps,
+                        episode_timesteps=total_num_steps,
+                        gradient_norm=grad_norm,
+                        policy_loss=action_loss,
+                        value_loss=value_loss,
+                        policy_entropy=dist_entropy,
+                    )    
+            else:
                 if logger is not None:
                     logger.log(
                         update=j,
@@ -268,22 +300,7 @@ class Trainer:
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
                     )
-
-            if (
-                params["eval"]
-                and len(episode_rewards) > 1
-                and j % args.eval_interval == 0
-            ):
-                obs_rms = utils.get_vec_normalize(envs).obs_rms
-                cls.evaluate(
-                    actor_critic,
-                    obs_rms,
-                    params["env_name"],
-                    params["seed"],
-                    params["num_processes"],
-                    device,
-                    params["max_episode_steps"],
-                )
+            
 
 
 class GNNTrainer(Trainer):
@@ -312,21 +329,21 @@ class GNNTrainer(Trainer):
     @staticmethod
     def evaluate(
         actor_critic,
-        obs_rms,
         env_name,
         seed,
         num_processes,
         device,
         max_episode_steps,
+        eval_kwargs,
     ):
-        PLEvaluator.evaluate(
+        return PLEvaluator.evaluate(
             actor_critic,
-            obs_rms,
             env_name,
             seed,
             num_processes,
             device,
             max_episode_steps,
+            eval_kwargs,
         )
 
     @staticmethod

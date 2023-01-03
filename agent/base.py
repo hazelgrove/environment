@@ -187,9 +187,9 @@ class GNNBase(NNBase):
         hidden_size: int = 32,
         gnn_layer_size: List[int] = [128, 64, 64],
         heads: List[int] = [8, 8, 16, 1],
-        num_node_descriptor: int = 55,
+        num_node_descriptor: int = 58,
         num_edge_descriptor: int = 6,
-        num_assignments: int = 1,
+        num_assignments: int = 2,
         embedding_dim: int = 512,
         assignment_aggr: Optional[str] = None,
         max_num_vars: int = 11,
@@ -207,11 +207,11 @@ class GNNBase(NNBase):
         self.device = device
 
         # Check lengths for GNN hyperparameters
-        if len(gnn_layer_size) != 3:
-            raise ValueError("GNN layer size must be a list of length 3")
-        if len(heads) != 4:
-            raise ValueError("Heads must be a list of length 4")
-
+        # if len(gnn_layer_size) != 4:
+        #     raise ValueError("GNN layer size must be a list of length 5")
+        # if len(heads) != 5:
+        #     raise ValueError("Heads must be a list of length 6")
+        
         self.main = gnn.Sequential(
             "x, edge_index, edge_feature",
             [
@@ -253,13 +253,39 @@ class GNNBase(NNBase):
                     "x, edge_index, edge_feature -> x",
                 ),
                 nn.ELU(),
+                nn.Dropout(p=0.4),
                 (
                     gnn.GeneralConv(
                         self.gnn_layer_size[2],
-                        self.hidden_size,
+                        self.gnn_layer_size[3],
                         in_edge_channels=self.embedding_dim,
                         attention=True,
                         heads=self.heads[3],
+                        directed_msg=True,
+                    ),
+                    "x, edge_index, edge_feature -> x",
+                ),
+                nn.ELU(),
+                nn.Dropout(p=0.4),
+                (
+                    gnn.GeneralConv(
+                        self.gnn_layer_size[3],
+                        self.gnn_layer_size[4],
+                        in_edge_channels=self.embedding_dim,
+                        attention=True,
+                        heads=self.heads[4],
+                        directed_msg=True,
+                    ),
+                    "x, edge_index, edge_feature -> x",
+                ),
+                nn.ELU(),
+                (
+                    gnn.GeneralConv(
+                        self.gnn_layer_size[4],
+                        self.hidden_size,
+                        in_edge_channels=self.embedding_dim,
+                        attention=True,
+                        heads=self.heads[5],
                         directed_msg=True,
                     ),
                     "x, edge_index -> x",

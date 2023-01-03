@@ -13,6 +13,11 @@ def main(log_name, run_id):
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     params = get_load_params(run_id, logger)
     path = os.path.join("save", log_name, str(run_id) + ".pt")
+    
+    params["env"]["cursor_start_pos"] = 6
+    params["env"]["perturbation"] = 0
+    params["env"]["max_episode_steps"] = 2
+    params["env"]["assignment_dir"] = "data/tests"
 
     torch.manual_seed(params["seed"])
     torch.cuda.manual_seed_all(params["seed"])

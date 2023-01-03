@@ -181,6 +181,7 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
           match get_common_type ltype rtype with
           | Some t -> Some Bool
           | None -> None)
+      | Some Hole, Some (List _) | Some (List _), Some Hole | Some Hole, Some Hole -> Some Bool
       | _ -> None)
   | EFun (varn, vart, body) -> (
       let vart = Type.strip vart in
