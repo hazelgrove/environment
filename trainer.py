@@ -8,15 +8,19 @@ import torch
 import yaml
 from git import Repo
 from run_logger import RunLogger
+from gym.wrappers.time_limit import TimeLimit
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from agent import utils
 from agent.arguments import get_args
-from agent.envs import Env, PLEnv
-from agent.policy import GNNPolicy, Policy
+from agent.envs import Env, PLEnv, VecPyTorch
+from agent.policy import GNNPolicy, Policy, TestPolicy
 from agent.ppo import PPO
 from agent.storage import RolloutStorage
 from evaluation import Evaluator, PLEvaluator
 from logger import get_charts, get_metadata
+from envs.test_env import TestEnv
 
 
 class Trainer:
@@ -73,8 +77,6 @@ class Trainer:
 
     @classmethod
     def train(cls, logger, params, log_name, render, save_dir):
-        # params, logger = get_logger(log_name)
-
         if log_name != "test":
             save_dir = os.path.join(save_dir, log_name)
             try:
@@ -353,6 +355,64 @@ class GNNTrainer(Trainer):
     @staticmethod
     def update_curriculum(envs, reward):
         envs.get_attr("update_curriculum")(reward)
+        
+
+class TestTrainer(Trainer):
+    @staticmethod
+    def get_policy(envs, params, device):
+        policy = TestPolicy(
+            device=device,
+        )
+
+        return policy
+
+    @staticmethod
+    def make_env(
+        seed, rank, max_episode_steps
+    ):
+        def _thunk():
+            # Arguments for env are fixed according to the implementation of the C code
+            env = TestEnv(
+                num_nodes=5,
+            )
+            env.seed(seed + rank)
+
+            env = TimeLimit(env, max_episode_steps=max_episode_steps)
+            env = Monitor(env)
+            return env
+
+        return _thunk
+    
+    @classmethod
+    def make_vec_envs(
+        cls,
+        seed,
+        num_processes,
+        device,
+    ):
+        envs = [
+            cls.make_env(
+                seed, i, 1,
+            )
+            for i in range(num_processes)
+        ]
+
+        if len(envs) > 1:
+            envs = SubprocVecEnv(envs)
+        else:
+            envs = DummyVecEnv(envs)
+
+        envs = VecPyTorch(envs, device)
+
+        return envs
+    
+    @classmethod
+    def get_env(cls, params, device):
+        envs = cls.make_vec_envs(
+            1, 8, device
+        )
+
+        return envs
 
 
 if __name__ == "__main__":

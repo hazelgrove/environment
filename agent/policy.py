@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from gym.spaces import Discrete, MultiBinary, MultiDiscrete
 
-from agent.base import CNNBase, GNNBase, MLPBase
+from agent.base import CNNBase, GNNBase, MLPBase, TestBase
 from agent.distributions import (
     QKV,
     Bernoulli,
@@ -172,6 +172,52 @@ class GNNPolicy(Policy):
         )
         actor_features = self.qkv(actor_features, vars, args_in_scope)
         dist = self.dist(actor_features, inputs.permitted_actions)
+
+        action_log_probs = dist.log_probs(action)
+        dist_entropy = dist.entropy().mean()
+
+        return value, action_log_probs, dist_entropy, rnn_hxs
+    
+    
+class TestPolicy(Policy):
+    def __init__(
+        self,
+        base_kwargs=None,
+        device=None,
+    ):
+        super(Policy, self).__init__()
+
+        if base_kwargs is None:
+            base_kwargs = {}
+        self.base = TestBase(device=device, **base_kwargs)
+        
+        self.dist = Categorical(self.base.output_size, 2)
+
+        self.device = device
+
+    def act(self, inputs, rnn_hxs, masks, deterministic=False):
+        value, actor_features = self.base(inputs)
+
+        dist = self.dist(actor_features)
+
+        if deterministic:
+            action = dist.mode()
+        else:
+            action = dist.sample()
+
+        action_log_probs = dist.log_probs(action)
+
+        return value, action, action_log_probs, rnn_hxs
+
+    def get_value(self, inputs, rnn_hxs, masks):
+        value, _ = self.base(inputs)
+
+        return value
+
+    def evaluate_actions(self, inputs, rnn_hxs, masks, action):
+        value, actor_features = self.base(inputs)
+
+        dist = self.dist(actor_features)
 
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()

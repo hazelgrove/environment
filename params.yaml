@@ -16,17 +16,17 @@ env:
   assignment_dir: data/grad
   num_assignments: 1
   code_per_assignment: [2]
-  cursor_start_pos: [2]
+  cursor_start_pos: [1]
 eval: 
   perturbation: 0
   assignment_dir: data/tests
   num_assignments: 1
   code_per_assignment: [1]
-  cursor_start_pos: [6]
+  cursor_start_pos: [1]
 base: 
   hidden_size: 32
-  gnn_layer_size: [128, 128, 64, 64, 64]
-  heads: [8, 8, 8, 16, 16, 1]
+  gnn_layer_size: [128, 128, 128, 128, 128, 64, 64, 64, 64, 64]
+  heads: [8, 8, 8, 8, 8, 16, 16, 16, 16, 16, 1]
 ppo:
   lr: 2.5e-4
   eps: 1.0e-5

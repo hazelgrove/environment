@@ -207,15 +207,10 @@ class GNNBase(NNBase):
         self.device = device
 
         # Check lengths for GNN hyperparameters
-        # if len(gnn_layer_size) != 4:
-        #     raise ValueError("GNN layer size must be a list of length 5")
-        # if len(heads) != 5:
-        #     raise ValueError("Heads must be a list of length 6")
+        if len(gnn_layer_size) != len(heads) - 1:
+            raise ValueError("GNN layer size does not match head size")
         
-        self.main = gnn.Sequential(
-            "x, edge_index, edge_feature",
-            [
-                (
+        network = [(
                     gnn.GeneralConv(
                         -1,
                         self.gnn_layer_size[0],
@@ -225,72 +220,44 @@ class GNNBase(NNBase):
                         directed_msg=True,
                     ),
                     "x, edge_index, edge_feature -> x",
-                ),
+                )]
+        
+        for i in range(len(gnn_layer_size) - 2):
+            network += [
                 nn.ELU(),
                 nn.Dropout(p=0.4),
                 (
                     gnn.GeneralConv(
-                        self.gnn_layer_size[0],
-                        self.gnn_layer_size[1],
+                        self.gnn_layer_size[i],
+                        self.gnn_layer_size[i + 1],
                         in_edge_channels=self.embedding_dim,
                         attention=True,
-                        heads=self.heads[1],
+                        heads=self.heads[i + 1],
                         directed_msg=True,
                     ),
                     "x, edge_index, edge_feature -> x",
                 ),
-                nn.ELU(),
-                nn.Dropout(p=0.4),
-                (
-                    gnn.GeneralConv(
-                        self.gnn_layer_size[1],
-                        self.gnn_layer_size[2],
-                        in_edge_channels=self.embedding_dim,
-                        attention=True,
-                        heads=self.heads[2],
-                        directed_msg=True,
-                    ),
-                    "x, edge_index, edge_feature -> x",
+            ]
+        
+        network += [
+            nn.ELU(),
+            nn.Dropout(p=0.4),
+            (
+                gnn.GeneralConv(
+                    self.gnn_layer_size[-1],
+                    self.hidden_size,
+                    in_edge_channels=self.embedding_dim,
+                    attention=True,
+                    heads=self.heads[-1],
+                    directed_msg=True,
                 ),
-                nn.ELU(),
-                nn.Dropout(p=0.4),
-                (
-                    gnn.GeneralConv(
-                        self.gnn_layer_size[2],
-                        self.gnn_layer_size[3],
-                        in_edge_channels=self.embedding_dim,
-                        attention=True,
-                        heads=self.heads[3],
-                        directed_msg=True,
-                    ),
-                    "x, edge_index, edge_feature -> x",
-                ),
-                nn.ELU(),
-                nn.Dropout(p=0.4),
-                (
-                    gnn.GeneralConv(
-                        self.gnn_layer_size[3],
-                        self.gnn_layer_size[4],
-                        in_edge_channels=self.embedding_dim,
-                        attention=True,
-                        heads=self.heads[4],
-                        directed_msg=True,
-                    ),
-                    "x, edge_index, edge_feature -> x",
-                ),
-                nn.ELU(),
-                (
-                    gnn.GeneralConv(
-                        self.gnn_layer_size[4],
-                        self.hidden_size,
-                        in_edge_channels=self.embedding_dim,
-                        attention=True,
-                        heads=self.heads[5],
-                        directed_msg=True,
-                    ),
-                    "x, edge_index -> x",
-                ),
-            ],
+                "x, edge_index -> x",
+            ),
+        ]
+        
+        self.main = gnn.Sequential(
+            "x, edge_index, edge_feature",
+            network,
         )
 
         self.node_embedding = nn.Embedding(
@@ -382,3 +349,120 @@ class GNNBase(NNBase):
         vars = vars * (1 - mask)
 
         return self.critic_linear(out), out, vars
+
+
+class TestBase(NNBase):
+    def __init__(
+        self,
+        hidden_size: int = 32,
+        gnn_layer_size: List[int] = [128, 128, 64, 64],
+        heads: List[int] = [8, 8, 16, 16, 1],
+        device: Optional[torch.device] = None,
+    ):
+        super(TestBase, self).__init__(False, 1, hidden_size)
+
+        self.gnn_layer_size = gnn_layer_size
+        self.heads = heads
+        self.hidden_size = hidden_size
+        self.device = device
+        
+        self.main = gnn.Sequential(
+            "x, edge_index",
+            [
+                (
+                    gnn.GeneralConv(
+                        -1,
+                        self.gnn_layer_size[0],
+                        in_edge_channels=1,
+                        attention=True,
+                        heads=self.heads[0],
+                        directed_msg=True,
+                    ),
+                    "x, edge_index -> x",
+                ),
+                nn.ELU(),
+                nn.Dropout(p=0.4),
+                (
+                    gnn.GeneralConv(
+                        self.gnn_layer_size[0],
+                        self.gnn_layer_size[1],
+                        in_edge_channels=1,
+                        attention=True,
+                        heads=self.heads[1],
+                        directed_msg=True,
+                    ),
+                    "x, edge_index -> x",
+                ),
+                nn.ELU(),
+                nn.Dropout(p=0.4),
+                (
+                    gnn.GeneralConv(
+                        self.gnn_layer_size[1],
+                        self.gnn_layer_size[2],
+                        in_edge_channels=1,
+                        attention=True,
+                        heads=self.heads[2],
+                        directed_msg=True,
+                    ),
+                    "x, edge_index -> x",
+                ),
+                nn.ELU(),
+                nn.Dropout(p=0.4),
+                (
+                    gnn.GeneralConv(
+                        self.gnn_layer_size[2],
+                        self.gnn_layer_size[3],
+                        in_edge_channels=1,
+                        attention=True,
+                        heads=self.heads[3],
+                        directed_msg=True,
+                    ),
+                    "x, edge_index -> x",
+                ),
+                nn.ELU(),
+                (
+                    gnn.GeneralConv(
+                        self.gnn_layer_size[3],
+                        self.hidden_size,
+                        in_edge_channels=1,
+                        attention=True,
+                        heads=self.heads[4],
+                        directed_msg=True,
+                    ),
+                    "x, edge_index -> x",
+                ),
+            ],
+        )
+
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
+        )
+        self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
+
+        self.train()
+
+    def forward(self, nodes: torch.Tensor):
+        batch_size, num_nodes = nodes.shape
+        nodes = nodes.reshape(batch_size * num_nodes, 1)
+        nodes = nodes.float()
+        
+        edge1 = torch.vstack(
+            [torch.arange(0, num_nodes - 1, device=nodes.device), torch.arange(1, num_nodes, device=nodes.device)],
+        )
+        edge2 = torch.vstack(
+            [torch.arange(1, num_nodes, device=nodes.device), torch.arange(0, num_nodes - 1, device=nodes.device)],
+        )
+        
+        edges = torch.concat(
+            [edge1 + num_nodes * i for i in range(batch_size)] + [edge2 + num_nodes * i for i in range(batch_size)],
+            dim=1,
+        )
+        edges = edges.long()
+
+        # Pass through GNN
+        x = self.main(nodes, edges)
+        
+        x = x.reshape(batch_size, num_nodes, -1)
+        out = x[:, -1, :]
+
+        return self.critic_linear(out), out

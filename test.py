@@ -7,43 +7,30 @@ from agent.envs import VecPyTorch
 from agent.policy import GNNPolicy, get_size
 
 from envs.ast_env import ASTEnv
-from agent.base import GNNBase
+from agent.base import GNNBase, TestBase
 from agent.arguments import get_args
 from agent.wrapper import FlattenObservation, Obs
 from agent.distributions import QKV
 from agent.batch import collate
 import ipdb
 import gym
+import yaml
+
+
+from trainer import TestTrainer
 
 
 def main():
-    env = ASTEnv(
-                max_num_nodes=200,
-                num_node_descriptor=50,
-                num_assignments=2,
-                code_per_assignment=[1, 1],
-                num_actions=74,
-                perturbation=2,
-                seed=1,
-                assignment_dir="data/mult_assign",
-                cursor_start_pos=None,
-            )
-    obs_space = Obs(**env.observation_space.spaces)
-    env = FlattenObservation(env)
+    with open("params.yaml", "r") as file:
+        params = yaml.safe_load(file)
     
-    obs = env.reset()
-    env.render()
-    inputs = torch.tensor([obs, obs])
-    
-    inputs = Obs(
-            *torch.split(
-                inputs,
-                [get_size(space) for space in astuple(obs_space)],
-                dim=-1,
-            )
-        )
-    base = GNNBase()
-    base(asdict(inputs))
+    TestTrainer.train(
+        logger=None,
+        params=params,
+        log_name="test",
+        render=False,
+        save_dir=None,
+    )
     
 
 if __name__ == "__main__":
