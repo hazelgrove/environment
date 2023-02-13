@@ -7,6 +7,7 @@ import torch_geometric.nn as gnn
 
 from agent.batch import collate, separate
 from agent.utils import init
+from agent.models import GatedGNN, CursorRNN
 
 
 class Flatten(nn.Module):
@@ -184,92 +185,41 @@ class MLPBase(NNBase):
 class GNNBase(NNBase):
     def __init__(
         self,
-        hidden_size: int = 32,
-        gnn_layer_size: List[int] = [128, 64, 64],
-        heads: List[int] = [8, 8, 16, 1],
+        hidden_size: int = 64,
+        num_layers: int = 8,
+        embedding_size: int = 32,
         num_node_descriptor: int = 58,
         num_edge_descriptor: int = 6,
         num_assignments: int = 2,
-        embedding_dim: int = 512,
         assignment_aggr: Optional[str] = None,
         max_num_vars: int = 11,
+        cursor: bool = True,
+        cursor_num_layers: int = 8,
         device: Optional[torch.device] = None,
     ):
         super(GNNBase, self).__init__(False, 1, hidden_size)
 
         self.assignment_aggr = assignment_aggr
-
-        self.gnn_layer_size = gnn_layer_size
-        self.heads = heads
         self.hidden_size = hidden_size
-        self.embedding_dim = embedding_dim
+        self.embedding_size = embedding_size
+        self.num_layers = num_layers
         self.max_num_vars = max_num_vars
+        self.cursor = cursor
         self.device = device
-
-        # Check lengths for GNN hyperparameters
-        if len(gnn_layer_size) != len(heads) - 1:
-            raise ValueError("GNN layer size does not match head size")
         
-        network = [(
-                    gnn.GeneralConv(
-                        -1,
-                        self.gnn_layer_size[0],
-                        in_edge_channels=self.embedding_dim,
-                        attention=True,
-                        heads=self.heads[0],
-                        directed_msg=True,
-                    ),
-                    "x, edge_index, edge_feature -> x",
-                )]
-        
-        for i in range(len(gnn_layer_size) - 2):
-            network += [
-                nn.ELU(),
-                nn.Dropout(p=0.4),
-                (
-                    gnn.GeneralConv(
-                        self.gnn_layer_size[i],
-                        self.gnn_layer_size[i + 1],
-                        in_edge_channels=self.embedding_dim,
-                        attention=True,
-                        heads=self.heads[i + 1],
-                        directed_msg=True,
-                    ),
-                    "x, edge_index, edge_feature -> x",
-                ),
-            ]
-        
-        network += [
-            nn.ELU(),
-            nn.Dropout(p=0.4),
-            (
-                gnn.GeneralConv(
-                    self.gnn_layer_size[-1],
-                    self.hidden_size,
-                    in_edge_channels=self.embedding_dim,
-                    attention=True,
-                    heads=self.heads[-1],
-                    directed_msg=True,
-                ),
-                "x, edge_index -> x",
-            ),
-        ]
-        
-        self.main = gnn.Sequential(
-            "x, edge_index, edge_feature",
-            network,
-        )
+        self.main = GatedGNN(out_channels=self.hidden_size, num_layers=self.num_layers)
+        self.cursor_layer = CursorRNN(input_dim=self.hidden_size + 1, hidden_dim=self.hidden_size, output_dim=self.hidden_size, num_layers=cursor_num_layers)
 
         self.node_embedding = nn.Embedding(
             num_embeddings=num_node_descriptor + max_num_vars * 2 + 1,
-            embedding_dim=embedding_dim,
+            embedding_dim=embedding_size,
             padding_idx=-1,
         )
         self.edge_embedding = nn.Embedding(
             num_embeddings=(num_edge_descriptor + 1) * 2,
-            embedding_dim=embedding_dim,
+            embedding_dim=embedding_size,
         )
-        self.assignment_embedding = nn.Embedding(num_assignments, embedding_dim)
+        self.assignment_embedding = nn.Embedding(num_assignments, embedding_size)
 
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
@@ -309,7 +259,7 @@ class GNNBase(NNBase):
         )  # Shift 1 to make the -1 edge type to 0
         assignment = self.assignment_embedding(assignment)
         assignment = assignment.reshape(
-            (-1, 1, self.embedding_dim)
+            (-1, 1, self.embedding_size)
         )  # Reshape assignment for broadcasting
 
         # Append assignment index to node and edge embeddings
@@ -333,7 +283,13 @@ class GNNBase(NNBase):
         x = separate(x, batch_size)
 
         # Get node representation at cursor
-        out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
+        if self.cursor:
+            out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
+        else:
+            cursor = torch.zeros((batch_size, 1), device=self.device)
+            cursor[torch.arange(batch_size), inputs["cursor_position"].flatten()] = 1
+            out = torch.concat((x, cursor), dim=-1)
+            out = self.cursor_layer(out)
 
         # Get node representation at variables in scope
         vars = x[

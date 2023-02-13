@@ -24,9 +24,9 @@ eval:
   code_per_assignment: [1]
   cursor_start_pos: [1]
 base: 
-  hidden_size: 32
-  gnn_layer_size: [128, 128, 128, 128, 128, 64, 64, 64, 64, 64]
-  heads: [8, 8, 8, 8, 8, 16, 16, 16, 16, 16, 1]
+  hidden_size: 64
+  num_layers: 8
+  embedding_size: 32
 ppo:
   lr: 2.5e-4
   eps: 1.0e-5
