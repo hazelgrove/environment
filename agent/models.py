@@ -71,7 +71,7 @@ class CursorRNN(nn.Module):
         self.output_dim = output_dim
         self.num_layers = num_layers
         
-        self.rnn = nn.RNN(input_dim, hidden_dim, batch_first=True)
+        self.rnn = nn.RNN(input_dim, hidden_dim, num_layers=num_layers, batch_first=True)
         
         self.fc = nn.Linear(hidden_dim, output_dim)
         
@@ -82,9 +82,7 @@ class CursorRNN(nn.Module):
         self.fc.reset_parameters()
         
     def forward(self, x):
-        h0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_dim))
-            
-        out, _ = self.rnn(x, h0)
+        out, _ = self.rnn(x)
         out = self.fc(out[:, -1, :]) 
         
         return out

@@ -286,8 +286,8 @@ class GNNBase(NNBase):
         if self.cursor:
             out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
         else:
-            cursor = torch.zeros((batch_size, 1), device=self.device)
-            cursor[torch.arange(batch_size), inputs["cursor_position"].flatten()] = 1
+            cursor = torch.zeros((x.shape[0], x.shape[1], 1), device=self.device)
+            cursor[torch.arange(x.shape[0]), inputs["cursor_position"].flatten(), torch.zeros(x.shape[0], dtype=torch.long)] = 1
             out = torch.concat((x, cursor), dim=-1)
             out = self.cursor_layer(out)
 
