@@ -3,4 +3,4 @@
 eval "$(opam env)"
 . /root/.cache/pypoetry/virtualenvs/hazelnut-K3BlsyQa-py3.8/bin/activate
 make astenv
-python debug.py
+python3 debug.py
