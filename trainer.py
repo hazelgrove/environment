@@ -277,7 +277,8 @@ class Trainer:
                     params["env"]["max_episode_steps"],
                     params["eval"],
                 )
-            
+                last_eval_reward = eval_reward
+                
                 if logger is not None:
                     logger.log(
                         update=j,
@@ -295,6 +296,7 @@ class Trainer:
                     logger.log(
                         update=j,
                         mean_episode_rewards=mean_episode_reward,
+                        eval_reward=last_eval_reward,
                         fps=fps,
                         episode_timesteps=total_num_steps,
                         gradient_norm=grad_norm,

@@ -6,23 +6,26 @@ num_processes: 8
 num_steps: 128
 log_interval: 1
 eval: False
-eval_interval: 0
+eval_interval: 1000
 save_interval: 100
-num_env_steps: 2.0e+7
+num_env_steps: 1.0e+8
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 2
+  max_episode_steps: 1
   perturbation: 0
-  assignment_dir: data/tasks
-  num_assignments: 6
-  code_per_assignment: [9, 9, 1, 3, 1, 1]
-  cursor_start_pos: [6, 6, 6, 10, 9, 9]
+  assignment_dir: data/auto
+  num_assignments: 1
+  code_per_assignment: [100]
+  cursor_start_pos: [6]
+  # num_assignments: 1
+  # code_per_assignment: [9]
+  # cursor_start_pos: [6]
 eval: 
   perturbation: 0
   assignment_dir: data/tests
   num_assignments: 1
-  code_per_assignment: [1]
-  cursor_start_pos: [5]
+  code_per_assignment: [10]
+  cursor_start_pos: [6]
 base: 
   hidden_size: 128
   num_layers: 11

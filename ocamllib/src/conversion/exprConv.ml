@@ -111,15 +111,9 @@ let node_list =
     EConst Nil;
     EConst (Bool true);
     EConst (Bool false);
-    EConst (Int (-2));
-    EConst (Int (-1));
-    EConst (Int 0);
-    EConst (Int 1);
-    EConst (Int 2);
-    EConst (Int 3);
-    EConst (Int 4);
-    EConst (Int 5);
   ]
+  @ List.init Const.num_ints (fun i -> EConst (Int (-1 * i)))
+  @ List.init Const.num_ints (fun i -> EConst (Int i))
   @ List.init Var.max_num_vars (fun i -> EVar i)
 
 let num_nodes = List.length node_list

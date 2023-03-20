@@ -188,7 +188,7 @@ class GNNBase(NNBase):
         hidden_size: int = 64,
         num_layers: int = 8,
         embedding_size: int = 32,
-        num_node_descriptor: int = 58,
+        num_node_descriptor: int = 264,
         num_edge_descriptor: int = 6,
         num_assignments: int = 2,
         assignment_aggr: Optional[str] = None,
