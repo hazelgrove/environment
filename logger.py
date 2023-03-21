@@ -9,31 +9,59 @@ from git import Repo
 def get_charts():
     update_reward = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-        "description": "Mean Episode Reward Over Update",
+        "description": "Reward Over Update",
         "data": {"data": "data", "values": []},
-        "repeat": {
-            "layer": ["eval_reward", "mean_episode_rewards"]
+        "transform": [{}],
+        "mark": "line",
+        "encoding": {
+            "x": {
+                "field": "update",
+                "type": "quantitative",
+                "title": "Update Number",
+                "axis": {
+                    "titleFontSize": 18,
+                    "labelFontSize": 14,
+                },
+            },
+            "y": {
+                "field": "mean_episode_rewards",
+                "type": "quantitative",
+                "title": "Reward",
+                "axis": {
+                    "titleFontSize": 18,
+                    "labelFontSize": 14,
+                },
+            },
         },
-        "spec": {
-            "mark": "line",
-            "encoding": {
-                "x": {
-                    "axis": {"labelFontSize": 14, "titleFontSize": 18},
-                    "field": "update",
-                    "type": "quantitative",
-                    "title": "Update Number"
+        "width": 600,
+        "height": 600,
+    }
+    
+    update_eval = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Evaluation Reward Over Update",
+        "data": {"data": "data", "values": []},
+        "transform": [{}],
+        "mark": "line",
+        "encoding": {
+            "x": {
+                "field": "update",
+                "type": "quantitative",
+                "title": "Update Number",
+                "axis": {
+                    "titleFontSize": 18,
+                    "labelFontSize": 14,
                 },
-                "y": {
-                    "axis": {"labelFontSize": 14, "titleFontSize": 18},
-                    "field": {"repeat": "layer"},
-                    "type": "quantitative",
-                    "title": "Reward"
+            },
+            "y": {
+                "field": "eval_reward",
+                "type": "quantitative",
+                "title": "Evaluation Reward",
+                "axis": {
+                    "titleFontSize": 18,
+                    "labelFontSize": 14,
                 },
-                "color": {
-                    "datum": {"repeat": "layer"},
-                    "type": "nominal"
-                }
-            }
+            },
         },
         "width": 600,
         "height": 600,
@@ -101,6 +129,7 @@ def get_charts():
 
     return [
         update_reward,
+        update_eval,
         update_grad_norm,
         update_fps,
     ]

@@ -11,17 +11,14 @@ let rec to_string (p : p_t) : string =
 
 let node_list =
   [
-    PConst (Int (-2));
-    PConst (Int (-1));
-    PConst (Int 0);
-    PConst (Int 1);
-    PConst (Int 2);
     PConst (Bool true);
     PConst (Bool false);
     PConst Nil;
     PCons (make_dummy_node PWild, make_dummy_node PWild);
     PWild;
   ]
+  @ List.init Const.num_ints (fun i -> PConst (Int (-1 * i)))
+  @ List.init Const.num_ints (fun i -> PConst (Int i))
   @ List.init Var.max_num_vars (fun i -> PVar i)
 
 let num_nodes = List.length node_list

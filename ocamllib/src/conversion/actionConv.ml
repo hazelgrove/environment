@@ -11,14 +11,6 @@ let action_list =
     Move (Child 4);
     Construct Hole;
     Construct (Const Nil);
-    Construct (Const (Int (-2)));
-    Construct (Const (Int (-1)));
-    Construct (Const (Int 0));
-    Construct (Const (Int 1));
-    Construct (Const (Int 2));
-    Construct (Const (Int 3));
-    Construct (Const (Int 4));
-    Construct (Const (Int 5));
     Construct (Const (Bool true));
     Construct (Const (Bool false));
     Construct (UnOp OpNeg);
@@ -78,11 +70,6 @@ let action_list =
        Construct TypList;
        Construct TypHole;
        Construct TypUnit; *)
-    Construct (PatConst (Int (-2)));
-    Construct (PatConst (Int (-1)));
-    Construct (PatConst (Int 0));
-    Construct (PatConst (Int 1));
-    Construct (PatConst (Int 2));
     Construct (PatConst (Bool true));
     Construct (PatConst (Bool false));
     Construct (PatConst Nil);
@@ -94,6 +81,10 @@ let action_list =
     Unwrap 1;
     Unwrap 2;
   ]
+  @ List.init Const.num_ints (fun i -> Construct (Const (Int (-1 * i))))
+  @ List.init Const.num_ints (fun i -> Construct (Const (Int i)))
+  @ List.init Const.num_ints (fun i -> Construct (PatConst (Int (-1 * i))))
+  @ List.init Const.num_ints (fun i -> Construct (PatConst (Int i)))
   @ List.init Var.max_num_vars (fun i -> Construct (Var i))
   @ List.init Var.max_num_vars (fun i -> Construct (Arg i))
 

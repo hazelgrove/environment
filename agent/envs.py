@@ -130,10 +130,10 @@ class PLEnv(Env):
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
                 max_num_nodes=200,
-                num_node_descriptor=58,
+                num_node_descriptor=264,
                 num_assignments=num_assignments,
                 code_per_assignment=code_per_assignment,
-                num_actions=80,
+                num_actions=289,
                 perturbation=perturbation,
                 seed=seed,
                 assignment_dir=assignment_dir,
