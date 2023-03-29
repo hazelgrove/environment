@@ -17,6 +17,7 @@ let node_list =
     PCons (make_dummy_node PWild, make_dummy_node PWild);
     PWild;
   ]
+  @ [ PConst (Int 0) ]
   @ List.init Const.num_ints (fun i -> PConst (Int (-1 * i)))
   @ List.init Const.num_ints (fun i -> PConst (Int i))
   @ List.init Var.max_num_vars (fun i -> PVar i)

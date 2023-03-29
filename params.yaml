@@ -13,26 +13,26 @@ use_linear_lr_decay: True
 env: 
   max_episode_steps: 1
   perturbation: 0
-  assignment_dir: data/auto
-  num_assignments: 1
-  code_per_assignment: [100]
-  cursor_start_pos: [6]
+  assignment_dir: /RL_env/data/auto
+  num_assignments: 10
+  code_per_assignment: [37, 36, 36, 34, 22, 19, 23, 6, 6, 3]
+  cursor_start_pos: [3, 4, 5, 6, 2, 3, 4, 1, 2, 0]
   # num_assignments: 1
   # code_per_assignment: [9]
   # cursor_start_pos: [6]
 eval: 
   perturbation: 0
-  assignment_dir: data/tests
-  num_assignments: 1
-  code_per_assignment: [10]
-  cursor_start_pos: [6]
+  assignment_dir: /RL_env/data/tests
+  num_assignments: 4
+  code_per_assignment: [7, 7, 7, 7]
+  cursor_start_pos: [3, 4, 5, 6]
 base: 
   hidden_size: 128
-  num_layers: 11
+  num_layers: [11, 12, 13, 14]
   embedding_size: 100
   cursor: True
 ppo:
-  lr: 1.0e-5
+  lr: [5.0e-5, 1.0e-5, 5.0e-6, 1.0e-6]
   eps: 1.0e-5
   value_loss_coef: 0.5
   max_grad_norm: 0.5

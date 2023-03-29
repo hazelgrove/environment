@@ -2,7 +2,7 @@ open Sexplib.Std
 
 type t = Bool of bool | Int of int | Nil [@@deriving sexp]
 
-let num_ints = 50
+let num_ints = 10
 
 let equal c1 c2 =
   match (c1, c2) with

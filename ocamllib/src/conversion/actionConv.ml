@@ -81,8 +81,10 @@ let action_list =
     Unwrap 1;
     Unwrap 2;
   ]
+  @ [ Construct (Const (Int 0)) ]
   @ List.init Const.num_ints (fun i -> Construct (Const (Int (-1 * i))))
   @ List.init Const.num_ints (fun i -> Construct (Const (Int i)))
+  @ [ Construct (PatConst (Int 0)) ]
   @ List.init Const.num_ints (fun i -> Construct (PatConst (Int (-1 * i))))
   @ List.init Const.num_ints (fun i -> Construct (PatConst (Int i)))
   @ List.init Var.max_num_vars (fun i -> Construct (Var i))

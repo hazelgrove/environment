@@ -34,7 +34,8 @@ def main(log_name, run_id):
     device = torch.device("cuda:0" if params["cuda"] else "cpu")
 
     params["num_processes"] = 1
-    env_kwargs = params["env"]
+    env_kwargs = params["eval"]
+    env_kwargs["max_episode_steps"] = params["env"]["max_episode_steps"]
     env = PLEnv.make_vec_envs(
         params["seed"], params["num_processes"], device, render=True, **env_kwargs
     )
