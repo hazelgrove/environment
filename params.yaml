@@ -57,11 +57,11 @@ eval:
     - 2
 base: 
   hidden_size: 128
-  num_layers: 11
+  num_layers: [11, 12, 13, 14]
   embedding_size: 100
   cursor: True
 ppo:
-  lr: 1.0e-5
+  lr: [5.0e-5, 1.0e-5, 5.0e-6, 1.0e-6]
   eps: 1.0e-5
   value_loss_coef: 0.5
   max_grad_norm: 0.5

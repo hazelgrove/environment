@@ -112,6 +112,7 @@ let node_list =
     EConst (Bool true);
     EConst (Bool false);
   ]
+  @ [ EConst (Int 0) ]
   @ List.init Const.num_ints (fun i -> EConst (Int (-1 * i)))
   @ List.init Const.num_ints (fun i -> EConst (Int i))
   @ List.init Var.max_num_vars (fun i -> EVar i)

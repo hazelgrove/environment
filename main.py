@@ -6,6 +6,7 @@ from typing import Optional
 from unittest.result import failfast
 
 import ray
+import torch
 import yaml
 from git.repo import Repo
 from ray import tune
@@ -86,6 +87,20 @@ def sweep(
         log_level="INFO",
         name=name,
     )
+    
+    hyperparam_names = [
+        "base",
+        "ppo",
+        "return",
+    ]
+    for section in params.keys():
+        if section in hyperparam_names:
+            params[section] = {
+                k: (tune.choice(v) if random_search else tune.grid_search(v))
+                if isinstance(v, list)
+                else v
+                for k, v in params[section].items()
+            }
 
     config = {
         "name": name,
@@ -93,20 +108,16 @@ def sweep(
         "graphql_endpoint": graphql_endpoint,
         "save_dir": save_dir,
         "sweep_id": sweep_id,
-        **{
-            k: (tune.choice(v) if random_search else tune.grid_search(v))
-            if isinstance(v, list)
-            else v
-            for k, v in params.items()
-        },
+        **params,
     }
 
     ray.init()
     num_cpus = os.cpu_count()
+    num_gpus = torch.cuda.device_count()
     analysis = ray.tune.run(
         trainable,
         config=config,
-        resources_per_trial={"cpu": num_cpus, "gpu": 1},
+        resources_per_trial={"cpu": num_cpus / num_gpus, "gpu": 1},
         fail_fast="raise",
     )
     print(analysis.stats())

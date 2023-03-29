@@ -1,4 +1,4 @@
-let f (x1 : int list) =
-	map (fun x2 -> x2 + ?) x1
+let f (x1 : int) =
+	? + 2 + 3 + 2
 in
-assert ((equal (1 :: 2 :: []) (f (-2 :: -1 :: []))) && (equal (0 :: 3 :: []) (f (-3 :: 0 :: []))))
+assert (f 0 = 8)
