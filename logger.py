@@ -32,6 +32,10 @@ def get_charts():
                     "labelFontSize": 14,
                 },
             },
+            "color": {
+                "field": "run_id",
+                "type": "nominal",
+            },
         },
         "width": 600,
         "height": 600,
@@ -61,6 +65,10 @@ def get_charts():
                     "titleFontSize": 18,
                     "labelFontSize": 14,
                 },
+            },
+            "color": {
+                "field": "run_id",
+                "type": "nominal",
             },
         },
         "width": 600,

@@ -290,6 +290,7 @@ class Trainer:
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
+                        run_id = str(logger.run_id),
                     )    
             else:
                 if logger is not None:
@@ -303,6 +304,7 @@ class Trainer:
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
+                        run_id = str(logger.run_id),
                     )
             
 
