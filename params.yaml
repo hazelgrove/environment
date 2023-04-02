@@ -13,26 +13,48 @@ use_linear_lr_decay: True
 env: 
   max_episode_steps: 1
   perturbation: 0
-<<<<<<< HEAD
-  assignment_dir: data/tasks
-  num_assignments: 1
-  code_per_assignment: [9]
-  cursor_start_pos: [6]
-=======
-  assignment_dir: data/auto
-  num_assignments: 1
-  code_per_assignment: [100]
-  cursor_start_pos: [6]
-  # num_assignments: 1
-  # code_per_assignment: [9]
-  # cursor_start_pos: [6]
->>>>>>> c587f90d5f238e34cf529da6efe1fc9e54d75f46
+  assignment_dir: data/more_assertions
+  num_assignments: 9
+  code_per_assignment:
+    - 5
+    - 10
+    - 10
+    - 13
+    - 8
+    - 17
+    - 11
+    - 15
+    - 11
+  cursor_start_pos:
+    - 0
+    - 2
+    - 1
+    - 4
+    - 4
+    - 3
+    - 3
+    - 1 
+    - 2
 eval: 
   perturbation: 0
-  assignment_dir: data/tests
-  num_assignments: 1
-  code_per_assignment: [10]
-  cursor_start_pos: [6]
+  assignment_dir: data/more_assertions_test
+  num_assignments: 7
+  code_per_assignment:
+    - 1
+    - 2
+    - 2
+    - 2
+    - 1
+    - 1
+    - 1
+  cursor_start_pos:
+    - 0
+    - 2
+    - 4
+    - 4
+    - 3
+    - 1 
+    - 2
 base: 
   hidden_size: 128
   num_layers: 11
