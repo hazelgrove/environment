@@ -7,8 +7,8 @@ import numpy as np
 import torch
 import yaml
 from git import Repo
-from run_logger import RunLogger
 from gym.wrappers.time_limit import TimeLimit
+from run_logger import RunLogger
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
@@ -18,9 +18,9 @@ from agent.envs import Env, PLEnv, VecPyTorch
 from agent.policy import GNNPolicy, Policy, TestPolicy
 from agent.ppo import PPO
 from agent.storage import RolloutStorage
+from envs.test_env import TestEnv
 from evaluation import Evaluator, PLEvaluator
 from logger import get_charts, get_metadata
-from envs.test_env import TestEnv
 
 
 class Trainer:
@@ -89,7 +89,7 @@ class Trainer:
         # Only use one process if we are rendering
         if render:
             params["num_processes"] = 1
-        
+
         params["base"]["num_assignments"] = params["env"]["num_assignments"]
 
         torch.manual_seed(params["seed"])
@@ -278,7 +278,7 @@ class Trainer:
                     params["eval"],
                 )
                 last_eval_reward = eval_reward
-                
+
                 if logger is not None:
                     logger.log(
                         update=j,
@@ -290,8 +290,8 @@ class Trainer:
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
-                        run_id = str(logger.run_id),
-                    )    
+                        run_id=str(logger.run_id),
+                    )
             else:
                 if logger is not None:
                     logger.log(
@@ -304,9 +304,8 @@ class Trainer:
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
-                        run_id = str(logger.run_id),
+                        run_id=str(logger.run_id),
                     )
-            
 
 
 class GNNTrainer(Trainer):
@@ -359,7 +358,7 @@ class GNNTrainer(Trainer):
     @staticmethod
     def update_curriculum(envs, reward):
         envs.get_attr("update_curriculum")(reward)
-        
+
 
 class TestTrainer(Trainer):
     @staticmethod
@@ -371,9 +370,7 @@ class TestTrainer(Trainer):
         return policy
 
     @staticmethod
-    def make_env(
-        seed, rank, max_episode_steps
-    ):
+    def make_env(seed, rank, max_episode_steps):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = TestEnv(
@@ -386,7 +383,7 @@ class TestTrainer(Trainer):
             return env
 
         return _thunk
-    
+
     @classmethod
     def make_vec_envs(
         cls,
@@ -396,7 +393,9 @@ class TestTrainer(Trainer):
     ):
         envs = [
             cls.make_env(
-                seed, i, 1,
+                seed,
+                i,
+                1,
             )
             for i in range(num_processes)
         ]
@@ -409,12 +408,10 @@ class TestTrainer(Trainer):
         envs = VecPyTorch(envs, device)
 
         return envs
-    
+
     @classmethod
     def get_env(cls, params, device):
-        envs = cls.make_vec_envs(
-            1, 8, device
-        )
+        envs = cls.make_vec_envs(1, 8, device)
 
         return envs
 
