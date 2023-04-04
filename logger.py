@@ -13,6 +13,19 @@ def get_charts():
         "data": {"data": "data", "values": []},
         "transform": [{}],
         "mark": "line",
+        "params": [
+            {
+              "bind": "legend",
+              "name": "legend_selection",
+              "select": {"on": "mouseover", "type": "point", "fields": ["run_id"]}
+            },
+            {
+              "bind": "legend",
+              "name": "hover",
+              "select": {"on": "mouseover", "type": "point", "fields": ["run_id"]}
+            },
+            {"name": "selection", "select": "interval"}
+        ],
         "encoding": {
             "x": {
                 "field": "update",
@@ -36,6 +49,15 @@ def get_charts():
                 "field": "run_id",
                 "type": "nominal",
             },
+            "opacity": {
+                "value": 0.1,
+                "condition": {
+                    "test": {
+                    "and": [{"param": "legend_selection"}, {"param": "hover"}]
+                    },
+                    "value": 1
+                }
+            },
         },
         "width": 600,
         "height": 600,
@@ -47,6 +69,19 @@ def get_charts():
         "data": {"data": "data", "values": []},
         "transform": [{}],
         "mark": "line",
+        "params": [
+            {
+              "bind": "legend",
+              "name": "legend_selection",
+              "select": {"on": "mouseover", "type": "point", "fields": ["run_id"]}
+            },
+            {
+              "bind": "legend",
+              "name": "hover",
+              "select": {"on": "mouseover", "type": "point", "fields": ["run_id"]}
+            },
+            {"name": "selection", "select": "interval"}
+        ],
         "encoding": {
             "x": {
                 "field": "update",
@@ -69,6 +104,15 @@ def get_charts():
             "color": {
                 "field": "run_id",
                 "type": "nominal",
+            },
+            "opacity": {
+                "value": 0.1,
+                "condition": {
+                    "test": {
+                    "and": [{"param": "legend_selection"}, {"param": "hover"}]
+                    },
+                    "value": 1
+                }
             },
         },
         "width": 600,
