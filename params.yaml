@@ -13,18 +13,18 @@ use_linear_lr_decay: True
 env: 
   max_episode_steps: 1
   perturbation: 0
-  assignment_dir: data/more_assertions
+  assignment_dir: /RL_env/data/more_assertions_1_4_int_0_4
   num_assignments: 9
   code_per_assignment:
-    - 5
-    - 10
-    - 10
-    - 13
     - 8
     - 17
-    - 11
     - 15
-    - 11
+    - 15
+    - 19
+    - 23
+    - 21
+    - 22
+    - 20
   cursor_start_pos:
     - 0
     - 2
@@ -37,21 +37,25 @@ env:
     - 2
 eval: 
   perturbation: 0
-  assignment_dir: data/more_assertions_test
-  num_assignments: 7
+  assignment_dir: /RL_env/data/more_assertions_1_4_int_0_4_test
+  num_assignments: 9
   code_per_assignment:
-    - 1
     - 2
-    - 2
-    - 2
-    - 1
-    - 1
-    - 1
+    - 5
+    - 3
+    - 4
+    - 6
+    - 8
+    - 6
+    - 3 
+    - 3
   cursor_start_pos:
     - 0
     - 2
+    - 1
     - 4
     - 4
+    - 3
     - 3
     - 1 
     - 2
