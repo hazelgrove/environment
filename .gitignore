@@ -10,3 +10,5 @@ _opam/
 .env
 *.pyc
 logger_config.yaml
+data/
+wandb_api_key

@@ -17,6 +17,9 @@ from agent.arguments import get_args
 from logger import get_charts, get_metadata
 from trainer import GNNTrainer
 
+from ray.air.config import RunConfig, ScalingConfig
+from ray.air.integrations.wandb import WandbLoggerCallback
+
 
 def _log(
     name: str,
@@ -102,6 +105,8 @@ def sweep(
                 else v
                 for k, v in params[section].items()
             }
+    num_cpus = os.cpu_count()
+    num_gpus = torch.cuda.device_count()
 
     config = {
         "name": name,
@@ -109,19 +114,38 @@ def sweep(
         "graphql_endpoint": graphql_endpoint,
         "save_dir": save_dir,
         "sweep_id": sweep_id,
+        # "scaling_config": ScalingConfig(
+        #     num_workers=1,
+        #     use_gpu=True,
+        #     trainer_resources={"CPU": num_cpus, "GPU": num_gpus},
+        #     resources_per_worker={
+        #     "CPU": num_cpus,
+        #     "GPU": num_gpus
+        #     },
+        # ),
         **params,
     }
 
     ray.init()
-    num_cpus = os.cpu_count()
-    num_gpus = torch.cuda.device_count()
-    analysis = ray.tune.run(
-        trainable,
-        config=config,
-        resources_per_trial={"cpu": num_cpus / num_gpus, "gpu": 1},
-        fail_fast="raise",
+    # analysis = ray.tune.run(
+    #     trainable,
+    #     config=config,
+    #     resources_per_trial={"cpu": num_cpus / num_gpus, "gpu": 1},
+    #     fail_fast="raise",
+    # )
+    # print(analysis.stats())
+    tuner = ray.tune.Tuner(
+        tune.with_resources(
+            tune.with_parameters(trainable),
+            resources={"cpu": int(num_cpus / num_gpus), "gpu": 1}
+        ),
+        param_space=config,
+        tune_config=tune.TuneConfig(num_samples=10),
+        run_config=RunConfig(callbacks=[WandbLoggerCallback(project="JW_wandb_test_3", api_key_file="/RL_env/wandb_api_key")]),
     )
-    print(analysis.stats())
+
+    results = tuner.fit()
+    print(results)
 
 if __name__ == "__main__":
     args = get_args()
