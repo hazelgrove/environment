@@ -22,6 +22,7 @@ from envs.test_env import TestEnv
 from evaluation import Evaluator, PLEvaluator
 from logger import get_charts, get_metadata
 
+from ray.air import session
 
 class Trainer:
     @staticmethod
@@ -225,6 +226,7 @@ class Trainer:
 
             mean_episode_reward = np.mean(episode_rewards)
             # cls.update_curriculum(envs, mean_episode_reward)
+            metrics_train = {}
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
                     (j + 1) * params["num_processes"] * params["num_steps"]
@@ -260,7 +262,9 @@ class Trainer:
                         dist_entropy,
                     )
                 )
+                metrics_train = {"train/reward": mean_episode_reward}
 
+            metrics_eval = {}
             if (
                 params["eval_interval"] > 0
                 and len(episode_rewards) > 1
@@ -290,8 +294,9 @@ class Trainer:
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
-                        run_id=str(logger.run_id),
+                        run_id = str(logger.run_id),
                     )
+                metrics_eval = {"eval/reward": eval_reward}   
             else:
                 if logger is not None:
                     logger.log(
@@ -306,6 +311,8 @@ class Trainer:
                         policy_entropy=dist_entropy,
                         run_id=str(logger.run_id),
                     )
+            
+            session.report({**metrics_train, **metrics_eval})
 
 
 class GNNTrainer(Trainer):
