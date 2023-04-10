@@ -2,6 +2,7 @@ from random import random, randint
 from math import sqrt
 import os
 import argparse
+import numpy as np
 
 def generate_assert_int(num, op, min_int, max_int, range_min, range_max):
     assert_int, result, success = max_int + 1, max_int + 1, True
@@ -174,6 +175,61 @@ def generate_tuple():
         print(f"{len(assignment_list)} assignments are created.")
         write_assignments(assignment_list, save_dir)
 
+
+def generate_mult():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--assignment_num", type=int, help="the number of assignments to create", default=10)
+    parser.add_argument("--tuple_num", type=int, help="number of tuples", default=4)
+    parser.add_argument("--hole-pos", type=int, help="position of hole", default=0)
+    parser.add_argument("--zero-prob", type=int, help="probability of zero", default=0.25)
+    parser.add_argument("--save_dir", help="directory to save assignments")
+    parser.add_argument("--test_dir", default=None)
+    args = parser.parse_args() 
+    
+    assignment_num = args.assignment_num
+    tuple_num = args.tuple_num
+    zero_prob = args.zero_prob
+    save_dir = args.save_dir
+    test_dir = args.test_dir
+    
+    generated_assignment_num = 0
+    assignment_list = []
+    while generated_assignment_num < assignment_num:
+        generated_tuple_num = 0
+        int_exp = 1 if np.random.rand() > zero_prob else 0
+        int_exp = int_exp * -1 if np.random.rand() > 0.5 else int_exp
+        
+        if generated_tuple_num == args.hole_pos:
+            exp = '?'
+        else:
+            exp = str(int_exp)
+        
+        prod = int_exp
+        while generated_tuple_num < tuple_num - 1:
+            generated_tuple_num += 1
+            int_exp = 1 if np.random.rand() > zero_prob else 0
+            int_exp = int_exp * -1 if np.random.rand() > 0.5 else int_exp
+            if generated_tuple_num == args.hole_pos:
+                exp += f' * ?'
+            else:
+                exp += f' * {int_exp}'
+            prod *= int_exp
+        
+        exp = f'let f (x1 : int) =\n\t{exp}\nin\nassert (f 0 = {prod})\n'
+        assignment_list.append(exp)
+        generated_assignment_num += 1
+    assignment_list = list(set(assignment_list))
+    
+    # write assignments to file
+    if test_dir is not None:
+        length = int(0.85 * len(assignment_list))
+        print(f"{length} assignments and {len(assignment_list) - length} test assignments are created.")
+        write_assignments(assignment_list[:length], save_dir)
+        write_assignments(assignment_list[length:], test_dir)
+    else:
+        print(f"{len(assignment_list)} assignments are created.")
+        write_assignments(assignment_list, save_dir)
+
             
 if __name__ == "__main__":
-    generate_tuple()
+    generate_mult()

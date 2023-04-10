@@ -10,4 +10,3 @@ _opam/
 .env
 *.pyc
 logger_config.yaml
-data/
