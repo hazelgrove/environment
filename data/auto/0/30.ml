@@ -1,4 +1,4 @@
 let f (x1 : int) =
-	? + 1 + 2 + 2
+	? * 0 * 1 * 0
 in
-assert (f 0 = 8)
+assert (f 0 = 0)

@@ -18,6 +18,12 @@ class GatedGNN(gnn.conv.MessagePassing):
         self.num_layers = num_layers
         
         self.weight = nn.Parameter(torch.Tensor(num_layers, out_channels, out_channels))
+        self.main = gnn.GATConv(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            edge_dim=out_channels,
+        )
+        
         self.rnn = nn.GRUCell(out_channels, out_channels, bias=bias)
         
         self.lin_edge = nn.Linear(out_channels, out_channels)
@@ -43,7 +49,7 @@ class GatedGNN(gnn.conv.MessagePassing):
 
         for i in range(self.num_layers):
             m = torch.matmul(x, self.weight[i])
-            m = self.propagate(edge_index, x=m, edge_attr=edge_attr)
+            m = self.main(x=m, edge_index=edge_index, edge_attr=edge_attr)
             x = self.rnn(m, x)
         
         return x
