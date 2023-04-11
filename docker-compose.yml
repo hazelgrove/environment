@@ -38,7 +38,7 @@ services:
     entrypoint:
       - execute-sweep
       - --graphql-endpoint=${GRAPHQL_ENDPOINT}
-      - --command=python ${SCRIPT} log sweep --sweep-id
+      - --command=python3 ${SCRIPT} log sweep --sweep-id
     volumes:
       - "${PWD}/logs:/tmp/logs"
       - "${PWD}/completions:/root/completions"

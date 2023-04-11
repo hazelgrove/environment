@@ -37,7 +37,7 @@ RUN apt-get update -q \
   && apt-get clean
 WORKDIR "/deps"
 COPY pyproject.toml poetry.lock requirements.txt /deps/
-RUN pip3 install poetry && pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt
 ENV PYTHON_ENV=/root/.cache/pypoetry/virtualenvs/hazelnut-K3BlsyQa-py3.8/
 
 FROM base AS runtime
