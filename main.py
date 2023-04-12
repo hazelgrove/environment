@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from typing import Optional
 from unittest.result import failfast
+from test_gen_util import generate_tests
 
 import ray
 import torch
@@ -122,10 +123,10 @@ def sweep(
     )
     print(analysis.stats())
 
-
 if __name__ == "__main__":
     args = get_args()
     print("Python started.")
+    generate_tests( config_path= "params.yaml")
 
     if args.sweep:
         sweep(
