@@ -114,26 +114,11 @@ def sweep(
         "graphql_endpoint": graphql_endpoint,
         "save_dir": save_dir,
         "sweep_id": sweep_id,
-        # "scaling_config": ScalingConfig(
-        #     num_workers=1,
-        #     use_gpu=True,
-        #     trainer_resources={"CPU": num_cpus, "GPU": num_gpus},
-        #     resources_per_worker={
-        #     "CPU": num_cpus,
-        #     "GPU": num_gpus
-        #     },
-        # ),
+        "wandb": {"project": name},
         **params,
     }
 
     ray.init()
-    # analysis = ray.tune.run(
-    #     trainable,
-    #     config=config,
-    #     resources_per_trial={"cpu": num_cpus / num_gpus, "gpu": 1},
-    #     fail_fast="raise",
-    # )
-    # print(analysis.stats())
     tuner = ray.tune.Tuner(
         tune.with_resources(
             tune.with_parameters(trainable),
@@ -141,7 +126,7 @@ def sweep(
         ),
         param_space=config,
         tune_config=tune.TuneConfig(num_samples=10),
-        run_config=RunConfig(callbacks=[WandbLoggerCallback(project="JW_wandb_test_3", api_key_file="/RL_env/wandb_api_key")]),
+        # run_config=RunConfig(callbacks=[WandbLoggerCallback(project=name, api_key_file="/RL_env/wandb_api_key")]),
     )
 
     results = tuner.fit()
