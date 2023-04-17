@@ -44,8 +44,9 @@ def _log(
         }
     )
 
+    sweep = sweep_id != None
     GNNTrainer.train(
-        logger=logger, params=kwargs, log_name=name, render=render, save_dir=save_dir
+        logger=logger, params=kwargs, log_name=name, render=render, save_dir=save_dir, sweep=sweep
     )
 
 
@@ -119,6 +120,8 @@ def sweep(
     }
 
     ray.init()
+    num_cpus = os.cpu_count()
+    num_gpus = torch.cuda.device_count()
     tuner = ray.tune.Tuner(
         tune.with_resources(
             tune.with_parameters(trainable),
@@ -126,8 +129,10 @@ def sweep(
         ),
         param_space=config,
         tune_config=tune.TuneConfig(num_samples=10),
-        # run_config=RunConfig(callbacks=[WandbLoggerCallback(project=name, api_key_file="/RL_env/wandb_api_key")]),
     )
+
+    results = tuner.fit()
+    print(results)
 
     results = tuner.fit()
     print(results)

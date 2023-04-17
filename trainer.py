@@ -22,8 +22,9 @@ from envs.test_env import TestEnv
 from evaluation import Evaluator, PLEvaluator
 from logger import get_charts, get_metadata
 
-from ray.air import session
 from ray.air.integrations.wandb import setup_wandb
+import wandb
+
 
 class Trainer:
     @staticmethod
@@ -78,10 +79,17 @@ class Trainer:
         return
 
     @classmethod
-    def train(cls, logger, params, log_name, render, save_dir):
-        # config = {"project": log_name}
-        # add config metadata, which stores params.yaml file 
-        wandb = setup_wandb(project=log_name,config=params,group="assistant_rl", api_key_file="/RL_env/wandb_api_key")
+    def train(cls, logger, params, log_name, render, save_dir, sweep):
+        if sweep:
+            wandb_logger = setup_wandb(project="assistant_rl",config=params, group=log_name, api_key_file="/RL_env/wandb_api_key")
+        else:
+            wandb_logger = wandb
+            with open("/RL_env/wandb_api_key", "r") as f:
+                api_key = f.readline()
+            os.environ["WANDB_API_KEY"] = api_key
+            wandb_logger.login()
+            wandb_logger.init(project="assistant_rl",config=params, notes=log_name)
+            
 
         if log_name != "test":
             save_dir = os.path.join(save_dir, log_name)
@@ -319,8 +327,7 @@ class Trainer:
                         run_id=str(logger.run_id),
                     )
             
-            session.report({**metrics_train, **metrics_eval})
-            wandb.log({**metrics_train, **metrics_eval})
+            wandb_logger.log({**metrics_train, **metrics_eval})
 
 
 class GNNTrainer(Trainer):
