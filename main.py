@@ -40,8 +40,9 @@ def _log(
         }
     )
 
+    sweep = sweep_id != None
     GNNTrainer.train(
-        logger=logger, params=kwargs, log_name=name, render=render, save_dir=save_dir
+        logger=logger, params=kwargs, log_name=name, render=render, save_dir=save_dir, sweep=sweep
     )
 
 
@@ -114,13 +115,17 @@ def sweep(
     ray.init()
     num_cpus = os.cpu_count()
     num_gpus = torch.cuda.device_count()
-    analysis = ray.tune.run(
-        trainable,
-        config=config,
-        resources_per_trial={"cpu": num_cpus / num_gpus, "gpu": 1},
-        fail_fast="raise",
+    tuner = ray.tune.Tuner(
+        tune.with_resources(
+            tune.with_parameters(trainable),
+            resources={"cpu": int(num_cpus / num_gpus), "gpu": 1}
+        ),
+        param_space=config,
+        tune_config=tune.TuneConfig(num_samples=10),
     )
-    print(analysis.stats())
+
+    results = tuner.fit()
+    print(results)
 
 
 if __name__ == "__main__":

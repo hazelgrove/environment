@@ -22,6 +22,7 @@ from evaluation import Evaluator, PLEvaluator
 from logger import get_charts, get_metadata
 from envs.test_env import TestEnv
 
+from ray.air.integrations.wandb import setup_wandb
 
 class Trainer:
     @staticmethod
@@ -76,7 +77,18 @@ class Trainer:
         return
 
     @classmethod
-    def train(cls, logger, params, log_name, render, save_dir):
+    def train(cls, logger, params, log_name, render, save_dir, sweep):
+        if sweep:
+            wandb = setup_wandb(project="assistant_rl_sweeps", group=log_name, api_key_file="/RL_env/wandb_api_key")
+        else:
+            import wandb
+            with open("/RL_env/wandb_api_key", "r") as f:
+                api_key = f.readline()
+            os.environ["WANDB_API_KEY"] = api_key
+            wandb.login()
+            wandb.init(project="assistant_rl_runs", name=log_name)
+            
+
         if log_name != "test":
             save_dir = os.path.join(save_dir, log_name)
             try:
@@ -225,6 +237,7 @@ class Trainer:
 
             mean_episode_reward = np.mean(episode_rewards)
             # cls.update_curriculum(envs, mean_episode_reward)
+            metrics_train = {}
             if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
                     (j + 1) * params["num_processes"] * params["num_steps"]
@@ -260,7 +273,9 @@ class Trainer:
                         dist_entropy,
                     )
                 )
+                metrics_train = {"train/reward": mean_episode_reward}
 
+            metrics_eval = {}
             if (
                 params["eval_interval"] > 0
                 and len(episode_rewards) > 1
@@ -291,7 +306,8 @@ class Trainer:
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
                         run_id = str(logger.run_id),
-                    )    
+                    )
+                metrics_eval = {"eval/reward": eval_reward}   
             else:
                 if logger is not None:
                     logger.log(
@@ -307,6 +323,7 @@ class Trainer:
                         run_id = str(logger.run_id),
                     )
             
+            wandb.log({**metrics_train, **metrics_eval})
 
 
 class GNNTrainer(Trainer):
