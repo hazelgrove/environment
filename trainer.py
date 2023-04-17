@@ -23,6 +23,7 @@ from evaluation import Evaluator, PLEvaluator
 from logger import get_charts, get_metadata
 
 from ray.air import session
+from ray.air.integrations.wandb import setup_wandb
 
 class Trainer:
     @staticmethod
@@ -78,6 +79,9 @@ class Trainer:
 
     @classmethod
     def train(cls, logger, params, log_name, render, save_dir):
+        # config = {"project": log_name}
+        wandb = setup_wandb(project=log_name, group="assistant_rl", api_key_file="/RL_env/wandb_api_key")
+
         if log_name != "test":
             save_dir = os.path.join(save_dir, log_name)
             try:
@@ -139,6 +143,8 @@ class Trainer:
             // params["num_steps"]
             // params["num_processes"]
         )
+
+        last_eval_reward = 0.0
         for j in range(num_updates):
             if params["use_linear_lr_decay"]:
                 # decrease learning rate linearly
@@ -313,6 +319,7 @@ class Trainer:
                     )
             
             session.report({**metrics_train, **metrics_eval})
+            wandb.log({**metrics_train, **metrics_eval})
 
 
 class GNNTrainer(Trainer):
