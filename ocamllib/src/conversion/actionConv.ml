@@ -14,6 +14,7 @@ let action_list =
     Construct (Const (Bool true));
     Construct (Const (Bool false));
     Construct (UnOp OpNeg);
+    Construct (UnOp OpNot);
     Construct (BinOp_L OpPlus);
     Construct (BinOp_L OpMinus);
     Construct (BinOp_L OpTimes);
@@ -130,6 +131,7 @@ let to_string (action : t) : string =
   | Construct (Const (Int x)) -> "Construct Int " ^ string_of_int x
   | Construct (Const (Bool x)) -> "Construct Bool " ^ string_of_bool x
   | Construct (UnOp OpNeg) -> "Construct UnOp OpNeg"
+  | Construct (UnOp OpNot) -> "Construct UnOp OpNot"
   | Construct (BinOp_L op) ->
       let binop =
         match op with

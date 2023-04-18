@@ -107,6 +107,9 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
   | EUnOp (OpNeg, arg) ->
       (* negation: if child is int, expr has same type *)
       if analysis context arg Int then Some Int else None
+  | EUnOp (OpNot, arg) ->
+      (* not: if child is bool, expr has same type *)
+      if analysis context arg Bool then Some Bool else None
   | EBinOp (argl, (OpPlus | OpMinus | OpTimes | OpDiv), argr) ->
       (*arithmetic operations: if we see an int, return an int *)
       if analysis context argl Int && analysis context argr Int
@@ -181,7 +184,10 @@ let rec synthesis (context : Context.t) (e : Expr.t) : Type.p_t option =
           match get_common_type ltype rtype with
           | Some t -> Some Bool
           | None -> None)
-      | Some Hole, Some (List _) | Some (List _), Some Hole | Some Hole, Some Hole -> Some Bool
+      | Some Hole, Some (List _)
+      | Some (List _), Some Hole
+      | Some Hole, Some Hole ->
+          Some Bool
       | _ -> None)
   | EFun (varn, vart, body) -> (
       let vart = Type.strip vart in

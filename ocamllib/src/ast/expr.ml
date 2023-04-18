@@ -2,7 +2,7 @@
 open Sexplib.Std
 
 (* Unary Operators *)
-type unop = OpNeg [@@deriving sexp]
+type unop = OpNeg | OpNot [@@deriving sexp]
 
 (* Binary Operators *)
 type binop =
@@ -232,7 +232,7 @@ let zip_migrate (e : t) (node : z_node) : z_t =
   { id = e.id; node; starter = e.starter }
 
 let unop_equal (u1 : unop) (u2 : unop) : bool =
-  match (u1, u2) with OpNeg, OpNeg -> true
+  match (u1, u2) with OpNeg, OpNeg -> true | OpNot, OpNot -> true | _ -> false
 
 let binop_equal (b1 : binop) (b2 : binop) : bool =
   match (b1, b2) with
