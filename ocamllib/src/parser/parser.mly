@@ -12,7 +12,7 @@
 %token LPAREN RPAREN LBRAC RBRAC
 %token EOF
 %token ASSERT
-%token AND, OR
+%token AND, OR, NOT
 %token F
 %token MATCH WITH BAR WILD
 %token HOLE
@@ -109,10 +109,16 @@ logicor:
     { Expr.BinOp(e, OpOr, e2) }
 
 logicand:
-| e = comp
+| e = logicnot
     { e }
 | e = logicand AND e2 = comp
     { Expr.BinOp(e, OpAnd, e2) }
+
+logicnot:
+| e = comp
+    { e }
+| NOT e = comp
+    { Expr.UnOp(OpNot, e) }
 
 comp: 
 | e = lst 

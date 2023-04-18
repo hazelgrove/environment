@@ -88,7 +88,9 @@ let rec eval (e : Expr.p_t) (stack : int) : Expr.value =
     | Fun (x, ty, e_body) -> VFun (x, ty, e_body)
     | UnOp (op, e) -> (
         let v = eval e stack in
-        match op with OpNeg -> VConst (Int (-1 * expecting_int v)))
+        match op with
+        | OpNeg -> VConst (Int (-1 * expecting_int v))
+        | OpNot -> VConst (Bool (not (expecting_bool v))))
     | BinOp (e1, op, e2) -> (
         let v1 = eval e1 stack in
         let v2 = eval e2 stack in
