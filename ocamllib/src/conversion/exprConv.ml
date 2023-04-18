@@ -13,7 +13,9 @@ let rec to_string (e : p_t) : string =
       | Int n -> string_of_int n ^ " "
       | Bool b -> string_of_bool b ^ " "
       | Nil -> "[] ")
-  | UnOp (_, e) -> "(-" ^ to_string e ^ ") "
+  | UnOp (op, e) ->
+      let op_string = match op with OpNeg -> "-" | OpNot -> "!" in
+      "(" ^ op_string ^ to_string e ^ ") "
   | BinOp (e1, op, e2) ->
       let op_string =
         match op with
@@ -64,7 +66,9 @@ let rec to_string (e : p_t) : string =
       ^ to_string e1 ^ " | " ^ PatternConv.to_string p2 ^ " -> " ^ to_string e2
       ^ ") "
   | Assert e -> "assert(" ^ to_string e ^ ") "
-  | Fold (func, acc, list) -> "Fold ( " ^ to_string func ^ ", " ^ to_string acc ^ ", " ^ to_string list ^ ")"
+  | Fold (func, acc, list) ->
+      "Fold ( " ^ to_string func ^ ", " ^ to_string acc ^ ", " ^ to_string list
+      ^ ")"
 
 and resolve_fun (e : p_t) : string =
   match e with
@@ -79,6 +83,7 @@ and resolve_fun (e : p_t) : string =
 let node_list =
   [
     EUnOp (OpNeg, make_dummy_node EHole);
+    EUnOp (OpNot, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpPlus, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpMinus, make_dummy_node EHole);
     EBinOp (make_dummy_node EHole, OpTimes, make_dummy_node EHole);
@@ -134,7 +139,7 @@ let node_list_equal (e1 : node) (e2 : node) : bool =
     | EAssert _, EAssert _
     | EMap _, EMap _
     | EFilter _, EFilter _
-    | EFold _, EFold _ 
+    | EFold _, EFold _
     | EListEq _, EListEq _
     | EMatch _, EMatch _ ->
         true
@@ -378,8 +383,7 @@ let to_list (e : z_t) : graph =
         let nodes, edges = add_subtree edef nodes edges vars root 1 in
         let vars = add_var x new_root vars in
         (add_subtree ebody nodes edges vars root 2, root, vars)
-    | EFold (e1, e2, e3) 
-    | EIf (e1, e2, e3) ->
+    | EFold (e1, e2, e3) | EIf (e1, e2, e3) ->
         let nodes, edges = add_subtree e1 nodes edges vars root 0 in
         let nodes, edges = add_subtree e2 nodes edges vars root 1 in
         (add_subtree e3 nodes edges vars root 2, root, vars)
@@ -458,8 +462,7 @@ let rec get_starter_list (e : Expr.t) : bool list =
       @ get_starter_list body
   | ELet (x, edef, ebody) ->
       [ e.starter; e.starter ] @ get_starter_list edef @ get_starter_list ebody
-  | EFold (e1, e2, e3)
-  | EIf (e1, e2, e3) ->
+  | EFold (e1, e2, e3) | EIf (e1, e2, e3) ->
       (e.starter :: get_starter_list e1)
       @ get_starter_list e2 @ get_starter_list e3
   | EMatch (escrut, (p1, e1), (p2, e2)) ->

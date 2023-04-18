@@ -6,8 +6,8 @@ import torch.nn as nn
 import torch_geometric.nn as gnn
 
 from agent.batch import collate, separate
+from agent.models import CursorRNN, GatedGNN
 from agent.utils import init
-from agent.models import GatedGNN, CursorRNN
 
 
 class Flatten(nn.Module):
@@ -188,7 +188,7 @@ class GNNBase(NNBase):
         hidden_size: int = 64,
         num_layers: int = 8,
         embedding_size: int = 32,
-        num_node_descriptor: int = 106,
+        num_node_descriptor: int = 107,
         num_edge_descriptor: int = 6,
         num_assignments: int = 2,
         assignment_aggr: Optional[str] = None,
@@ -206,9 +206,14 @@ class GNNBase(NNBase):
         self.max_num_vars = max_num_vars
         self.cursor = cursor
         self.device = device
-        
+
         self.main = GatedGNN(out_channels=self.hidden_size, num_layers=self.num_layers)
-        self.cursor_layer = CursorRNN(input_dim=self.hidden_size + 1, hidden_dim=self.hidden_size, output_dim=self.hidden_size, num_layers=cursor_num_layers)
+        self.cursor_layer = CursorRNN(
+            input_dim=self.hidden_size + 1,
+            hidden_dim=self.hidden_size,
+            output_dim=self.hidden_size,
+            num_layers=cursor_num_layers,
+        )
 
         self.node_embedding = nn.Embedding(
             num_embeddings=num_node_descriptor + max_num_vars * 2 + 1,
@@ -287,7 +292,11 @@ class GNNBase(NNBase):
             out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
         else:
             cursor = torch.zeros((x.shape[0], x.shape[1], 1), device=self.device)
-            cursor[torch.arange(x.shape[0]), inputs["cursor_position"].flatten(), torch.zeros(x.shape[0], dtype=torch.long)] = 1
+            cursor[
+                torch.arange(x.shape[0]),
+                inputs["cursor_position"].flatten(),
+                torch.zeros(x.shape[0], dtype=torch.long),
+            ] = 1
             out = torch.concat((x, cursor), dim=-1)
             out = self.cursor_layer(out)
 
@@ -321,7 +330,7 @@ class TestBase(NNBase):
         self.heads = heads
         self.hidden_size = hidden_size
         self.device = device
-        
+
         self.main = gnn.Sequential(
             "x, edge_index",
             [
@@ -401,23 +410,30 @@ class TestBase(NNBase):
         batch_size, num_nodes = nodes.shape
         nodes = nodes.reshape(batch_size * num_nodes, 1)
         nodes = nodes.float()
-        
+
         edge1 = torch.vstack(
-            [torch.arange(0, num_nodes - 1, device=nodes.device), torch.arange(1, num_nodes, device=nodes.device)],
+            [
+                torch.arange(0, num_nodes - 1, device=nodes.device),
+                torch.arange(1, num_nodes, device=nodes.device),
+            ],
         )
         edge2 = torch.vstack(
-            [torch.arange(1, num_nodes, device=nodes.device), torch.arange(0, num_nodes - 1, device=nodes.device)],
+            [
+                torch.arange(1, num_nodes, device=nodes.device),
+                torch.arange(0, num_nodes - 1, device=nodes.device),
+            ],
         )
-        
+
         edges = torch.concat(
-            [edge1 + num_nodes * i for i in range(batch_size)] + [edge2 + num_nodes * i for i in range(batch_size)],
+            [edge1 + num_nodes * i for i in range(batch_size)]
+            + [edge2 + num_nodes * i for i in range(batch_size)],
             dim=1,
         )
         edges = edges.long()
 
         # Pass through GNN
         x = self.main(nodes, edges)
-        
+
         x = x.reshape(batch_size, num_nodes, -1)
         out = x[:, -1, :]
 

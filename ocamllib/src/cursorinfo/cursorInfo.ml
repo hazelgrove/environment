@@ -122,6 +122,9 @@ let get_cursor_info (tree : Syntax.z_t) : t =
     | EUnOp_L (OpNeg, e) ->
         get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty:Type.Int ~index:(index + 1)
+    | EUnOp_L (OpNot, e) ->
+        get_cursor_info_expr ~current_term:e ~parent_term:(Some current_term)
+          ~vars ~args ~typ_ctx ~exp_ty:Type.Bool ~index:(index + 1)
     | EBinOp_L
         ( e,
           ( OpPlus | OpMinus | OpTimes | OpDiv | OpGt | OpGe | OpLt | OpLe
@@ -269,7 +272,15 @@ let get_cursor_info (tree : Syntax.z_t) : t =
           match exp_ty with
           | Type.Prod (t1, t2) -> t1
           | Type.Hole -> Type.Hole
-          | _ -> raise (TypeError ("Expected a product type, but got " ^ (match tree with | ZENode e -> e |> Expr.unzip |> Expr.strip |> ExprConv.to_string | _ -> raise (Failure ""))))
+          | _ ->
+              raise
+                (TypeError
+                   ("Expected a product type, but got "
+                   ^
+                   match tree with
+                   | ZENode e ->
+                       e |> Expr.unzip |> Expr.strip |> ExprConv.to_string
+                   | _ -> raise (Failure "")))
         in
         get_cursor_info_expr ~current_term:e1 ~parent_term:(Some current_term)
           ~vars ~args ~typ_ctx ~exp_ty ~index:(index + 1)
@@ -920,7 +931,9 @@ let cursor_info_to_actions (info : t) : Action.t list =
       match exp_ty with
       | Type.Int | Type.Hole -> (
           match actual_ty with
-          | Type.Int | Type.Hole -> [ Construct (UnOp OpNeg) ]
+          | Type.Int -> [ Construct (UnOp OpNeg) ]
+          | Type.Bool -> [ Construct (UnOp OpNot) ]
+          | Type.Hole -> [ Construct (UnOp OpNeg); Construct (UnOp OpNot) ]
           | _ -> [])
       | _ -> []
     in
