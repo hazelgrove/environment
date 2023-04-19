@@ -12,19 +12,19 @@ use_linear_lr_decay: True
 env: 
   max_episode_steps: 1
   perturbation: 0
-  assignment_dir: /RL_env/data/auto
-  num_assignments: 10
-  code_per_assignment: [31, 33, 31, 32, 16, 16, 12, 4, 4, 3]
-  cursor_start_pos: [3, 4, 5, 6, 2, 3, 4, 1, 2, 0]
+  assignment_dir: data/generated_tests/binary_tests_auto/train
+  num_assignments: 7
+  code_per_assignment: [164, 35, 58, 23, 11, 6, 1]
+  cursor_start_pos: [1, 4, 2, 6, 8, 10, 12]
   # num_assignments: 1
   # code_per_assignment: [9]
   # cursor_start_pos: [6]
 eval: 
   perturbation: 0
-  assignment_dir: /RL_env/data/tests
-  num_assignments: 4
-  code_per_assignment: [6, 6, 6, 6]
-  cursor_start_pos: [3, 4, 5, 6]
+  assignment_dir: data/generated_tests/binary_tests_auto/test
+  num_assignments: 5
+  code_per_assignment: [39, 3, 19, 4, 2]
+  cursor_start_pos: [1, 4, 2, 6, 10]
 base: 
   hidden_size: 128
   num_layers: 11
@@ -39,6 +39,17 @@ ppo:
   num_mini_batch: 4
   clip_param: 0.1
   entropy_coef: 0.01
+make_tests: 
+  command: python3 scripts/generate_tests_plus_minus_one.py
+  args:
+    min_num_steps: 2
+    max_num_steps: 8
+    max_tests_per: 15 # generate all possible examples
+    max_num_ones: 3 # dont cap 
+    test_ratio: 0.3
+    outdir: data/generated_tests/binary_tests_auto/
+
+
 return:
   gamma: 0.99
   use_gae: True
