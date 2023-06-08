@@ -85,8 +85,8 @@ def constr_solution():
 
 def parse_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--min_n",type=int,default=3, help="number of inputs")
-    parser.add_argument("--max_n",type=int,default=4, help="number of inputs")
+    parser.add_argument("--min_n",type=int,default=1, help="number of inputs")
+    parser.add_argument("--max_n",type=int,default=3, help="number of inputs")
     parser.add_argument("--max_funcs",type=int,default =500, help= "the maximum number of tests to generate")
     parser.add_argument("--test_ratio",type=float,default =0.2, help= "percentage of functions to reserve for test set")
     parser.add_argument("--outdir",type=str,default ="data/generated_tests/binary_funcs", help= "where to store the files")
@@ -129,7 +129,7 @@ def make_func_batch(n_inputs,outdir,test_ratio = 0.2,seed=42, save_num = 0, max_
 	
 def main(): 
     args = parse_args()
-    for i, n in enumerate(range(args.min_n,args.max_n)):
+    for i, n in enumerate(range(args.min_n,args.max_n+1)):
         make_func_batch(
             n_inputs=n,
             outdir=args.outdir,
