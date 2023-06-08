@@ -69,9 +69,6 @@ def make_funcs(n,max_num = 400, print_funcs = False, print_asserts = False):
         
     return functs, assert_strs
 
-
-# In[14]:
-
 # now construct the actual assert 
 def constr_test_cases(n,asserts):
     cases = []
@@ -88,7 +85,8 @@ def constr_solution():
 
 def parse_args(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n",type=int,default=3, help="number of inputs")
+    parser.add_argument("--min_n",type=int,default=3, help="number of inputs")
+    parser.add_argument("--max_n",type=int,default=4, help="number of inputs")
     parser.add_argument("--max_funcs",type=int,default =500, help= "the maximum number of tests to generate")
     parser.add_argument("--test_ratio",type=float,default =0.2, help= "percentage of functions to reserve for test set")
     parser.add_argument("--outdir",type=str,default ="data/generated_tests/binary_funcs", help= "where to store the files")
@@ -110,25 +108,36 @@ def save_tests(tests,targdir):
             file.write(test)
     print(f'saved {len(tests)} files to "{targdir}"')
 
-	
-def main(): 
-    args = parse_args()
-    funct_list, assert_list = make_funcs(args.n,args.max_funcs)
-    tests = constr_test_cases(args.n,assert_list)
+def make_func_batch(n_inputs,outdir,test_ratio = 0.2,seed=42, save_num = 0, max_funcs=400): 
+    funct_list, assert_list = make_funcs(n_inputs,max_funcs)
+    tests = constr_test_cases(n_inputs,assert_list)
 
     # now partition and save 
-    random.seed(args.seed)
+    random.seed(seed)
     tests_shuff = tests
     random.shuffle(tests_shuff)
 
-    n_train = int((1-args.test_ratio)*float(len(tests)))
+    n_train = int((1-test_ratio)*float(len(tests)))
     train, test = tests[:n_train], tests[n_train:]
     # save 
-    train_dir = os.path.join(args.outdir,'train','0')
-    test_dir  = os.path.join(args.outdir,'test' ,'0')
-
+    train_dir = os.path.join(outdir,'train','0')
+    test_dir  = os.path.join(outdir,'test' ,'0')
     save_tests(train,train_dir)
     save_tests(test,test_dir)
+
+
+	
+def main(): 
+    args = parse_args()
+    for i, n in enumerate(range(args.min_n,args.max_n)):
+        make_func_batch(
+            n_inputs=n,
+            outdir=args.outdir,
+            test_ratio =args.test_ratio,
+            seed=args.seed,
+            save_num=i, 
+            max_funcs= args.max_funcs,
+        )
 
 
 if __name__ == "__main__":
