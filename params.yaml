@@ -15,7 +15,7 @@ env:
   assignment_dir: data/generated_tests/binary_funcs/train
   num_assignments: 2
   code_per_assignment: [3,12]
-  cursor_start_pos: [0]
+  cursor_start_pos: [0,0] 
   # num_assignments: 1
   # code_per_assignment: [9]
   # cursor_start_pos: [6]
@@ -24,7 +24,7 @@ eval:
   assignment_dir: data/generated_tests/binary_funcs/test
   num_assignments: 2
   code_per_assignment: [1,4]
-  cursor_start_pos: [0]
+  cursor_start_pos: [0,0]
 base: 
   hidden_size: 128
   num_layers: 11
