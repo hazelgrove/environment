@@ -26,16 +26,10 @@ def make_truth_tables(n, print_tts=True):
 
 
 def and_string(elts): 
-    if len(elts) <= 1: 
-        return  ''.join(elts)
-    else:
-        return f'({elts[0]} && ' +  and_string(elts[1:]) + ')'
+    return '(' + " && ".join(elts) + ')'
 
 def or_string(elts): 
-    if len(elts) <= 1: 
-        return  ''.join(elts)
-    else:
-        return f'({elts[0]} || ' +  or_string(elts[1:]) + ')'
+    return '(' + " || ".join(elts) + ')'
 
 
 # now make funcs ? 
@@ -43,8 +37,8 @@ def make_funcs(n,max_num = 400, print_funcs = False, print_asserts = False):
     variables = [f'x{i}' for i in range(n)]
     pairs = [('(!'+var + ')', var) for var in variables]
 
-    bool_to_neg = lambda val: "!" if not val else ""
-    build_assert = lambda inpts,output: bool_to_neg(output) + '(f ' + ' '.join(inpts) + ')'
+    neg_if_needed = lambda stmt, neg: f'(!{stmt})' if neg else stmt
+    build_assert = lambda inpts,output:  neg_if_needed('(f ' + ' '.join(inpts) + ')',not output)
 
     inputs = list(product(*pairs))
     xvals = list(product(['false','true'],repeat = n))
@@ -126,10 +120,16 @@ def make_func_batch(n_inputs,outdir,test_ratio = 0.2,seed=42, save_num = 0, max_
     save_tests(train,train_dir)
     save_tests(test,test_dir)
 
-
+def clean_tests(outdir): 
+    if os.path.exists(os.path.join(outdir,'train')):
+        rmtree(os.path.join(outdir,'train'))
+    if os.path.exists(os.path.join(outdir,'test')):
+        rmtree(os.path.join(outdir,'test'))
 	
 def main(): 
     args = parse_args()
+
+    clean_tests(args.outdir)
     for i, n in enumerate(range(args.min_n,args.max_n+1)):
         make_func_batch(
             n_inputs=n,
