@@ -43,10 +43,11 @@ def make_funcs(n,max_num = 400, print_funcs = False, print_asserts = False):
     variables = [f'x{i}' for i in range(n)]
     pairs = [('(!'+var + ')', var) for var in variables]
 
-    build_assert = lambda inpts,outpt: '(f ' + ' '.join(inpts) + ') = '+ str(outpt)
+    bool_to_neg = lambda val: "!" if not val else ""
+    build_assert = lambda inpts,output: bool_to_neg(output) + '(f ' + ' '.join(inpts) + ')'
 
     inputs = list(product(*pairs))
-    xvals = list(product(['0','1'],repeat = n))
+    xvals = list(product(['false','true'],repeat = n))
     functs,assert_strs = [],[]
     for i, outputs in enumerate(product([0, 1], repeat=len(inputs))):
         if i >= max_num: 
@@ -54,7 +55,7 @@ def make_funcs(n,max_num = 400, print_funcs = False, print_asserts = False):
         terms = [and_string(row) for row, output in zip(inputs, outputs) if output]
         funct = or_string(terms)[1:-1]
         if not terms:
-            funct = 'False'
+            funct = 'false'
         truth_table = [build_assert(xval,yval) for xval, yval in zip(xvals,outputs)]
         truth_table = [build_assert(xval,yval) for xval, yval in zip(xvals,outputs)]
         assert_str = and_string(truth_table)
@@ -120,8 +121,8 @@ def make_func_batch(n_inputs,outdir,test_ratio = 0.2,seed=42, save_num = 0, max_
     n_train = int((1-test_ratio)*float(len(tests)))
     train, test = tests[:n_train], tests[n_train:]
     # save 
-    train_dir = os.path.join(outdir,'train','0')
-    test_dir  = os.path.join(outdir,'test' ,'0')
+    train_dir = os.path.join(outdir,'train',str(save_num))
+    test_dir  = os.path.join(outdir,'test' ,str(save_num))
     save_tests(train,train_dir)
     save_tests(test,test_dir)
 
