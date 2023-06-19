@@ -189,7 +189,7 @@ class GNNBase(NNBase):
         num_layers: int = 8,
         embedding_size: int = 32,
         num_node_descriptor: int = 107,
-        num_edge_descriptor: int = 6,
+        num_edge_descriptor: int = 7,
         num_assignments: int = 2,
         assignment_aggr: Optional[str] = None,
         max_num_vars: int = 11,
@@ -231,6 +231,8 @@ class GNNBase(NNBase):
         )
         self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
 
+        self.num_edge_descriptor = num_edge_descriptor
+
         self.train()
 
     def forward(self, inputs: torch.Tensor):
@@ -247,7 +249,7 @@ class GNNBase(NNBase):
 
         x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
         edge_index = torch.concat((edge_index, edge_index.flip(0)), dim=1)
-        edge_attr = torch.concat((edge_attr, edge_attr + 6), dim=0)
+        edge_attr = torch.concat((edge_attr, edge_attr + self.num_edge_descriptor), dim=0)
 
         # Convert inputs to long
         x = x.long()
