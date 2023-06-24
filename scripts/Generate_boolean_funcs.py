@@ -5,6 +5,7 @@ from itertools import product       # forms cartesian products
 import argparse
 import random
 import os 
+import json
 from shutil import rmtree
 
 
@@ -82,6 +83,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min_n",type=int,default=1, help="number of inputs")
     parser.add_argument("--max_n",type=int,default=3, help="number of inputs")
+    parser.add_argument('--choose_tests', type=str,default=None,help='if seleccted must be a json list of file numbers to take. Checks that shuffle is off, only one n is given, and no test files are generated.')
+    parser.add_argument("--shuffle",type=bool,default=True,help='whether to shuffle tests')
     parser.add_argument("--max_funcs",type=int,default =500, help= "the maximum number of tests to generate")
     parser.add_argument("--test_ratio",type=float,default =0.2, help= "percentage of functions to reserve for test set")
     parser.add_argument("--outdir",type=str,default ="data/generated_tests/binary_funcs", help= "where to store the files")
@@ -103,17 +106,23 @@ def save_tests(tests,targdir):
             file.write(test)
     print(f'saved {len(tests)} files to "{targdir}"')
 
-def make_func_batch(n_inputs,outdir,test_ratio = 0.2,seed=42, save_num = 0, max_funcs=400): 
+def make_func_batch(n_inputs,outdir,test_ratio = 0.2,seed=42,shuffle=True, save_num = 0, max_funcs=400,choose_tests=None): 
     funct_list, assert_list = make_funcs(n_inputs,max_funcs)
     tests = constr_test_cases(n_inputs,assert_list)
-
     # now partition and save 
-    random.seed(seed)
-    tests_shuff = tests
-    random.shuffle(tests_shuff)
 
-    n_train = int((1-test_ratio)*float(len(tests)))
-    train, test = tests[:n_train], tests[n_train:]
+    tests_shuff = tests
+    print(choose_tests,len(tests_shuff))
+    if choose_tests:
+        tests_shuff = [elt for i,elt in enumerate(tests_shuff) if i in choose_tests]
+    print(choose_tests,len(tests_shuff))
+
+    if shuffle:
+        random.seed(seed)
+        random.shuffle(tests_shuff)
+
+    n_train = int((1-test_ratio)*float(len(tests_shuff)))
+    train, test = tests_shuff[:n_train], tests_shuff[n_train:]
     # save 
     train_dir = os.path.join(outdir,'train',str(save_num))
     test_dir  = os.path.join(outdir,'test' ,str(save_num))
@@ -130,6 +139,14 @@ def main():
     args = parse_args()
 
     clean_tests(args.outdir)
+    if args.choose_tests is not None: 
+        choose_tests = json.loads(args.choose_tests)
+        choose_tests = [ [int(elt) for elt in lst] for lst in choose_tests]
+        assert(len(choose_tests) == (args.max_n - args.min_n + 1))
+
+    else: 
+        choose_tests = None
+        
     for i, n in enumerate(range(args.min_n,args.max_n+1)):
         make_func_batch(
             n_inputs=n,
@@ -138,6 +155,8 @@ def main():
             seed=args.seed,
             save_num=i, 
             max_funcs= args.max_funcs,
+            shuffle=args.shuffle,
+            choose_tests=choose_tests[i]
         )
 
 
