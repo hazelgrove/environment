@@ -80,7 +80,8 @@ class Trainer:
     @classmethod
     def train(cls, logger, params, log_name, render, save_dir):
         # config = {"project": log_name}
-        wandb = setup_wandb(project=log_name, group="assistant_rl", api_key_file="/RL_env/wandb_api_key")
+        # add config metadata, which stores params.yaml file 
+        wandb = setup_wandb(project=log_name,config=params,group="assistant_rl", api_key_file="/RL_env/wandb_api_key")
 
         if log_name != "test":
             save_dir = os.path.join(save_dir, log_name)
@@ -103,10 +104,10 @@ class Trainer:
         if (
             params["cuda"]
             and torch.cuda.is_available()
-            and params["cuda_deterministic"]
         ):
             torch.backends.cudnn.benchmark = False
-            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.deterministic =  params["cuda_deterministic"]
+
         print(f"Cuda Availability: {torch.cuda.is_available()}")
 
         torch.set_num_threads(1)
