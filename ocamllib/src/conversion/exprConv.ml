@@ -343,37 +343,53 @@ let to_list (e : z_t) : graph =
   in
   let rec to_list_aux (e : t) (nodes : int list) (edges : edge list)
       (vars : varlist) (fb_ids : func_body_indices) (as_ids : assertion_indices)
-      : graph * func_body_indices * assertion_indices * int * varlist =
+      (fb_flag : int) (as_flag: int) : graph * func_body_indices 
+      * assertion_indices * int * varlist =
     let add_subtree (e : t) (nodes : int list) (edges : edge list)
         (vars : varlist) (root : int) (num_child : int) 
         (fb_ids : func_body_indices) (as_ids : assertion_indices)
-        : graph * func_body_indices * assertion_indices =
-      let (nodes, edges), fb_ids, as_ids, new_root, _ = to_list_aux e nodes edges vars fb_ids as_ids in
+        (fb_flag : int) (as_flag: int) : graph * func_body_indices 
+        * assertion_indices =
+      let (nodes, edges), fb_ids, as_ids, new_root, _ = to_list_aux e nodes edges vars fb_ids as_ids fb_flag as_flag in
       let edges = add_edge edges (root, new_root, num_child) in
       let g = (nodes, edges) in
       (g, fb_ids, as_ids)
     in
     let tag = node_to_tag e in
     let nodes, root = add_node nodes tag in
+    (*find index of function body*)
+    let (fb_ids, fb_flag) = (
+      match e.node with
+      | EFun (_, _, _) | EFix (_, _, _) -> (fb_ids, fb_flag)
+      | _ -> if fb_flag = 1 then (fb_ids @ [root], 0) else (fb_ids, fb_flag)
+    )
+    in
+    (*find index of each assertion*)
+    let (as_ids, as_flag) = (
+      match e.node with
+      | EAssert _ | EBinOp (_, OpAnd, _) -> (as_ids, as_flag)
+      | _ -> if as_flag = 1 then (as_ids @ [root], 0) else (as_ids, as_flag)
+    )
+    in
     match e.node with
     | EConst _ | EHole -> ((nodes, edges), fb_ids, as_ids, root, vars)
     | EVar x ->
         let edges = add_edge edges (find_var x vars, root, -1) in
         ((nodes, edges), fb_ids, as_ids, root, vars)
     | EUnOp (_, e) -> 
-        let g, fb_ids, as_ids = add_subtree e nodes edges vars root 0 fb_ids as_ids in 
+        let g, fb_ids, as_ids = add_subtree e nodes edges vars root 0 fb_ids as_ids fb_flag as_flag in 
         (g, fb_ids, as_ids, root, vars)
     | EAssert e -> 
-        let as_ids = as_ids @ [root] in
-        let g, fb_ids, as_ids = add_subtree e nodes edges vars root 0 fb_ids as_ids in 
+        (* let as_ids = as_ids @ [root] in *)
+        let g, fb_ids, as_ids = add_subtree e nodes edges vars root 0 fb_ids as_ids fb_flag 1 in 
         (g, fb_ids, as_ids, root, vars)
     | EBinOp (e1, _, e2)
     | EPair (e1, e2)
     | EMap (e1, e2)
     | EFilter (e1, e2)
     | EListEq (e1, e2) ->
-        let (nodes, edges), fb_ids, as_ids = add_subtree e1 nodes edges vars root 0 fb_ids as_ids in
-        let g, fb_ids, as_ids = add_subtree e2 nodes edges vars root 1 fb_ids as_ids in 
+        let (nodes, edges), fb_ids, as_ids = add_subtree e1 nodes edges vars root 0 fb_ids as_ids fb_flag as_flag in
+        let g, fb_ids, as_ids = add_subtree e2 nodes edges vars root 1 fb_ids as_ids fb_flag as_flag in 
         (g, fb_ids, as_ids, root, vars)
     | EFun (x, ty, e) | EFix (x, ty, e) ->
         (*TODO: for fix, do we need different ways to deal with fb_ids and as_ids?*)
@@ -387,57 +403,58 @@ let to_list (e : z_t) : graph =
           append_type_tree nodes edges ty_nodes ty_edges new_root
         in
         let edges = add_edge edges (root, new_root, 1) in
-        let fb_ids = fb_ids @ [new_root + 1] in
-        let g, fb_ids, as_ids = add_subtree e nodes edges vars root 2 fb_ids as_ids in 
+        (* let fb_ids = fb_ids @ [new_root + 1] in *)
+        let g, fb_ids, as_ids = add_subtree e nodes edges vars root 2 fb_ids as_ids 1 as_flag in 
         (g, fb_ids, as_ids, root, vars)
     | ELet (x, edef, ebody) ->
         let nodes, new_root =
           add_node nodes (node_to_tag (make_dummy_node (EVar x)))
         in
         let edges = add_edge edges (root, new_root, 0) in
-        let (nodes, edges), fb_ids, as_ids = add_subtree edef nodes edges vars root 1 fb_ids as_ids in
+        let (nodes, edges), fb_ids, as_ids = add_subtree edef nodes edges vars root 1 fb_ids as_ids fb_flag as_flag in
         let vars = add_var x new_root vars in
-        let g, fb_ids, as_ids = add_subtree ebody nodes edges vars root 2 fb_ids as_ids in 
+        let g, fb_ids, as_ids = add_subtree ebody nodes edges vars root 2 fb_ids as_ids fb_flag as_flag in 
         (g, fb_ids, as_ids, root, vars)
     | EFold (e1, e2, e3) | EIf (e1, e2, e3) ->
-        let (nodes, edges), fb_ids, as_ids = add_subtree e1 nodes edges vars root 0 fb_ids as_ids in
-        let (nodes, edges), fb_ids, as_ids = add_subtree e2 nodes edges vars root 1 fb_ids as_ids in
-        let g, fb_ids, as_ids = add_subtree e3 nodes edges vars root 2 fb_ids as_ids in 
+        let (nodes, edges), fb_ids, as_ids = add_subtree e1 nodes edges vars root 0 fb_ids as_ids fb_flag as_flag in
+        let (nodes, edges), fb_ids, as_ids = add_subtree e2 nodes edges vars root 1 fb_ids as_ids fb_flag as_flag in
+        let g, fb_ids, as_ids = add_subtree e3 nodes edges vars root 2 fb_ids as_ids fb_flag as_flag in 
         (g, fb_ids, as_ids, root, vars)
     | EMatch (escrut, (p1, e1), (p2, e2)) ->
-        let (nodes, edges), fb_ids, as_ids = add_subtree escrut nodes edges vars root 0 fb_ids as_ids in
+        let (nodes, edges), fb_ids, as_ids = add_subtree escrut nodes edges vars root 0 fb_ids as_ids fb_flag as_flag in
         let (p_nodes, p_edges), new_root, p_vars = PatternConv.to_list p1 in
         let (nodes, edges), new_root, vars =
           append_pattern_tree nodes edges vars p_nodes p_edges new_root p_vars
         in
         let edges = add_edge edges (root, new_root, 1) in
-        let (nodes, edges), fb_ids, as_ids = add_subtree e1 nodes edges vars root 2 fb_ids as_ids in
+        let (nodes, edges), fb_ids, as_ids = add_subtree e1 nodes edges vars root 2 fb_ids as_ids fb_flag as_flag in
         let (p_nodes, p_edges), new_root, p_vars = PatternConv.to_list p2 in
         let (nodes, edges), new_root, vars =
           append_pattern_tree nodes edges vars p_nodes p_edges new_root p_vars
         in
         let edges = add_edge edges (root, new_root, 3) in
-        let g, fb_ids, as_ids = add_subtree e2 nodes edges vars root 4 fb_ids as_ids in 
+        let g, fb_ids, as_ids = add_subtree e2 nodes edges vars root 4 fb_ids as_ids fb_flag as_flag in 
         (g, fb_ids, as_ids, root, vars)
   in
-  let add_edges_between_func_body_and_assertions (g : graph) (fb_ids : func_body_indices) 
-    (as_ids : assertion_indices) : graph =
+  let rec add_edges_between_func_body_and_assertions (g : graph) (fb_ids : func_body_indices) 
+    (as_ids : assertion_indices) (edge_type : int) : graph =
     let (nodes, edges) = g in
     match fb_ids with
     | fb_id :: tl -> 
         (match as_ids with
-        | as_id :: tl ->
-            (* let edges = add_edge edges (fb_id, as_id, -2) in *)
-            (nodes, edges)
-        | [] -> raise (SyntaxError "Assertion Not Found"))
+        | as_id :: remaining_as_ids ->
+            let edges = add_edge edges (fb_id, as_id, edge_type) in
+            let new_g = (nodes, edges) in
+            add_edges_between_func_body_and_assertions new_g fb_ids remaining_as_ids (edge_type)
+        | [] -> (nodes, edges))
     | [] -> raise (SyntaxError "Function Body Not Found")
   in
   let graph, fb_ids, as_ids, _, _ =
-    try to_list_aux (unzip e) [] [] [] [] []
+    try to_list_aux (unzip e) [] [] [] [] [] 0 0
     with SyntaxError err ->
       raise (SyntaxError (err ^ "\n" ^ (e |> unzip |> strip |> to_string)))
   in
-  add_edges_between_func_body_and_assertions graph fb_ids as_ids
+  add_edges_between_func_body_and_assertions graph fb_ids as_ids (5)
   (* graph *)
 
 (* let%test_module "Test to_list" =
