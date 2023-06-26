@@ -13,9 +13,9 @@ env:
   max_episode_steps: 4
   perturbation: 0
   assignment_dir: data/generated_tests/binary_funcs_subsets/single_move_shortcutted/train # TODO 
-  num_assignments: 2
-  code_per_assignment: [8,8] 
-  cursor_start_pos: [0,0] 
+  num_assignments: 3
+  code_per_assignment: [4,4,8] 
+  cursor_start_pos: [0,0,0] # to set for hole this should be [2,3,2]
   # num_assignments: 1
   # code_per_assignment: [9]
   # cursor_start_pos: [6]
@@ -41,7 +41,7 @@ ppo:
   clip_param: 0.1
   entropy_coef: 0.01
 make_tests: 
-  command: echo "hand geneerated tests"
+  command: echo "hand generated tests"
   # command: python3 scripts/Generate_boolean_funcs.py
   # args:
   #   min_n: 2
