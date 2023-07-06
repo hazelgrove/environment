@@ -3,10 +3,12 @@
 name=$1
 mount_dir=$2
 
-gpus="all"
+
 if ! [ -z "$5" ]
 then
     gpus="\"device=$5\""
+else
+    gpus="all"
 fi
 echo "using gpus: $gpus"
 

@@ -10,8 +10,11 @@ from agent.policy import GNNPolicy
 
 
 def main(log_name, run_id):
+    print(log_name,run_id)
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     params = get_load_params(run_id, logger)
+
+
     # Account for changes in logging
     # params["env"]["cursor_start_pos"] = [6, 6]
     # params["env"]["perturbation"] = 0
@@ -22,7 +25,6 @@ def main(log_name, run_id):
 
 
     path = os.path.join("save", log_name, str(run_id) + ".pt")
-
     torch.manual_seed(params["seed"])
     torch.cuda.manual_seed_all(params["seed"])
 
@@ -31,10 +33,10 @@ def main(log_name, run_id):
         torch.backends.cudnn.deterministic = True
 
     torch.set_num_threads(1)
-    device = torch.device("cuda:0" if params["cuda"] else "cpu")
+    device = torch.device("cuda" if params["cuda"] else "cpu")
 
     params["num_processes"] = 1
-    env_kwargs = params["eval"]
+    env_kwargs = params["env"] # used to be "eval"
     env_kwargs["max_episode_steps"] = params["env"]["max_episode_steps"]
     env = PLEnv.make_vec_envs(
         params["seed"], params["num_processes"], device, render=True, **env_kwargs
@@ -54,6 +56,7 @@ def main(log_name, run_id):
 
     obs = env.reset()
     env.render()
+    step = 0 
     while True:
         with torch.no_grad():
             (_, action, _, _,) = actor_critic.act(
@@ -61,17 +64,24 @@ def main(log_name, run_id):
                 None,
                 None,
             )
+        step +=1
+        print(f'step: {step}')
         print(f"Action: {action}")
-        breakpoint()
+        # breakpoint() # to allow manual change, action[0] = n 
+        # if needed add python input l
         obs, reward, done, info = env.step(action.reshape((-1,)))
 
         if done[0]:
             print(f"Reward: {info[0]['episode']['r']}")
+            step = 0 
             print()
-
+            print(f'step: {step}')
+            # breakpoint()
             if info[0]["episode"]["r"] == 0:
+                print('failed')
                 breakpoint()
 
+            # breakpoint()
             print("---------------Environment reset---------------")
 
         env.render()
