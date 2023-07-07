@@ -29,6 +29,8 @@ class ASTEnv(gym.Env):
         cursor_start_pos: Optional[int] = None,
         curriculum: Optional[Union[List[int], int]] = None,
         curriculum_threshold: Optional[int] = None,
+        done_action:bool = False,
+        
     ):
         super(ASTEnv, self).__init__()
 
@@ -57,6 +59,8 @@ class ASTEnv(gym.Env):
         self.num_actions = num_actions
         self.max_num_vars = max_num_vars
         self.perturbation = perturbation
+        # done action info
+        self.done_action = done_action
 
         # Plus one to account for -1
         node_nvec = (num_node_descriptor + max_num_vars * 2 + 1) * np.ones(
@@ -65,14 +69,22 @@ class ASTEnv(gym.Env):
         edge_nvec = (max_num_nodes + 1) * np.ones((max_num_nodes * 3, 3))
         vars_nvec = (max_num_nodes + 1) * np.ones(max_num_vars)
         args_nvec = (max_num_nodes + 1) * np.ones((max_num_vars, 2))
+    
+        num_possible_agent_actions = num_actions + max_num_vars +1 if done_action else num_actions + max_num_vars
+        permitted_action_size = num_actions + max_num_vars * 2 +1 if done_action else num_actions + max_num_vars * 2
+        self.done_action_num = -1 # Make done action -1 rather than max; set this to -1 when done
 
-        self.action_space = gym.spaces.Discrete(num_actions + max_num_vars)
+
+        # print(done_action, num_possible_agent_actions, permitted_action_size, num_actions, max_num_vars)
+
+
+        self.action_space = gym.spaces.Discrete(num_possible_agent_actions)
         self.observation_space = gym.spaces.Dict(
             {
                 "nodes": gym.spaces.MultiDiscrete(node_nvec),
                 "edges": gym.spaces.MultiDiscrete(edge_nvec),
                 "permitted_actions": gym.spaces.MultiBinary(
-                    num_actions + max_num_vars * 2
+                    permitted_action_size
                 ),
                 "starter": gym.spaces.MultiDiscrete(node_nvec),
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
@@ -101,12 +113,21 @@ class ASTEnv(gym.Env):
         self.astclib.init_c(ctypes.c_int(seed))
 
     def step(self, action: int):
-        self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
+        if self.done_action:
+            # we've added an additional element in position 0, correct for it 
+            action -=1 
+
+        if not (self.done_action and action == self.done_action_num): # first (-1 th) action --> dummy action
+            # set action to move parent (doesnt change actual structrue)
+            self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
         reward = self.astclib.check_ast(ctypes.byref(self.state))
 
-        done = False
-        if reward == 1:
-            done = True
+        done = False 
+        if  self.done_action:
+            done = (action == self.done_action_num)
+            reward =  1 if reward and done  == 1 else 0 
+        elif reward == 1:
+            done=True
 
         # Change state to Python dict
         state = self.get_state()
@@ -163,16 +184,20 @@ class ASTEnv(gym.Env):
             return
         if reward >= self.curriculum_threshold and self.curriculum_index < len(
             self.curriculum
-        ):
+        ):  
             self.curriclum_index += 1
 
     # Get Python dictionary for self.state
     def get_state(self):
+        permitted_actions = np.ctypeslib.as_array(self.state.permitted_actions)
+        if self.done_action: 
+            permitted_actions = np.append([1],permitted_actions) # make 1st spot the 'always possible' 'done' action 
+
         state = {
             "nodes": np.ctypeslib.as_array(self.state.nodes),
             "edges": np.ctypeslib.as_array(self.state.edges).reshape(-1, 3),
             "starter": np.ctypeslib.as_array(self.state.starter),
-            "permitted_actions": np.ctypeslib.as_array(self.state.permitted_actions),
+            "permitted_actions": permitted_actions,
             "cursor_position": self.state.cursor,
             "vars_in_scope": np.ctypeslib.as_array(self.state.vars_in_scope),
             "args_in_scope": np.ctypeslib.as_array(self.state.args_in_scope).reshape(

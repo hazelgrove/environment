@@ -132,6 +132,7 @@ class PLEnv(Env):
         cursor_start_pos,
         num_assignments,
         code_per_assignment,
+        done_action, 
     ):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
@@ -145,6 +146,7 @@ class PLEnv(Env):
                 seed=seed,
                 assignment_dir=assignment_dir,
                 cursor_start_pos=cursor_start_pos,
+                done_action=done_action,
             )
             env.seed(seed + rank)
 
@@ -168,6 +170,7 @@ class PLEnv(Env):
         cursor_start_pos,
         num_assignments,
         code_per_assignment,
+        done_action,
         render=False,
     ):
         if render and num_processes > 1:
@@ -183,6 +186,7 @@ class PLEnv(Env):
                 cursor_start_pos,
                 num_assignments,
                 code_per_assignment,
+                done_action, 
             )
             for i in range(num_processes)
         ]

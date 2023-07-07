@@ -127,10 +127,10 @@ class QKV(nn.Module):
 
         self.k = torch.nn.Parameter(torch.empty((num_fixed_actions, embedding_size)))
         self.k_arg = torch.nn.Parameter(
-            torch.empty((max_num_vars * max_num_vars, embedding_size))
+            torch.empty((max_num_vars * max_num_vars, embedding_size)) # why is this num_max_vars squared???? 
         )
 
-        self.max_num_vars = max_num_vars
+        self.max_num_vars = max_num_vars  
 
         self.reset_parameters()
 

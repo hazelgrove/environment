@@ -42,6 +42,7 @@ def main(log_name, run_id):
         env.get_attr("num_actions")[0],
         base_kwargs=base_kwargs,
         device=device,
+        done_action = params['env']['done_action'],
     )
     actor_critic.to(device)
     actor_critic.load_state_dict(torch.load(path)[0])

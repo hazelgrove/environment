@@ -1,6 +1,7 @@
 env_name: ASTEnv
 seed: 1
 cuda: True
+project_name: "assistant_rl"
 cuda_deterministic: False
 num_processes: 8  
 num_steps: 128
@@ -10,21 +11,22 @@ save_interval: 100
 num_env_steps: 1.0e+8
 use_linear_lr_decay: True
 env: 
-  max_episode_steps: 4
+  done_action: True
+  max_episode_steps: 3
   perturbation: 0
-  assignment_dir: data/generated_tests/binary_funcs_subsets/single_move_shortcutted/train # TODO 
-  num_assignments: 3
-  code_per_assignment: [4,4,8] 
-  cursor_start_pos: [0,0,0] # to set for hole this should be [2,3,2]
+  assignment_dir: data/generated_tests/binary_funcs/train 
+  num_assignments: 1
+  code_per_assignment: [4] 
+  cursor_start_pos: [0] # to set for hole this should be [2,3,2]
   # num_assignments: 1
   # code_per_assignment: [9]
   # cursor_start_pos: [6]
 eval: 
   perturbation: 0
   # max_episode_steps: 15
-  assignment_dir: data/generated_tests/binary_funcs_subsets/single_move_shortcutted/test
-  num_assignments: 0 #TODO 
-  code_per_assignment: [0] #TODO
+  assignment_dir: data/generated_tests/binary_funcs/test
+  num_assignments: 0  
+  code_per_assignment: [0] 
   cursor_start_pos: [0] 
 base: 
   hidden_size: 128
@@ -41,17 +43,17 @@ ppo:
   clip_param: 0.1
   entropy_coef: 0.01
 make_tests: 
-  command: echo "hand generated tests"
-  # command: python3 scripts/Generate_boolean_funcs.py
-  # args:
-  #   min_n: 2
-  #   max_n: 2
-  #   max_funcs: 500
-  #   test_ratio: 0.0
-  #   shuffle: False
-  #   outdir: data/generated_tests/binary_funcs_subsets/one_move
-  #   choose_tests: "[[1,2,4,7,8,11,13,14]]"
-  #   seed: 42 
+  # command: echo "hand generated tests"
+  command: python3 scripts/Generate_boolean_funcs.py
+  args:
+    min_n: 1
+    max_n: 1
+    max_funcs: 500
+    test_ratio: 0.0
+    shuffle: False
+    outdir: data/generated_tests/binary_funcs
+    # choose_tests: "[[1,2,4,7,8,11,13,14]]"
+    seed: 42 
 return:
   gamma: 0.99
   use_gae: True

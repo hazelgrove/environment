@@ -80,15 +80,16 @@ class Trainer:
 
     @classmethod
     def train(cls, logger, params, log_name, render, save_dir, sweep):
+        project_name = params['project_name'] if 'project_name' in params.keys() else 'assistant_rl'
         if sweep:
-            wandb_logger = setup_wandb(project="assistant_rl",config=params, group=log_name, api_key_file="/RL_env/wandb_api_key")
+            wandb_logger = setup_wandb(project=project_name,config=params, group=log_name, api_key_file="/RL_env/wandb_api_key")
         else:
             wandb_logger = wandb
             with open("/RL_env/wandb_api_key", "r") as f:
                 api_key = f.readline()
             os.environ["WANDB_API_KEY"] = api_key
             wandb_logger.login()
-            wandb_logger.init(project="assistant_rl",config=params, notes=log_name)
+            wandb_logger.init(project=project_name,config=params, notes=log_name)
             
 
         if log_name != "test":
@@ -140,7 +141,7 @@ class Trainer:
         )
 
         obs = envs.reset()
-
+        
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
@@ -340,6 +341,7 @@ class GNNTrainer(Trainer):
             envs.get_attr("num_actions")[0],
             base_kwargs=base_kwargs,
             device=device,
+            done_action=envs.get_attr('done_action')[0],
         )
 
         return policy

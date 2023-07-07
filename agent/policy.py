@@ -40,7 +40,7 @@ class Policy(nn.Module):
                 raise NotImplementedError
 
         self.base = base(obs_space.shape[0], **base_kwargs)
-
+        # print('initing policy')
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
             self.dist = Categorical(self.base.output_size, num_outputs)
@@ -101,23 +101,31 @@ class GNNPolicy(Policy):
         max_num_vars=11,
         base_kwargs=None,
         device=None,
+        done_action=False,
     ):
         super(Policy, self).__init__()
+        self.has_done_action = done_action
+        if not self.has_done_action: 
+            self.num_actions = num_fixed_actions + 2 * max_num_vars 
+        else:
+            # create done action as very last index 
+            self.num_actions = num_fixed_actions + 2 * max_num_vars +1
+
+        # print(max_num_vars)
+
 
         self.obs_space = Obs(**obs_space.spaces)
 
         if base_kwargs is None:
             base_kwargs = {}
         self.base = GNNBase(device=device, **base_kwargs)
-
+        self.num_nonvar_actions = num_fixed_actions + 1 if done_action else num_fixed_actions
         self.qkv = QKV(
-            num_fixed_actions=num_fixed_actions,
+            num_fixed_actions=self.num_nonvar_actions,
             embedding_size=self.base.output_size,
             max_num_vars=max_num_vars,
         )
-        self.dist = MaskedCategorical(
-            self.base.output_size, num_fixed_actions + 2 * max_num_vars
-        )
+        self.dist = MaskedCategorical( self.base.output_size, self.num_actions)
         self.device = device
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
@@ -134,6 +142,17 @@ class GNNPolicy(Policy):
             inputs.args_in_scope.shape[0], -1, 2
         )
         actor_features = self.qkv(actor_features, vars, args_in_scope)
+        # if self.has_done_action:
+        #     # shuffle done action to end where the index can be ignored 
+        #     # QKV sticks all the variables at the end, but we want to avoid this
+        #     # because of the artificial nature of the 'done' action
+        #     # print(actor_features[:,:self.num_nonvar_actions-1].shape,
+        #     #         actor_features[:,self.num_nonvar_actions:].shape,
+        #     #         actor_features[:,self.num_nonvar_actions-1].shape)
+        #     actor_features = torch.cat((actor_features[:,:self.num_nonvar_actions-1],
+        #                                 actor_features[:,self.num_nonvar_actions:],
+        #                                 actor_features[:,self.num_nonvar_actions-1:self.num_nonvar_actions]),dim=1) 
+        #         # Done?: rather than making the elt the max value, make it -1 Fix starts here 
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
