@@ -82,7 +82,7 @@ def constr_solution():
 def parse_args(): 
     parser = argparse.ArgumentParser(description="a script that generates tests for our agent. Each test is a specifiction for a boolean function from `n` boolean inputs to one boolean output, constrained by comprehensive assert statements.")
     parser.add_argument("--min_n",type=int,default=1, help="The minimum value of n (number of inputs) to generate tests for Generates tests for each value of n in [min_n, max_n] ")
-    parser.add_argument("--max_n",type=int,default=3, help="number of inputs")
+    parser.add_argument("--max_n",type=int,default=3, help="The maximum value of n (number of inputs) to generate tests for Generates tests for each value of n in [min_n, max_n] ")
     parser.add_argument('--choose_tests', type=str,default=None,help='if seleccted must be a json list of file numbers to take. Checks that shuffle is off, only one n is given, and no test files are generated.')
     parser.add_argument("--shuffle",type=bool,default=True,help='whether to shuffle tests')
     parser.add_argument("--max_funcs",type=int,default =500, help= "the maximum number of tests to generate")
@@ -156,7 +156,7 @@ def main():
             save_num=i, 
             max_funcs= args.max_funcs,
             shuffle=args.shuffle,
-            choose_tests=choose_tests[i]
+            choose_tests=choose_tests[i] if choose_tests is not None else None
         )
 
 
