@@ -15,7 +15,7 @@ from run_logger import RunLogger, create_sweep
 
 from agent.arguments import get_args
 from logger import get_charts, get_metadata
-from trainer import GNNTrainer
+from trainer import GNNTrainer, ResumeGNNTrainer
 
 from ray.air.config import RunConfig, ScalingConfig
 from ray.air.integrations.wandb import WandbLoggerCallback
@@ -44,9 +44,41 @@ def _log(
         }
     )
 
-    sweep = sweep_id != None
-    GNNTrainer.train(
-        logger=logger, params=kwargs, log_name=name, render=render, save_dir=save_dir, sweep=sweep
+    sweep = (sweep_id != None)
+    trainer = GNNTrainer(name,kwargs,logger)
+    trainer.train(
+        render=render, save_dir=save_dir, sweep=sweep
+    )
+
+def resume(
+    name: str,
+    config_path: str,
+    graphql_endpoint: str,
+    save_dir: str,
+    resume_from_id:int,
+    resume_from_name:str, 
+    render: bool = False,
+): 
+    with open(config_path, "r") as file:
+        params = yaml.safe_load(file)
+
+    logger = RunLogger(graphql_endpoint)
+    trainer = ResumeGNNTrainer(name,params,resume_from_id,resume_from_name,logger)
+    logger.create_run(
+        metadata=get_metadata(Repo(".")),
+        sweep_id=None,
+        charts=get_charts(),
+    )
+    logger.update_metadata(
+        {
+            "parameters": trainer.params,
+            "run_id": logger.run_id,
+            "name": name,
+        }
+    )
+    #Train 
+    trainer.train(
+        render=render, save_dir=save_dir, sweep=sweep
     )
 
 
@@ -138,11 +170,26 @@ def sweep(
     print(results)
 
 if __name__ == "__main__":
+    print(sys.argv)
     args = get_args()
     print("Python started.")
     generate_tests( config_path= "params.yaml")
 
-    if args.sweep:
+    if args.resume:
+        assert(not args.sweep) # cannot sweep when resuming 
+        assert(args.resume_name is not None and args.resume_id is not None) # verify that we have name and id 
+
+        resume(
+            name=args.log_name,
+            config_path="params.yaml",
+            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
+            save_dir=args.save_dir,
+            resume_from_id=args.resume_id,
+            resume_from_name=args.resume_name, 
+            render=args.render,
+        )
+
+    elif args.sweep:
         sweep(
             name=args.log_name,
             config_path="params.yaml",

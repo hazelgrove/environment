@@ -8,7 +8,7 @@ import torch
 import yaml
 from git import Repo
 from gym.wrappers.time_limit import TimeLimit
-from run_logger import RunLogger
+from run_logger import RunLogger,get_load_params
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
@@ -27,21 +27,24 @@ import wandb
 
 
 class Trainer:
-    @staticmethod
-    def get_policy(envs, params, device):
-        base_kwargs = params["base"]
+    def __init__(self,log_name, params,logger ): 
+        self.params = params
+        self.logger = logger
+        self.log_name =log_name 
+
+    def get_policy(self,envs, device):
+        base_kwargs = self.params["base"]
         policy = Policy(
             envs.observation_space, envs.action_space, base_kwargs=base_kwargs
         )
         return policy
 
-    @staticmethod
-    def get_env(params, device):
+    def get_env(self, device):
         envs = Env.make_vec_envs(
-            params["env_name"],
-            params["seed"],
-            params["num_processes"],
-            params["return"]["gamma"],
+            self.params["env_name"],
+            self.params["seed"],
+            self.params["num_processes"],
+            self.params["return"]["gamma"],
             device,
             False,
         )
@@ -50,8 +53,8 @@ class Trainer:
 
     @staticmethod
     def evaluate(
+        self, 
         actor_critic,
-        logger,
         env_name,
         seed,
         num_processes,
@@ -78,22 +81,21 @@ class Trainer:
     def update_curriculum(envs, reward):
         return
 
-    @classmethod
-    def train(cls, logger, params, log_name, render, save_dir, sweep):
-        project_name = params['project_name'] if 'project_name' in params.keys() else 'assistant_rl'
+    def train(self, render, save_dir, sweep):
+        project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
         if sweep:
-            wandb_logger = setup_wandb(project=project_name,config=params, group=log_name, api_key_file="/RL_env/wandb_api_key")
+            wandb_logger = setup_wandb(project=project_name,config=self.params, group=self.log_name, api_key_file="/RL_env/wandb_api_key")
         else:
             wandb_logger = wandb
             with open("/RL_env/wandb_api_key", "r") as f:
                 api_key = f.readline()
             os.environ["WANDB_API_KEY"] = api_key
             wandb_logger.login()
-            wandb_logger.init(project=project_name,config=params, notes=log_name)
-            
+            wandb_logger.init(project=project_name,config=self.params, notes=self.log_name)
+        
 
-        if log_name != "test":
-            save_dir = os.path.join(save_dir, log_name)
+        if self.log_name != "test":
+            save_dir = os.path.join(save_dir, self.log_name)
             try:
                 os.makedirs(save_dir)
             except OSError:
@@ -101,40 +103,44 @@ class Trainer:
         else:
             save_dir = None
 
+        # save a copy of our params.yaml to that same directory for continuation
+        with open(os.path.join(save_dir, str(self.logger.run_id) + "_params.yaml"),'w') as file :
+            yaml.safe_dump(self.params,file)
+
         # Only use one process if we are rendering
         if render:
-            params["num_processes"] = 1
+            self.params["num_processes"] = 1
 
-        params["base"]["num_assignments"] = params["env"]["num_assignments"]
+        self.params["base"]["num_assignments"] = self.params["env"]["num_assignments"]
 
-        torch.manual_seed(params["seed"])
-        torch.cuda.manual_seed_all(params["seed"])
+        torch.manual_seed(self.params["seed"])
+        torch.cuda.manual_seed_all(self.params["seed"])
 
         if (
-            params["cuda"]
+            self.params["cuda"]
             and torch.cuda.is_available()
         ):
             torch.backends.cudnn.benchmark = False
-            torch.backends.cudnn.deterministic =  params["cuda_deterministic"]
+            torch.backends.cudnn.deterministic =  self.params["cuda_deterministic"]
 
         print(f"Cuda Availability: {torch.cuda.is_available()}")
 
         torch.set_num_threads(1)
-        device = torch.device("cuda:0" if params["cuda"] else "cpu")
+        device = torch.device("cuda:0" if self.params["cuda"] else "cpu")
 
-        envs = cls.get_env(params, device)
+        envs = self.get_env(device)
 
-        actor_critic = cls.get_policy(envs, params, device)
+        actor_critic = self.get_policy(envs, device)
         actor_critic.to(device)
 
         agent = PPO(
             actor_critic,
-            **params["ppo"],
+            **self.params["ppo"],
         )
 
         rollouts = RolloutStorage(
-            params["num_steps"],
-            params["num_processes"],
+            self.params["num_steps"],
+            self.params["num_processes"],
             envs.observation_space.shape,
             envs.action_space,
             actor_critic.recurrent_hidden_state_size,
@@ -149,20 +155,20 @@ class Trainer:
 
         start = time.time()
         num_updates = (
-            int(params["num_env_steps"])
-            // params["num_steps"]
-            // params["num_processes"]
+            int(self.params["num_env_steps"])
+            // self.params["num_steps"]
+            // self.params["num_processes"]
         )
 
         last_eval_reward = 0.0
         for j in range(num_updates):
-            if params["use_linear_lr_decay"]:
+            if self.params["use_linear_lr_decay"]:
                 # decrease learning rate linearly
                 utils.update_linear_schedule(
-                    agent.optimizer, j, num_updates, params["ppo"]["lr"]
+                    agent.optimizer, j, num_updates, self.params["ppo"]["lr"]
                 )
 
-            for step in range(params["num_steps"]):
+            for step in range(self.params["num_steps"]):
                 # Sample actions
                 with torch.no_grad():
                     (
@@ -221,7 +227,7 @@ class Trainer:
 
             rollouts.compute_returns(
                 next_value,
-                **params["return"],
+                **self.params["return"],
             )
 
             value_loss, action_loss, dist_entropy = agent.update(rollouts)
@@ -230,22 +236,22 @@ class Trainer:
 
             # save for every interval-th episode or for the last epoch
             if (
-                j % params["save_interval"] == 0 or j == num_updates - 1
+                j % self.params["save_interval"] == 0 or j == num_updates - 1
             ) and save_dir is not None:
                 torch.save(
                     [
                         actor_critic.state_dict(),
                         getattr(utils.get_vec_normalize(envs), "obs_rms", None),
                     ],
-                    os.path.join(save_dir, str(logger.run_id) + ".pt"),
+                    os.path.join(save_dir, str(self.logger.run_id) + ".pt"),
                 )
 
             mean_episode_reward = np.mean(episode_rewards)
-            # cls.update_curriculum(envs, mean_episode_reward)
+            # self.update_curriculum(envs, mean_episode_reward)
             metrics_train = {}
-            if j % params["log_interval"] == 0 and len(episode_rewards) > 1:
+            if j % self.params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
-                    (j + 1) * params["num_processes"] * params["num_steps"]
+                    (j + 1) * self.params["num_processes"] * self.params["num_steps"]
                 )
                 end = time.time()
 
@@ -282,25 +288,25 @@ class Trainer:
 
             metrics_eval = {}
             if (
-                params["eval_interval"] > 0
+                self.params["eval_interval"] > 0
                 and len(episode_rewards) > 1
-                and j % params["eval_interval"] == 0
+                and j % self.params["eval_interval"] == 0
             ):
                 # obs_rms = utils.get_vec_normalize(envs).obs_rms
-                eval_reward = cls.evaluate(
+                eval_reward = self.evaluate(
                     actor_critic,
                     # obs_rms,
-                    params["env_name"],
-                    params["seed"],
-                    params["num_processes"],
+                    self.params["env_name"],
+                    self.params["seed"],
+                    self.params["num_processes"],
                     device,
-                    params["env"]["max_episode_steps"],
-                    params["eval"],
+                    self.params["env"]["max_episode_steps"],
+                    self.params["eval"],
                 )
                 last_eval_reward = eval_reward
 
-                if logger is not None:
-                    logger.log(
+                if self.logger is not None:
+                    self.logger.log(
                         update=j,
                         mean_episode_rewards=mean_episode_reward,
                         eval_reward=eval_reward,
@@ -310,12 +316,12 @@ class Trainer:
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
-                        run_id = str(logger.run_id),
+                        run_id = str(self.logger.run_id),
                     )
                 metrics_eval = {"eval/reward": eval_reward}   
             else:
-                if logger is not None:
-                    logger.log(
+                if self.logger is not None:
+                    self.logger.log(
                         update=j,
                         mean_episode_rewards=mean_episode_reward,
                         eval_reward=last_eval_reward,
@@ -325,16 +331,15 @@ class Trainer:
                         policy_loss=action_loss,
                         value_loss=value_loss,
                         policy_entropy=dist_entropy,
-                        run_id=str(logger.run_id),
+                        run_id=str(self.logger.run_id),
                     )
             
             wandb_logger.log({**metrics_train, **metrics_eval})
 
 
 class GNNTrainer(Trainer):
-    @staticmethod
-    def get_policy(envs, params, device):
-        base_kwargs = params["base"]
+    def get_policy(self,envs, device):
+        base_kwargs = self.params["base"]
         policy = GNNPolicy(
             envs.get_attr("orig_obs_space")[0],
             envs.get_attr("action_space")[0],
@@ -346,17 +351,16 @@ class GNNTrainer(Trainer):
 
         return policy
 
-    @staticmethod
-    def get_env(params, device):
-        env_kwargs = params["env"]
+    def get_env(self, device):
+        env_kwargs = self.params["env"]
         envs = PLEnv.make_vec_envs(
-            params["seed"], params["num_processes"], device, **env_kwargs
+            self.params["seed"], self.params["num_processes"], device, **env_kwargs
         )
 
         return envs
 
-    @staticmethod
     def evaluate(
+        self,
         actor_critic,
         env_name,
         seed,
@@ -375,26 +379,57 @@ class GNNTrainer(Trainer):
             eval_kwargs,
         )
 
-    @staticmethod
-    def update_curriculum(envs, reward):
+    def update_curriculum(self,envs, reward):
         envs.get_attr("update_curriculum")(reward)
 
-    @staticmethod
-    def update_curriculum(envs, reward):
+    def update_curriculum(self,envs, reward):
         envs.get_attr("update_curriculum")(reward)
+
+
+class ResumeGNNTrainer(GNNTrainer):
+    def __init__(self,log_name,params,resume_id,resume_name,runLogger):
+        loaded_params = get_load_params(resume_id, runLogger)
+        for field in params['resume_carryover']:
+            params[field] = loaded_params[field]
+
+        super().__init__(log_name,params,runLogger)
+
+        self.resume_id = resume_id 
+        self.resume_name = resume_name
+        self.log_name = log_name 
+        self.runLogger = runLogger
+        self.params = params
+
+
+    def get_policy(self,envs, device):
+
+        base_kwargs = self.params["base"]
+        policy = GNNPolicy(
+            envs.get_attr("orig_obs_space")[0],
+            envs.get_attr("action_space")[0],
+            envs.get_attr("num_actions")[0],
+            base_kwargs=base_kwargs,
+            device=device,
+            done_action=envs.get_attr('done_action')[0],
+        )
+        # load model 
+        model_path = os.path.join("save", self.resume_name, str(self.resume_id) + ".pt")
+        policy.load_state_dict(torch.load(model_path)[0])
+
+        return policy
+    
+    #inherit the rest from GnnTrainer 
 
 
 class TestTrainer(Trainer):
-    @staticmethod
-    def get_policy(envs, params, device):
+    def get_policy(self,envs, device):
         policy = TestPolicy(
             device=device,
         )
 
         return policy
 
-    @staticmethod
-    def make_env(seed, rank, max_episode_steps):
+    def make_env(self,seed, rank, max_episode_steps):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = TestEnv(
@@ -408,15 +443,14 @@ class TestTrainer(Trainer):
 
         return _thunk
 
-    @classmethod
     def make_vec_envs(
-        cls,
+        self,
         seed,
         num_processes,
         device,
     ):
         envs = [
-            cls.make_env(
+            self.make_env(
                 seed,
                 i,
                 1,
@@ -433,10 +467,8 @@ class TestTrainer(Trainer):
 
         return envs
 
-    @classmethod
-    def get_env(cls, params, device):
-        envs = cls.make_vec_envs(1, 8, device)
-
+    def get_env(self, device):
+        envs = self.make_vec_envs(1, 8, device)
         return envs
 
 
@@ -462,12 +494,10 @@ if __name__ == "__main__":
     params["run_id"] = logger.run_id
 
     if args.gnn:
-        GNNTrainer.train(
-            logger=logger,
-            params=params,
-            log_name=args.log_name,
-            render=args.render,
-            save_dir=args.save_dir,
+        trainer = GNNTrainer(args.log_name,params,logger)
+        trainer.train(
+            render=args.render, save_dir=args.save_dir
         )
     else:
-        Trainer.train(args.log_name, render=args.render, save_dir=args.save_dir)
+        trainer = Trainer()
+        trainer.train(args.log_name, render=args.render, save_dir=args.save_dir)

@@ -10,29 +10,26 @@ eval_interval: 0 # Skips eval step. (used to be 1000)
 save_interval: 100
 num_env_steps: 1.0e+8
 use_linear_lr_decay: True
-env: 
-  done_action: True
-  max_episode_steps: 3
+resume_carryover:  [ 'seed', 'env', 'eval', 'base', 'ppo', 'make_tests','return' ]
+env:
+  assignment_dir: data/generated_tests/binary_funcs_subsets/single_move_add_binop/train
+  code_per_assignment:  [4 ,4, 8]
+  cursor_start_pos: [ 0, 0, 0]
+  max_episode_steps: 5
+  num_assignments: 3
   perturbation: 0
-  assignment_dir: data/generated_tests/binary_funcs/train 
-  num_assignments: 1
-  code_per_assignment: [4] 
-  cursor_start_pos: [0] # to set for hole this should be [2,3,2]
-  # num_assignments: 1
-  # code_per_assignment: [9]
-  # cursor_start_pos: [6]
-eval: 
+eval:
+  assignment_dir: data/generated_tests/binary_funcs_subsets/single_move_add_binop/test
+  code_per_assignment: []
+  cursor_start_pos: []
+  num_assignments: 0
   perturbation: 0
-  # max_episode_steps: 15
-  assignment_dir: data/generated_tests/binary_funcs/test
-  num_assignments: 0  
-  code_per_assignment: [0] 
-  cursor_start_pos: [0] 
 base: 
   hidden_size: 128
   num_layers: 15
   embedding_size: 100
   cursor: True
+  done_action: False
 ppo:
   lr: 1.0e-5  
   eps: 1.0e-5

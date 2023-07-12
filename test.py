@@ -23,8 +23,9 @@ from trainer import TestTrainer
 def main():
     with open("params.yaml", "r") as file:
         params = yaml.safe_load(file)
-    
-    TestTrainer.train(
+
+    testTrainer = TestTrainer()
+    testTrainer.train(
         logger=None,
         params=params,
         log_name="test",
