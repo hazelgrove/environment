@@ -232,6 +232,7 @@ class GNNBase(NNBase):
         self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
 
         self.train()
+        print(self)
 
     def forward(self, inputs: torch.Tensor):
         batch_size = inputs["nodes"].shape[0]
@@ -403,7 +404,7 @@ class TestBase(NNBase):
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
         self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
-
+        prin
         self.train()
 
     def forward(self, nodes: torch.Tensor):

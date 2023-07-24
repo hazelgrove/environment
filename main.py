@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 from unittest.result import failfast
 from test_gen_util import generate_tests
+from pprint import pprint
 
 import ray
 import torch
@@ -104,6 +105,7 @@ def run(
 
 
 def trainable(config: dict):
+    print(config)
     return _log(**config)
 
 
@@ -130,6 +132,7 @@ def sweep(
         "ppo",
         "return",
     ]
+
     for section in params.keys():
         if section in hyperparam_names:
             params[section] = {
@@ -138,6 +141,8 @@ def sweep(
                 else v
                 for k, v in params[section].items()
             }
+    # pprint(params)
+    # print(params['base']['hidden_size'])
     num_cpus = os.cpu_count()
     num_gpus = torch.cuda.device_count()
 
@@ -150,6 +155,7 @@ def sweep(
         "wandb": {"project": name},
         **params,
     }
+    
 
     ray.init()
     num_cpus = os.cpu_count()
@@ -160,7 +166,6 @@ def sweep(
             resources={"cpu": int(num_cpus / num_gpus), "gpu": 1}
         ),
         param_space=config,
-        tune_config=tune.TuneConfig(num_samples=10),
     )
 
     results = tuner.fit()
