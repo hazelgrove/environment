@@ -1,20 +1,18 @@
 #! /usr/bin/env bash
-
 name=$1
 mount_dir="/RL_env/save"
+log_name=$2
 
-
-if ! [ -z "$4" ]
+if ! [ -z "$3" ]
 then
-    gpus="\"device=$4\""
-else
+    gpus="\"device=$3\""
+else 
     gpus="all"
 fi
 echo "using gpus: $gpus"
-
-
 docker build -t "$name" .
-docker run --rm -it \
+
+docker run --rm -it -d \
 	--env-file .env \
 	--shm-size=10.24gb \
 	--name "$name" \
@@ -23,5 +21,5 @@ docker run --rm -it \
 	-h="$(hostname -s)" \
 	-e TERM=xterm-256color \
 	-v rl_checkpoint:"$mount_dir" \
-	--entrypoint /RL_env/visualize_entrypoint.sh \
-	"$name" "${@:2:2}" "$mount_dir"
+	"$name" "$log_name" "$mount_dir" --sweep
+docker logs -f "$name"
