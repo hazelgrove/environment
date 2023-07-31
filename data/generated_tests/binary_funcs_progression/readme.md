@@ -9,7 +9,7 @@ The tests are as follows:
 |-|--|-------|---|----|--|--|
 |1|one_var| binary funcs of one variable. Agent needs to add True, False,or x1 then either do Done action or add negation | 0-1 | 4 | 2 | ✅  |
 |2|one_var_like_filled | binary funcs of one variable, but two inputs. The 'core' of the term (i.e. True, False, x1, or x2) is already filled in. The agent needs to  either do Done action or add negation. Only works when Done action exists | 0-1 | 8 | 3 | ✅ |
-| 3 | one_var_like | Binary funcs of one variable, but two inputs. The agent fill in the hole, negate if necessary and then do Done . Only works when Done action exists | 1-2 | 12 | 3| 🤷 |
+| 3 | one_var_like | Binary funcs of one variable, but two inputs. The agent fill in the hole, negate if necessary and then do Done. | 1-2 | 12 | 3| 🤷 |
 | 4 | bin_op_shortcut * | Binary funcs of two variables, and two inputs, which involve one `and` or `or`. One term and the binary operation are already added. The agent needs to fill the term with the appropriate x1 or x2 term and negate appropriattely | 1-2 | 32 <br />(but 8 funcs) | 2<br /> (but changes based on first term) | 🤷 |
 | 5 | bin_op_shortcut_small * | Same as above (4). Simplified: only have two possible functions. | 1-2 | 2 | 1 | ✅ |
 | 6 | bin_op_shortcut_root * |  Binary funcs of two variables, and two inputs, which involve one `and` or `or`.  One term and the binary operation are already added. The agent needs to navigate to the hole then  fill it with the appropriate x1 or x2 term and negate appropriattely | 2-3 | 32 <br />(but 8 funcs) | 2<br /> (but changes based on first term) | ❌ |

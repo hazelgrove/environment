@@ -12,15 +12,15 @@ num_env_steps: 1.0e+7
 use_linear_lr_decay: True
 resume_carryover:  [ 'seed', 'env', 'eval', 'base', 'ppo', 'make_tests','return' ]
 env: 
-  assignment_dir: /RL_env/data/generated_tests/progression_2/test_4_reorder/train
+  assignment_dir: /RL_env/data/generated_tests/progression_2/test_6/train
   num_assignments: 1
   code_per_assignment: [2] 
-  cursor_start_pos: [1]
+  cursor_start_pos: [2]
   max_episode_steps: 2
   perturbation: 0
   done_action: True
 eval:
-  assignment_dir: /RL_env/data/generated_tests/progression_2/test_3/train
+  assignment_dir: /RL_env/data/generated_tests/progression_2/test_6/train
   code_per_assignment: []
   cursor_start_pos: []
   num_assignments: 0
