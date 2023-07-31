@@ -20,7 +20,7 @@ class FixedCategorical(torch.distributions.Categorical):
         return super().sample().unsqueeze(-1)
 
     def log_probs(self, actions):
-        return (
+        return ( # TODO: WHAT DOES THIS DO??????
             super()
             .log_prob(actions.squeeze(-1))
             .view(actions.size(0), -1)
@@ -73,7 +73,7 @@ class Categorical(nn.Module):
 
 
 class MaskedCategorical(nn.Module):
-    def __init__(self, num_inputs, num_outputs):
+    def __init__(self):
         super().__init__()
 
     def forward(self, x, mask):

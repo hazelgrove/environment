@@ -102,30 +102,34 @@ class GNNPolicy(Policy):
         base_kwargs=None,
         device=None,
         done_action=False,
+        use_qkv=True
     ):
         super(Policy, self).__init__()
         self.has_done_action = done_action
-        if not self.has_done_action: 
-            self.num_actions = num_fixed_actions + 2 * max_num_vars 
-        else:
-            # create done action as very last index 
-            self.num_actions = num_fixed_actions + 2 * max_num_vars +1
+        
+        self.use_qkv =  use_qkv = base_kwargs.pop('use_qkv',use_qkv)
 
-        # print(max_num_vars)
-
+        # handle number of actions... we have one extra if we're using a done action 
+        self.num_nonvar_actions = num_fixed_actions + 1 if done_action else num_fixed_actions
+        self.num_actions = self.num_nonvar_actions +  max_num_vars *2
 
         self.obs_space = Obs(**obs_space.spaces)
 
         if base_kwargs is None:
             base_kwargs = {}
         self.base = GNNBase(device=device, **base_kwargs)
-        self.num_nonvar_actions = num_fixed_actions + 1 if done_action else num_fixed_actions
-        self.qkv = QKV(
-            num_fixed_actions=self.num_nonvar_actions,
-            embedding_size=self.base.output_size,
-            max_num_vars=max_num_vars,
-        )
-        self.dist = MaskedCategorical( self.base.output_size, self.num_actions)
+            
+        # use qkv by default, else  use a projection 
+        if self.use_qkv: 
+            self.qkv = QKV(
+                num_fixed_actions=self.num_nonvar_actions,
+                embedding_size=self.base.output_size,
+                max_num_vars=max_num_vars,
+            )
+        else: 
+            self.projection = torch.nn.Linear(self.base.hidden_size,self.num_actions)
+
+        self.dist = MaskedCategorical()
         self.device = device
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
@@ -138,21 +142,15 @@ class GNNPolicy(Policy):
         )
         value, actor_features, vars = self.base(asdict(inputs))
 
-        args_in_scope = inputs.args_in_scope.reshape(
+        args_in_scope = inputs.args_in_scope.reshape( # what does this do ????? 
             inputs.args_in_scope.shape[0], -1, 2
         )
-        actor_features = self.qkv(actor_features, vars, args_in_scope)
-        # if self.has_done_action:
-        #     # shuffle done action to end where the index can be ignored 
-        #     # QKV sticks all the variables at the end, but we want to avoid this
-        #     # because of the artificial nature of the 'done' action
-        #     # print(actor_features[:,:self.num_nonvar_actions-1].shape,
-        #     #         actor_features[:,self.num_nonvar_actions:].shape,
-        #     #         actor_features[:,self.num_nonvar_actions-1].shape)
-        #     actor_features = torch.cat((actor_features[:,:self.num_nonvar_actions-1],
-        #                                 actor_features[:,self.num_nonvar_actions:],
-        #                                 actor_features[:,self.num_nonvar_actions-1:self.num_nonvar_actions]),dim=1) 
-        #         # Done?: rather than making the elt the max value, make it -1 Fix starts here 
+        if self.use_qkv: 
+            # If we choose not to use qkv, instead use a simple learned projection
+            actor_features = self.qkv(actor_features, vars, args_in_scope)
+        else: 
+            # If we choose not to use qkv, instead use a simple learned projection
+            actor_features = self.projection(actor_features)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         if deterministic:
@@ -189,7 +187,11 @@ class GNNPolicy(Policy):
         args_in_scope = inputs.args_in_scope.reshape(
             inputs.args_in_scope.shape[0], -1, 2
         )
-        actor_features = self.qkv(actor_features, vars, args_in_scope)
+        if self.use_qkv: 
+            # If we choose not to use qkv, instead use a simple learned projection
+            actor_features = self.qkv(actor_features, vars, args_in_scope)
+        else: 
+            actor_features = self.projection(actor_features)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
         action_log_probs = dist.log_probs(action)
