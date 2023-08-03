@@ -1,4 +1,7 @@
 #! /usr/bin/env bash
+
+# usage: ./run.sh DOCKER_CONTAINER_NAME LOG_NAME [Gpu number; optional]
+
 name=$1
 mount_dir="/RL_env/save"
 log_name=$2
