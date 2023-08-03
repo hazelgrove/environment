@@ -68,7 +68,7 @@ def main(log_name, run_id):
         step +=1
         print(f'step: {step}')
         print(f"Action: {action}")
-        # breakpoint() # to allow manual change, action[0] = n 
+        breakpoint() # to allow manual change, action[0] = n 
         # if needed add python input l
         obs, reward, done, info = env.step(action.reshape((-1,)))
 
