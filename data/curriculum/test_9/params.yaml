@@ -1,0 +1,61 @@
+env_name: ASTEnv
+seed: 1
+cuda: True
+project_name: "assistant_rl"
+cuda_deterministic: False
+num_processes: 8  
+num_steps: 128
+log_interval: 1   
+eval_interval: 0 # Eval is just target # Skips eval step. (used to be 1000)
+save_interval: 100
+num_env_steps: 1.0e+7
+use_linear_lr_decay: True
+resume_carryover:  [ 'seed', 'env', 'eval', 'base', 'ppo', 'make_tests','return' ]
+env: 
+  assignment_dir: /RL_env/data/curriculum/test_9/train
+  num_assignments: 5
+  code_per_assignment: [4,4,4,4,4] 
+  cursor_start_pos: [0,0,2,2,2]
+  max_episode_steps: 6
+  perturbation: 0
+  done_action: True
+eval:
+  assignment_dir:  /RL_env/data/curriculum/test_9/train
+  num_assignments: 0 
+  code_per_assignment: [2]
+  cursor_start_pos: [0]
+  perturbation: 0
+  done_action: True
+base: 
+  hidden_size: 128
+  num_layers: 10
+  embedding_size: 100
+  cursor: True
+  use_qkv: False
+ppo:
+  lr: 1.0e-5  
+  eps: 1.0e-5
+  value_loss_coef: 0.5
+  max_grad_norm: 0.5
+  ppo_epoch: 4
+  num_mini_batch: 4
+  clip_param: 0.1
+  entropy_coef: 0.01
+make_tests: 
+  command: echo "hand generated tests"
+  # command: python3 scripts/Generate_boolean_funcs.py
+  # args:
+  #   min_n: 2
+  #   max_n: 2
+  #   max_funcs: 500
+  #   test_ratio: 0.0
+  #   shuffle: False
+  #   outdir: data/generated_tests/binary_funcs_progression/one_var_like
+    # choose_tests: [[0,3,5,10,12,15]] # one_var_like 
+    # choose_tests: "[[1,2,4,7,8,11,13,14]]"  #binop funcs 
+    # seed: 42 
+return:
+  gamma: 0.99
+  use_gae: True
+  gae_lambda: 0.95
+  use_proper_time_limits: False
