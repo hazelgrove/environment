@@ -16,7 +16,7 @@ env:
   num_assignments: 1
   code_per_assignment: [2] 
   cursor_start_pos: [0]
-  max_episode_steps: 4
+  max_episode_steps: 5
   perturbation: 0
   done_action: True
 eval:

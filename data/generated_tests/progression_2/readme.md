@@ -13,6 +13,7 @@ Use gradually more complicated problems, and then build up to a more complicated
 1. `f x1 x2 = x1 or ~?x2`
 1. `f x1 x2 = ~?x1 or x2`
 1. `f x1 x2 = x1 [and|or] x2 `
+1. `f x1 x2 = ~?x1 [and|or] x2 `
 
 
 | test. no.  |Notes|  ex_test|  success |
@@ -24,9 +25,11 @@ Use gradually more complicated problems, and then build up to a more complicated
 |5 | - | `f x1 x2 = <x1> and x2` | ✅ | 
 |6 | essentially same as **4** | `f x1 x2 = x1 or <x2>` |🤷| 
 |7 | - | `f x1 x2 = <x1> and x2` | ✅ | 
-|8 | Much more complicated move wise | `f x1 x2 = <x1> ` |✅  | 
+|8 | Much more complicated move wise | `f x1 x2 = <x1> ` |✅ \*\* | 
 
 \* Succeeded briefly, then converged back to 0.5
+
+\*\* Incorrect test suite 
 
 ### Key
 Symbol| Success state |
@@ -44,3 +47,23 @@ I am carrying out additional testing to try and isolate these causes. In this te
 
 One additional possiblity has to do with how we represent currying. If we are currying, it could be that there is an asymmetry in how the variables of each function propagate along the edges. 
 
+# tests, with added edges: 
+
+| test. no.  |Notes|  ex_test|  success |
+|--|--| -- |--
+|1 | - |`f x1 x2 = <?>` |✅ 
+|2 | - |`f x1 x2 = ~<?>` | ✅ 
+|3 | Combination of **1** and **2**. Doubles number of cases |`f x1 x2 = ~?` or `f x1 x2 = <?>` | ✅| 
+|4 | Succeeded briefly, then converged back to 0.5  | `f x1 x2 = x1 and <x2>` |✅ | 
+|5 | - | `f x1 x2 = <x1> and x2` | ✅ | 
+|6 | essentially same as **4** | `f x1 x2 = x1 or <x2>` |✅| 
+|7 | - | `f x1 x2 = <x1> and x2` | ✅ | 
+|8 | Much more complicated move wise | `f x1 x2 = <x1> ` |❌| 
+
+
+### Key
+Symbol| Success state |
+ -|-
+❌ |Failure: model gets 0 or near 0 (e.g. 0.0001) result. Typically unnable to do better than random 
+🤷 | Model is able to succeed on some portion of tests, but not all 
+✅ | Model succeeds; gets approx. 100% success
