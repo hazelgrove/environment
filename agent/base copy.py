@@ -62,11 +62,10 @@ class GAT_base(nn.Module):
 
 class NNBase(nn.Module):
     def __init__(self, recurrent, recurrent_input_size, hidden_size):
-        super(NNBase, self).__init__()
+        super().__init__()
 
         self._hidden_size = hidden_size
-        self._recurrent = recurrent
-        
+
         if recurrent:
             self.gru = nn.GRU(recurrent_input_size, hidden_size)
             for name, param in self.gru.named_parameters():

@@ -54,10 +54,6 @@ class Policy(nn.Module):
             raise NotImplementedError
 
     @property
-    def is_recurrent(self):
-        return self.base.is_recurrent
-
-    @property
     def recurrent_hidden_state_size(self):
         """Size of rnn_hx."""
         return self.base.recurrent_hidden_state_size
@@ -128,11 +124,12 @@ class GNNPolicy(Policy):
             )
         else: 
             self.projection = torch.nn.Linear(self.base.hidden_size,self.num_actions)
+            # 
 
         self.dist = MaskedCategorical()
         self.device = device
-
-    def act(self, inputs, rnn_hxs, masks, deterministic=False):
+    
+    def _get_dist(self, inputs):
         inputs = Obs(
             *torch.split(
                 inputs,
@@ -153,6 +150,10 @@ class GNNPolicy(Policy):
             actor_features = self.projection(actor_features)
         dist = self.dist(actor_features, inputs.permitted_actions)
 
+        return dist, value
+
+    def act(self, inputs, rnn_hxs, masks, deterministic=False):
+        dist,value = self._get_dist(inputs)
         if deterministic:
             action = dist.mode()
         else:
@@ -161,44 +162,22 @@ class GNNPolicy(Policy):
         action_log_probs = dist.log_probs(action)
 
         return value, action, action_log_probs, rnn_hxs
+    
 
     def get_value(self, inputs, rnn_hxs, masks):
-        inputs = Obs(
-            *torch.split(
-                inputs,
-                [get_size(space) for space in astuple(self.obs_space)],
-                dim=-1,
-            )
-        )
-        value, _, _ = self.base(asdict(inputs))
+        _ ,value = self._get_dist(inputs)
 
         return value
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        inputs = Obs(
-            *torch.split(
-                inputs,
-                [get_size(space) for space in astuple(self.obs_space)],
-                dim=-1,
-            )
-        )
-        value, actor_features, vars = self.base(asdict(inputs))
-
-        args_in_scope = inputs.args_in_scope.reshape(
-            inputs.args_in_scope.shape[0], -1, 2
-        )
-        if self.use_qkv: 
-            # If we choose not to use qkv, instead use a simple learned projection
-            actor_features = self.qkv(actor_features, vars, args_in_scope)
-        else: 
-            actor_features = self.projection(actor_features)
-        dist = self.dist(actor_features, inputs.permitted_actions)
+        dist,value = self._get_dist(inputs)
 
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, rnn_hxs
     
+
     
 class TestPolicy(Policy):
     def __init__(

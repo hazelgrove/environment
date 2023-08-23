@@ -111,7 +111,6 @@ class Trainer:
         if render:
             self.params["num_processes"] = 1
 
-        self.params["base"]["num_assignments"] = self.params["env"]["num_assignments"]
 
         torch.manual_seed(self.params["seed"])
         torch.cuda.manual_seed_all(self.params["seed"])
@@ -340,6 +339,7 @@ class Trainer:
 class GNNTrainer(Trainer):
     def get_policy(self,envs, device):
         base_kwargs = self.params["base"]
+        print(base_kwargs)
         policy = GNNPolicy(
             envs.get_attr("orig_obs_space")[0],
             envs.get_attr("action_space")[0],
