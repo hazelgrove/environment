@@ -1,0 +1,94 @@
+env_name: ASTEnv
+seed: 1
+cuda: True
+project_name: "assistant_rl"
+cuda_deterministic: True
+num_processes: 8  
+num_steps: 128
+log_interval: 1   
+eval_interval: 0 # Eval is just target # Skips eval step. (used to be 1000)
+save_interval: 100
+num_env_steps: 1.0e+7
+use_linear_lr_decay: True
+resume_carryover:  [ 'seed', 'env', 'eval', 'base', 'ppo', 'make_tests','return' ]
+env: 
+  assignment_dir: /RL_env/data/curriculum/test_full_all_binops/train
+  num_assignments: 29
+  code_per_assignment: 
+    - 6  # 0 one var like; empty  
+    - 8 # 1 one var like; Filled. correct and negated (step 1 and 2 ) 
+    - 4 # 2 and binops. filled. only done required. First term selected  (No negation on first term) (cursor = 1)
+    - 4 # 3 and binops. filled. only done required. First term selected  (First term negated  )      (cursor = 1)
+    - 4 # 4 and binops. filled. only done required. Second term selected  (No negation on first term) (cursor = 2 )
+    - 4 # 5 and binops. filled. only done required. Second term selected  (First term negated  )      (cursor = 3)
+    # - 4 # old 6 and binops. filled. Negation reqired. First term selected  (No negation on first term) (cursor = 1)   Select first one to avoid double neg
+    - 4 # 6 and binops. filled. Negation reqired. First term selected  (First term negated  )      (cursor = 1)   Select first two to avoid double neg
+    - 2 # 7 and binops. filled. Negation reqired. Second term selected  (No negation on first term) (cursor = 2 ) Select first two to avoid double neg
+    - 2 # 8 and binops. filled. Negation reqired. Second term selected  (First term negated  )      (cursor = 3). Select first one to avoid double neg
+    - 8 #9 and binops. First term is hole.  (No negation on first term) (cursor = 1)   
+    - 4 #10 and binops. Second term required.  (No negation on first term) (cursor = 2 )
+    - 4 #11 and binops. Second term required  (First term negated  )   (cursor = 3). 
+    - 16 #12 and binops. first,second term required. Root selected.  (No negation on first term) (cursor = 0)  
+    - 16 #13 and binops. binop required (curosr = 0 )
+    - 8 #14  and Binops, unnegated first terms.  (cursor = 0 )
+    - 4 # 15 or binops. filled. only done required. First term selected  (No negation on first term) (cursor = 1)
+    - 4 # 16 or binops. filled. only done required. First term selected  (First term negated  )      (cursor = 1)
+    - 4 # 17 or binops. filled. only done required. Second term selected  (No negation on first term) (cursor = 2 )
+    - 4 # 18 or binops. filled. only done required. Second term selected  (First term negated  )      (cursor = 3)
+
+    # - 4 #old 19 or binops. filled. Negation reqired. First term selected  (No negation on first term) (cursor = 1)   Select first one to avoid double neg
+    - 4 # 19 or binops. filled. Negation reqired. First term selected  (First term negated  )      (cursor = 1)   Select first two to avoid double neg
+    - 2 # 20 or binops. filled. Negation reqired. Second term selected  (No negation on first term) (cursor = 2)   Select first one to avoid double neg
+    - 2 # 21 or binops. filled. Negation reqired. Second term selected  (First term negated  )      (cursor = 3)   Select first two to avoid double neg
+
+    - 8 # 22 or binops. First term is hole.  (No negation on first term) (cursor = 1)   
+    - 4 # 23 or binops. Second term required.  (No negation on first term) (cursor = 2 )
+    - 4 # 24 or binops. Second term required  (First term negated  )   (cursor = 3). 
+    - 16 # 25 or binops. one term required. Root selected.  (cursor = 0)  
+    - 16 # 26 or binops. one term and binop required. Root selected.  (cursor = 0)  
+    - 8 # 27 and Binops, unnegated first terms. (cursor 0)
+    - 8 # 28 full from hole (cursor 0 )
+  cursor_start_pos: [0,0,  1,1,2,3,   1,2,3,   1,2,3,  0,0,0,  1,1,2,3,  1,2,3,  1,2,3,  0,0,0, 0]
+  max_episode_steps: 7
+  perturbation: 0
+  done_action: True
+eval:
+  assignment_dir:  /RL_env/data/curriculum/test_9/train
+  num_assignments: 0 
+  code_per_assignment: [2]
+  cursor_start_pos: [0]
+  perturbation: 0
+  done_action: True
+base: 
+  hidden_size: 128
+  num_layers: 10
+  embedding_size: 100
+  cursor: True
+  use_qkv: False
+ppo:
+  lr: 3.0e-6  
+  eps: 1.0e-5
+  value_loss_coef: 0.5
+  max_grad_norm: 0.5
+  ppo_epoch: 4
+  num_mini_batch: 4
+  clip_param: 0.1
+  entropy_coef: 0.01
+make_tests: 
+  command: echo "hand generated tests"
+  # command: python3 scripts/Generate_boolean_funcs.py
+  # args:
+  #   min_n: 2
+  #   max_n: 2
+  #   max_funcs: 500
+  #   test_ratio: 0.0
+  #   shuffle: False
+  #   outdir: data/generated_tests/binary_funcs_progression/one_var_like
+    # choose_tests: [[0,3,5,10,12,15]] # one_var_like 
+    # choose_tests: "[[1,2,4,7,8,11,13,14]]"  #binop funcs 
+    # seed: 42 
+return:
+  gamma: 0.99
+  use_gae: True
+  gae_lambda: 0.95
+  use_proper_time_limits: False
