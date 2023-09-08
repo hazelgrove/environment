@@ -71,99 +71,26 @@ def find_max_num(files):
 
     
 if __name__ == '__main__':
-    original_assignments = ['''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x1 || x2
-        in\nassert (((!(f false false))) && (f false true) && (f true false) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x1)) || x2
-        in\nassert (((f false false)) && (f false true) && (!(f true false)) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x1 || (!(x2))
-        in\nassert (((f false false)) && (!(f false true)) && (f true false) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x1)) || (!(x2))
-        in\nassert (((f false false)) && (f false true) && (f true false) && (!(f true true)))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x1 && x2
-        in\nassert (((!(f false false))) && (!(f false true)) && (!(f true false)) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x1)) && x2
-        in\nassert (((!(f false false))) && (f false true) && (!(f true false)) && (!(f true true)))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x1 && (!(x2))
-        in\nassert (((!(f false false))) && (!(f false true)) && (f true false) && (!(f true true)))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x1)) && (!(x2))
-        in\nassert (((f false false)) && (!(f false true)) && (!(f true false)) && (!(f true true)))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x2 || x1
-        in\nassert (((!(f false false))) && (f false true) && (f true false) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x2)) || x1
-        in\nassert (((f false false)) && (f false true) && (!(f true false)) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x2 || (!(x1))
-        in\nassert (((f false false)) && (!(f false true)) && (f true false) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x2)) || (!(x1))
-        in\nassert (((f false false)) && (f false true) && (f true false) && (!(f true true)))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x2 && x1
-        in\nassert (((!(f false false))) && (!(f false true)) && (!(f true false)) && (f true true))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x2)) && x1
-        in\nassert (((!(f false false))) && (f false true) && (!(f true false)) && (!(f true true)))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            x2 && (!(x1))
-        in\nassert (((!(f false false))) && (!(f false true)) && (f true false) && (!(f true true)))
-    ''',
-    '''
-        let f ( x1 : bool ) ( x2 : bool ) = 
-            (!(x2)) && (!(x1))
-        in\nassert (((f false false)) && (!(f false true)) && (!(f true false)) && (!(f true true)))
-    ''',
-    ]
+    base_dir = 'data/curriculum_gen_tests/'
+    template_dir = 'templates/two_var'
+    out_dir = 'two_var_gen'
     
-    for assignment in original_assignments:
+    for assignment_file in os.scandir(os.path.join(base_dir,template_dir)):
+        if not re.match(r'.*\.ml',assignment_file.name):
+            pass
+        with open(assignment_file.path,'r') as file :
+            assignment = file.read()
         assignments = generate_curriculum(assignment)
         for a, i in assignments:
-            if not os.path.exists(f'data/generated_tests/progression/{i}'):
-                os.mkdir(f'data/generated_tests/progression/{i}')
-                with open(f'data/generated_tests/progression/{i}/test.ml', 'w') as f:
+            targ_dir = os.path.join(base_dir,out_dir,f'{i}')
+            if not os.path.exists(targ_dir):
+                os.makedirs(targ_dir)
+                with open(os.path.join(targ_dir,'test.ml'), 'w') as f:
                     f.write("[]\n")
                 
-            dir_list = os.listdir(f'data/generated_tests/progression/{i}')
+            dir_list = os.listdir(targ_dir)
             
-            with open(f'data/generated_tests/progression/{i}/{find_max_num(dir_list)}.ml', 'w') as f:
+            with open(os.path.join(targ_dir,f'{find_max_num(dir_list)}.ml'), 'w') as f:
                 f.write(a)
     
     
