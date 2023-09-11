@@ -1,3 +1,5 @@
+import sympy as S 
+from typing import List
 ## --- Test generation section ---
 # 
 # 
@@ -41,7 +43,7 @@ class Node():
         children = None 
         if not self.terminal: 
             children = list(map(lambda x: x.copy(),self.children))
-        return Node(self.name,children)
+        return Node(str(self.name),children)
     
     def set_val(self,other): 
         self.terminal = other.terminal
@@ -61,12 +63,16 @@ class Node():
         return Node(f'x{x_n}',None)
     
     @staticmethod
-    def Or(children:list): 
+    def Var_name(x_name:str):
+        return Node(x_name,None)
+    
+    @staticmethod
+    def Or(children): 
         assert(len(children)>=2)
         return Node('or',children)
 
     @staticmethod
-    def And(children:list): 
+    def And(children): 
         assert(len(children)>=2)
         return Node('and',children)
 
@@ -100,7 +106,21 @@ class Node():
         else: 
             print(f'UNKNOWN OPERATOR {input}')
             raise ValueError(f'unknown operator {input}')
-
+        
+    @staticmethod    
+    def from_sympy(expr): 
+        if type(expr) is S.Not: 
+            return Node.Not(Node.from_sympy(expr.args[0]))
+        elif type(expr) is S.And or type(expr) is S.Or: 
+            op =  Node.And if type(expr) is S.And else Node.Or
+            return op([Node.from_sympy(child) for child in expr.args])
+            # n-ary ops 
+        elif type(expr) is S.Symbol: 
+            return Node.Var_name(str(expr))
+        elif  expr is S.true or expr is S.false:  
+            return Node.Bool(expr)
+        else: 
+            raise NotImplementedError(f'unknown expr {expr}')
 
 
 def __curriculum_helper(list,root,curr,nth):

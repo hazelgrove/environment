@@ -2,19 +2,15 @@
 import argparse
 from os import path
 import os
-from itertools import product
+from itertools import product, chain,combinations
 import random
-from more_itertools import chunked, collapse
 import re
-import pyeda.inter as bools
-from pyeda.boolalg.expr import AndOp, OrOp, NotOp, Variable, expr
-from pyeda.boolalg.table import ttvar
 import yaml
 from curriculum_gen_helper import Node, make_curriculum
 from collections import defaultdict
-from copy import copy
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
+import sympy as S
 
 
 def parse_args():
@@ -23,7 +19,7 @@ def parse_args():
     )
     parser.add_argument("n_args", help="number of args to generate", type=int)
     parser.add_argument("targ_dir", help="dir to write templates to", type=str)
-    parser.add_argument("-s", "--simplify", action="store_true")  # on/off flag
+    parser.add_argument("-r", "--raw",help="if set, we don't simplify our funcs", action="store_true")  # on/off flag
     parser.add_argument(
         "-c",
         "--curriculum",
@@ -35,96 +31,73 @@ def parse_args():
     return parser.parse_args()
 
 
-def make_nfuncs(n, simplify=False, verbose=False):
-    ttables = []
-    x = bools.ttvars("x", n)
-    for tt_vals in product(*[range(2)] * (2**n)):
-        ttables.append(bools.truthtable(x, tt_vals))
-    print(len(tt_vals), len(ttables))
-    # now use our fancy schmansy solver to solve everything
-    # chunk into max-size of 500 tables at a time
-    funcs = list(
-        collapse(bools.espresso_tts(*chunk) for chunk in chunked(ttables, 500))
-    )
-    if simplify:
-        funcs = list(map(lambda x: expr(x).simplify(), x))
 
-    if verbose:
-        ocaml_funcs = []
-        for i, func in enumerate(funcs):
-            if i < 10:
-                print(f"\n RUnning func {i}")
-            ocaml_funcs.append(prettyPrint(func, verbose=(i < 12)))
-        print(ocaml_funcs[:3])
-    else:
-        ocaml_funcs = list(map(prettyPrint, funcs))
-    return ttables, ocaml_funcs, funcs
+def powerset(in_list:list):
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    return chain.from_iterable(combinations(in_list, r) for r in range(len(in_list)+1))
 
+def make_nfuncs(n,simplify=True): 
+    in_vars = S.symbols([f'x{n}' for n in range(1,n+1)]) # x1, x2, ... , xn 
+    inputs = list(product([0,1],repeat=n))
+    funcs = [S.SOPform(in_vars,incs) for incs in powerset(inputs)]
+    print(f'{len(funcs)} total functions generated')
+    print('simplifying...')
+    if simplify: 
+        funcs = list(map(S.simplify,funcs))
+    print('Done.')
+    return funcs, in_vars
 
-def prettyPrint(expr, verbose=False):
-    # define recursive function
-    def pretty_print_helper(input, verbose=True):
-        if input[0] in ["and", "or"]:
-            if verbose:
-                print(len(input), input)
-            # binop
-            binop = (
-                "&&" if input[0] == "and" else "||" if input[0] == "or" else input[0]
-            )
-            ret_string = pretty_print_helper(input[1], verbose=verbose)
-            if verbose:
-                print(ret_string)
-            for i in range(2, len(input)):
-                right = pretty_print_helper(input[i], verbose=verbose)
-                if verbose:
-                    print(right)
-                ret_string = f"( {ret_string} {binop} {right} )"
-                if verbose:
-                    print(ret_string)
-            return ret_string
-        elif len(input) == 2 and input[0] == "const":
-            # atom: Boolean constant
-            return "true" if input[1] else "false"
-        elif len(input) == 2 and input[0] == "lit":
-            # atom: other
-            if input[1] < 0:  # negated
-                return f"(!x{-input[1]})"
-            else:
-                return f" x{input[1]}"
-        else:
-            print(f"ERROR WITH INPUT {input}")
-            raise ValueError("this shouldn't happen")
-
-    # call on ast-ified version
-    ast = expr.to_ast()
-    return pretty_print_helper(ast, verbose=verbose)
+def sympy_to_ocaml(expr): 
+    if type(expr) is S.Not: 
+        return f'(!({sympy_to_ocaml(expr.args[0])}))'
+    elif type(expr) is S.And or type(expr) is S.Or: 
+        op =  ' && ' if type(expr) is S.And else ' || '
+        ret_string = sympy_to_ocaml(expr.args[0])
+        for child in expr.args[1:]: 
+            ret_string = f'( {op.join([ret_string,sympy_to_ocaml(child)])} )'
+        return ret_string
+        # n-ary ops 
+    elif type(expr) is S.Symbol: 
+        return str(expr)
+    elif  expr is S.true: 
+        return 'true'
+    elif expr is S.false: 
+        return 'false ' 
+    else: 
+        raise NotImplementedError(f'unknown expr {expr}')
 
 
-def make_assert(truth_table):
+def make_assert(func,in_vars):
+    ttable = S.logic.boolalg.truth_table(func,in_vars)
     true_false_map = {0: "false", 1: "true "}
     clauses = []
-    for rel in truth_table.iter_relation():
-        clause = " ".join(
-            true_false_map[rel[0][ttvar("x", i)]] for i in range(len(rel[0]))
-        )
+    for x_values, is_true in ttable:
+        clause = " ".join(true_false_map[val] for val in x_values)
         clause = f"(f {clause})"
-        if not rel[1]:  # case is false: negate it
+        if not is_true:  # case is false: negate it
             clause = f"(!{clause})"
         clauses.append(clause)
     return "assert (" + " && ".join(clauses) + ")\n"
 
 
-def make_test_strings(truth_tables, funcs):
-    asserts = map(make_assert, truth_tables)
+def make_test_strings(funcs,in_vars,assert_funcs=None):
+    # allow our user to pass in 'template' functions in the case that 
+    # the original function was disassembled
+    if  assert_funcs is None: 
+        assert_funcs = funcs 
+    asserts = map(lambda x: make_assert(x,in_vars), assert_funcs)
+    if type(funcs[0]) is Node: 
+        ocaml_funcs = map(lambda x: x.to_ocaml(), funcs)
+    else: 
+        ocaml_funcs = map(sympy_to_ocaml,funcs)
     # convert from ttvar to string in the format that we want...
-    pretty_vars = map(lambda x: f"{x.name}{x.indices[0]+1}", truth_tables[0].inputs)
+    pretty_vars = [str(var) for var in in_vars]
     header = "let f " + " ".join(f"({var} : bool)" for var in pretty_vars) + " ="
     # make the actual strings
     strings = []
-    for func, assert_ in zip(funcs, asserts):
+    for func, assert_ in zip(ocaml_funcs, asserts):
         strings.append(f"{header}\n\t{func}\nin\n{assert_}\n")
     return strings
-
 
 def save_test_strings(test_strings, template_dir):
     if not path.isdir(template_dir):
@@ -159,26 +132,27 @@ def write_test_dir(tests, num, targ_dir):
             file.write(test)
 
 
-def gen_curricula(funcs, ttables):
+def gen_curricula(funcs, vars):
+    print('Generating curricula...')
     curriculum = defaultdict(lambda: [])
     max_num_steps = 1
-    for func, ttable in tqdm(zip(funcs, ttables), total=len(funcs)):
+    for func in tqdm(funcs):
         # get our curriculum for that file, unzip into two lists
-        test_funcs, cursor_starts = make_curriculum(Node.from_eda(func))
+        test_funcs, cursor_starts = make_curriculum(Node.from_sympy(func))
         # print(test_funcs, cursor_starts)
         max_num_steps = max(max_num_steps, len(test_funcs) + 1)
         # generate full test functions
-        ttable_list = [copy(ttable) for _ in range(len(cursor_starts))]
-        test_strings = make_test_strings(
-            ttable_list, map(lambda x: x.to_ocaml(), test_funcs)
-        )
+        test_strings = make_test_strings(test_funcs,vars,assert_funcs=[func]*len(cursor_starts))
         for test_str, cursor_pos in zip(test_strings, cursor_starts):
             curriculum[cursor_pos].append(test_str)
+    total_tests = sum(len(tests) for tests, _ in curriculum.items())
+    print('Done.')
+    print(f'{total_tests} total tests in curriculum')
     return curriculum, max_num_steps
 
 
 def save_curriculum(
-    curriculum, targ_dir, max_num_steps, done_action=True, test_split=None
+    curriculum, targ_dir, max_num_steps, done_action=True
 ):
     # print these in order small to big:
     max_start_pos = max(curriculum.keys())
@@ -214,23 +188,18 @@ def split_folds(comps,targ_dir, split, seed=42):
     return {path.join(targ_dir,'train'):train,path.join(targ_dir,'test'):test}
 
 def main(args): 
-    ttables, pretty_funcs, funcs = make_nfuncs(args.n_args, args.simplify)
+    funcs, varnames = make_nfuncs(args.n_args,simplify=not args.raw)
     if args.test_split: 
-        folds = split_folds((ttables,pretty_funcs,funcs),args.targ_dir,args.test_split,args.seed)
+        folds = split_folds((funcs),args.targ_dir,args.test_split,args.seed)
     else: 
-        folds = {args.targ_dir:(ttables,pretty_funcs,funcs)}
+        folds = {args.targ_dir:funcs}
 
-    for targ_dir, (ttables,pretty_funcs,funcs) in folds.items(): 
+    for targ_dir, funcs in folds.items(): 
         if args.curriculum:
-            curriculum, max_steps = gen_curricula(
-                funcs,
-                ttables,
-                test_split=args.test_split,
-                seed=args.seed,
-            )
+            curriculum, max_steps = gen_curricula(funcs,varnames)
             save_curriculum(curriculum, targ_dir, max_steps)
         else:
-            test_strings = make_test_strings(ttables, pretty_funcs)
+            test_strings = make_test_strings(funcs,varnames)
             save_test_strings(test_strings, args.targ_dir)
 
 
