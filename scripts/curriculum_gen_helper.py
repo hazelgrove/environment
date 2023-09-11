@@ -33,7 +33,7 @@ class Node():
                 ret_string = f'( {operator[self.name].join([ret_string,child.to_ocaml()])} )'
             return ret_string
         elif self.name == 'not': 
-            return f'!({self.children[0].to_ocaml()})'
+            return f'(!({self.children[0].to_ocaml()}))'
         else: 
             raise ValueError(f"unknown node: {self.name} {str(self.children)}")
 
