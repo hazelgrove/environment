@@ -145,7 +145,7 @@ def gen_curricula(funcs, vars):
         test_strings = make_test_strings(test_funcs,vars,assert_funcs=[func]*len(cursor_starts))
         for test_str, cursor_pos in zip(test_strings, cursor_starts):
             curriculum[cursor_pos].append(test_str)
-    total_tests = sum(len(tests) for tests, _ in curriculum.items())
+    total_tests = sum(len(tests) for _, tests in curriculum.items())
     print('Done.')
     print(f'{total_tests} total tests in curriculum')
     return curriculum, max_num_steps
