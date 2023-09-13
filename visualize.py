@@ -21,7 +21,7 @@ def main(log_name, run_id):
     # params["env"]["max_episode_steps"] = 2
     # params["env"]["assignment_dir"] = "data/tests"
     
-    params["base"]["num_assignments"] = params["env"]["num_assignments"]
+    # params["base"]["done_action"] = params["env"]["done_action"]
 
 
     path = os.path.join("save", log_name, str(run_id) + ".pt")
@@ -58,6 +58,7 @@ def main(log_name, run_id):
     obs = env.reset()
     env.render()
     step = 0 
+    stop_on_update = False 
     while True:
         with torch.no_grad():
             (_, action, _, _,) = actor_critic.act(
@@ -68,7 +69,7 @@ def main(log_name, run_id):
         step +=1
         print(f'step: {step}')
         print(f"Action: {action}")
-        # breakpoint() # to allow manual change, action[0] = n 
+        if stop_on_update: breakpoint() # to allow manual change, action[0] = n 
         # if needed add python input l
         obs, reward, done, info = env.step(action.reshape((-1,)))
 

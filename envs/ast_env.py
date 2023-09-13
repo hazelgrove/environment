@@ -1,6 +1,7 @@
 import copy
 import ctypes
 import random
+from itertools import product
 from typing import Any, List, Optional, Tuple, TypedDict, TypeVar, Union
 
 import gym
@@ -62,6 +63,11 @@ class ASTEnv(gym.Env):
         # done action info
         self.done_action = done_action
 
+        # for logging and sampling 
+        self.dataset_inds = [(assn,test) for assn, n_tests in enumerate(code_per_assignment) for test in range(n_tests) ]
+        self.assignment_no = None 
+        self.problem_no = None 
+
         # Plus one to account for -1
         node_nvec = (num_node_descriptor + max_num_vars * 2 + 1) * np.ones(
             max_num_nodes
@@ -119,8 +125,20 @@ class ASTEnv(gym.Env):
 
         if not (self.done_action and action == self.done_action_num): # first (-1 th) action --> dummy action
             # set action to move parent (doesnt change actual structrue)
-            self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
-        reward = self.astclib.check_ast(ctypes.byref(self.state))
+            try: 
+                self.astclib.take_action(ctypes.byref(self.state), ctypes.c_int(action))
+            except EOFError: 
+                print(f'error occurred taking action in assn# {self.assignment_no}, problem # {self.problem_no}')
+                print(self.get_state())
+                print(f'action was {action}') 
+                raise EOFError
+        try: 
+            reward = self.astclib.check_ast(ctypes.byref(self.state))
+        except EOFError: 
+            print(f'error occurred taking action in assn# {self.assignment_no}, problem # {self.problem_no}')
+            print(self.get_state())
+            print(f'action was {action}') 
+            raise EOFError
 
         done = False 
         if  self.done_action:
@@ -137,9 +155,14 @@ class ASTEnv(gym.Env):
     def reset(self):
         if self.curriculum is not None:
             assignment = random.sample(self.curriculum[: self.curriculum_index], 1)[0]
+            code = random.randint(0, self.code_per_assignment[assignment] - 1)
         else:
-            assignment = self.observation_space.spaces["assignment"].sample()
-        code = random.randint(0, self.code_per_assignment[assignment] - 1)
+            # assignment = self.observation_space.spaces["assignment"].sample()
+            assignment, code = random.sample(self.dataset_inds,k=1)[0]
+             
+        self.assignment_no = assignment
+        self.problem_no = code
+
 
         self.state = State()
         
@@ -166,7 +189,13 @@ class ASTEnv(gym.Env):
 
     def render(self, mode=None) -> None:
         print("Current state:")
-        self.astclib.print_curr_state(ctypes.byref(self.state))
+        try: 
+            self.astclib.print_curr_state(ctypes.byref(self.state))
+        except EOFError: 
+            print(f'error occurred in assn# {self.assignment_no}, problem # {self.problem_no}')
+            print(self.get_state())
+            raise EOFError
+
 
     def close(self) -> None:
         self.astclib.close_c()

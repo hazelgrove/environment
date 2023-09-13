@@ -34,7 +34,6 @@ class Evaluator:
             seed,
             num_processes,
             device,
-            max_episode_steps,
             **eval_kwargs,
         )
 
@@ -93,12 +92,12 @@ class PLEvaluator(Evaluator):
         seed, 
         num_processes, 
         device, 
-        max_episode_steps,
         **kwargs,):
         return PLEnv.make_vec_envs(
             seed + num_processes,
             num_processes,
             device,
-            max_episode_steps,
             **kwargs
         )
+
+

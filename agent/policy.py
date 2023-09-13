@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from gym.spaces import Discrete, MultiBinary, MultiDiscrete
+from transformers import GraphormerForGraphClassification, GraphormerConfig
 
 from agent.base import CNNBase, GNNBase, MLPBase, TestBase
 from agent.distributions import (
@@ -86,6 +87,8 @@ class Policy(nn.Module):
         dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, rnn_hxs
+
+    
 
 
 class GNNPolicy(Policy):
@@ -177,7 +180,6 @@ class GNNPolicy(Policy):
 
         return value, action_log_probs, dist_entropy, rnn_hxs
     
-
     
 class TestPolicy(Policy):
     def __init__(
@@ -223,3 +225,81 @@ class TestPolicy(Policy):
         dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, rnn_hxs
+
+
+class GraphphormerPolicy(GNNPolicy):
+    # graphphormer. Override init and _get_dist
+    def __init__(
+        self,
+        obs_space,
+        action_space,
+        num_fixed_actions,
+        max_num_vars=11,
+        base_kwargs={},
+        device=None,
+        done_action=False,
+    ):
+        super().__init__()
+        self.has_done_action = done_action
+        
+
+        # handle number of actions... we have one extra if we're using a done action 
+        self.num_nonvar_actions = num_fixed_actions + 1 if done_action else num_fixed_actions
+        self.num_actions = self.num_nonvar_actions +  max_num_vars *2
+
+        self.obs_space = Obs(**obs_space.spaces)
+        num_edge_descriptor = base_kwargs.get('num_edge_descriptor',  7)
+        max_num_vars = base_kwargs.get('max_num_vars', 11)
+        num_node_descriptor = base_kwargs.get('num_node_descriptor', 107)
+
+        model_config ={
+            "num_classes": self.num_actions,
+            "num_atoms": num_node_descriptor + max_num_vars * 2 + 1,
+            "num_edges": num_edge_descriptor,
+            "num_hidden_layers": base_kwargs.get('num_layers',8),
+            "embedding_dim": base_kwargs.get('num_layers',768),
+            "ffn_embedding_dim": base_kwargs.get('num_layers',768),
+            "num_attention_heads": base_kwargs["heads"] if base_kwargs and "heads" in base_kwargs else 32,
+        }
+        self.base = GraphormerForGraphClassification(
+                GraphormerConfig(model_config)
+            )
+    
+        self.dist = MaskedCategorical()
+        self.device = device
+    
+    def _get_dist(self, inputs):
+        inputs = Obs(
+            *torch.split(
+                inputs,
+                [get_size(space) for space in astuple(self.obs_space)],
+                dim=-1,
+            )
+        )
+        # in_vals = 
+        # input_nodes: torch.LongTensor,
+        # input_edges: torch.LongTensor,
+        # attn_bias: torch.Tensor,
+        # in_degree: torch.LongTensor,
+        # out_degree: torch.LongTensor,
+        # spatial_pos: torch.LongTensor,
+        # attn_edge_type: torch.LongTensor,
+        value, actor_features, vars = self.base(asdict(inputs))
+
+        args_in_scope = inputs.args_in_scope.reshape( # what does this do ????? 
+            inputs.args_in_scope.shape[0], -1, 2
+        )
+        if self.use_qkv: 
+            # If we choose not to use qkv, instead use a simple learned projection
+            actor_features = self.qkv(actor_features, vars, args_in_scope)
+        else: 
+            # If we choose not to use qkv, instead use a simple learned projection
+            actor_features = self.projection(actor_features)
+        dist = self.dist(actor_features, inputs.permitted_actions)
+
+        return dist, value
+
+    @property
+    def recurrent_hidden_state_size(self):
+        """Size of rnn_hx."""
+        return 1

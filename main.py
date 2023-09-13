@@ -14,7 +14,7 @@ from git.repo import Repo
 from ray import tune
 from run_logger import RunLogger, create_sweep
 
-from agent.arguments import get_args
+from agent.arguments import get_args, read_params
 from logger import get_charts, get_metadata
 from trainer import GNNTrainer, ResumeGNNTrainer
 
@@ -60,8 +60,7 @@ def resume(
     resume_from_name:str, 
     render: bool = False,
 ): 
-    with open(config_path, "r") as file:
-        params = yaml.safe_load(file)
+    params = read_params(config_path)
 
     logger = RunLogger(graphql_endpoint)
     trainer = ResumeGNNTrainer(name,params,resume_from_id,resume_from_name,logger)
@@ -90,8 +89,7 @@ def run(
     save_dir: str,
     render: bool = False,
 ):
-    with open(config_path, "r") as file:
-        params = yaml.safe_load(file)
+    params = read_params(config_path)
 
     _log(
         name=name,

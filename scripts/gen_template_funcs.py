@@ -10,6 +10,7 @@ from curriculum_gen_helper import Node, make_curriculum
 from collections import defaultdict
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
+from copy import copy
 import sympy as S
 
 
@@ -37,14 +38,14 @@ def powerset(in_list:list):
     return chain.from_iterable(combinations(in_list, r) for r in range(len(in_list)+1))
 
 def make_nfuncs(n,simplify=True): 
+    print('Genrating functions...')
     in_vars = S.symbols([f'x{n}' for n in range(1,n+1)]) # x1, x2, ... , xn 
     inputs = list(product([0,1],repeat=n))
-    funcs = [S.SOPform(in_vars,incs) for incs in powerset(inputs)]
+    funcs = [S.SOPform(in_vars,incs) for incs in tqdm(powerset(inputs),total=2**len(inputs))]
     print(f'{len(funcs)} total functions generated')
     print('simplifying...')
     if simplify: 
-        funcs = list(map(S.simplify,funcs))
-    print('Done.')
+        funcs = list(tqdm(map(S.simplify,funcs), total=len(funcs)))
     return funcs, in_vars
 
 def sympy_to_ocaml(expr): 
@@ -165,8 +166,7 @@ def save_curriculum(
             assignment_nums.append(len(curriculum[i]))
 
     # save config snippet
-    json_str = {
-        "env": {
+    params = {
             "assignment_dir": os.path.join("/RL_env/data", targ_dir.split("data/")[-1]),
             "num_assignments": len(cursor_starts),
             "code_per_assignment": assignment_nums,
@@ -175,33 +175,35 @@ def save_curriculum(
             "done_action": done_action,
             "perturbation": 0,
         }
-    }
-    with open(os.path.join(targ_dir, "param_snippet.yaml"), "w") as file:
-        yaml.dump(json_str, file)
+    return params
 
 def split_folds(comps,targ_dir, split, seed=42):
     random.seed(seed)
     # rezip this so that each element is paired (ttable, pretty_func, func)
-    comps_out = train_test_split(*comps,test_size=split,random_state=seed)
-    train,test = comps_out[::2], comps_out[1::2]
-    print(f'{len(train[0])} elements in train, {len(test[0])} elements in test')
-    return {path.join(targ_dir,'train'):train,path.join(targ_dir,'test'):test}
+    comps = copy(comps)
+    random.shuffle(comps)
+    num_test = int(len(comps) * split) if split < 1 else int(split)
+    test, train = comps[:num_test], comps[num_test:]
+    return {'env':(path.join(targ_dir,'train'),train),'eval':(path.join(targ_dir,'test'),test)}
 
 def main(args): 
     funcs, varnames = make_nfuncs(args.n_args,simplify=not args.raw)
+    targ_dir = args.targ_dir if not args.curriculum else path.join(args.targ_dir,'curriculum')
     if args.test_split: 
-        folds = split_folds((funcs),args.targ_dir,args.test_split,args.seed)
+        folds = split_folds(funcs,targ_dir,args.test_split,args.seed)
     else: 
-        folds = {args.targ_dir:funcs}
+        folds = {'env':(targ_dir,funcs)}
 
-    for targ_dir, funcs in folds.items(): 
+    arg_strings ={}
+    for name, (targ_dir, funcs) in folds.items(): 
         if args.curriculum:
             curriculum, max_steps = gen_curricula(funcs,varnames)
-            save_curriculum(curriculum, targ_dir, max_steps)
-        else:
-            test_strings = make_test_strings(funcs,varnames)
-            save_test_strings(test_strings, args.targ_dir)
+            arg_strings[name] = save_curriculum(curriculum, targ_dir, max_steps)
 
+        test_strings = make_test_strings(funcs,varnames)
+        save_test_strings(test_strings, path.join(targ_dir,'templates'))
+    with open(path.join(args.targ_dir,'param_snippet.yaml'),'w') as pfile:
+        yaml.dump(arg_strings,pfile)
 
 if __name__ == "__main__":
     args = parse_args()

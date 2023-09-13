@@ -137,7 +137,7 @@ class PLEnv(Env):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
-                max_num_nodes=200,
+                max_num_nodes=400,
                 num_node_descriptor=107,
                 num_assignments=num_assignments,
                 code_per_assignment=code_per_assignment,
@@ -270,7 +270,11 @@ class VecPyTorch(VecEnvWrapper):
         self.venv.step_async(actions)
 
     def step_wait(self):
-        obs, reward, done, info = self.venv.step_wait()
+        try: 
+            obs, reward, done, info = self.venv.step_wait()
+        except EOFError:
+            print(self)
+            raise EOFError()
         obs = torch.from_numpy(obs).float().to(self.device)
         reward = torch.from_numpy(reward).unsqueeze(dim=1).float()
         return obs, reward, done, info

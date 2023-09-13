@@ -13,7 +13,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from agent import utils
-from agent.arguments import get_args
+from agent.arguments import get_args, read_params
 from agent.envs import Env, PLEnv, VecPyTorch
 from agent.policy import GNNPolicy, Policy, TestPolicy
 from agent.ppo import PPO
@@ -184,7 +184,11 @@ class Trainer:
                 if render:
                     print(f"Action: {action}")
                     breakpoint()
-                obs, reward, done, infos = envs.step(action.reshape((-1,)))
+                try:
+                    obs, reward, done, infos = envs.step(action.reshape((-1,)))
+                except EOFError: 
+                    print(action)
+                    raise EOFError()
 
                 if render:
                     envs.render(mode="human")
@@ -475,8 +479,7 @@ class TestTrainer(Trainer):
 if __name__ == "__main__":
     args = get_args()
 
-    with open("params.yaml", "r") as file:
-        params = yaml.safe_load(file)
+    params = read_params(config_path)
 
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     logger.create_run(

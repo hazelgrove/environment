@@ -1,4 +1,5 @@
 import argparse
+import yaml
 
 
 def get_args():
@@ -34,6 +35,25 @@ def get_args_visualizer():
     args = parser.parse_args()
 
     return args
+
+# read config file
+def read_params(config_path:str): 
+    with open(config_path, "r") as file:
+        params = yaml.safe_load(file)
+    
+    # can speicify to load auto-generated config file for train and test envs
+    for name in ['env','eval']: 
+        if name in params.keys() and len(params[name]) == 1 and 'get_from' in params[name]: 
+            params_file =params[name]['get_from']
+            with open(params_file,'r') as env_file: 
+                env_params = yaml.safe_load(env_file)
+            params[name] = env_params[name] # allows us to define both in same file
+            print(f'fetched {name} params from file {params_file}')
+            print(env_params[name])
+
+    return params
+
+
 
 
 if __name__ == "__main__":

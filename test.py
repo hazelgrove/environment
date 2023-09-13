@@ -12,6 +12,7 @@ from agent.arguments import get_args
 from agent.wrapper import FlattenObservation, Obs
 from agent.distributions import QKV
 from agent.batch import collate
+from agent.arguments import read_params
 import ipdb
 import gym
 import yaml
@@ -21,8 +22,7 @@ from trainer import TestTrainer
 
 
 def main():
-    with open("params.yaml", "r") as file:
-        params = yaml.safe_load(file)
+    params = read_params('params.yaml')
 
     testTrainer = TestTrainer()
     testTrainer.train(
