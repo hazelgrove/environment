@@ -12,9 +12,9 @@ num_env_steps: 1.0e+7
 use_linear_lr_decay: True
 resume_carryover:  [ 'seed', 'env', 'eval', 'base', 'ppo', 'make_tests','return' ]
 env:
-  get_from: data/auto_curricula/sized/three_large/param_snippet.yaml
+  get_from: data/auto_curricula/two_vars_small/param_snippet.yaml
 eval:
-  get_from: data/auto_curricula/sized/three_large/param_snippet.yaml
+  get_from: data/auto_curricula/two_vars_small/param_snippet.yaml
 base: 
   hidden_size: 256
   num_layers: 10
@@ -35,8 +35,8 @@ make_tests:
   # command: echo "Using cached generated tests at  /RL_env/save/data/auto_curricula/four_var/curriculum"
   command: python3 scripts/gen_template_funcs.py
   args:
-    base: ['3', 'data/auto_curricula/sized/three_large','-c']
-    test_split: 0.2
+    base: ['2', 'data/auto_curricula/two_vars_small','-c']
+    test_split: 0.75
 return:
   gamma: 0.99
   use_gae: True
