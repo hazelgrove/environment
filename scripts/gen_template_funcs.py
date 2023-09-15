@@ -9,7 +9,6 @@ import yaml
 from curriculum_gen_helper import Node, make_curriculum
 from collections import defaultdict
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 from copy import copy
 import sympy as S
 
@@ -29,6 +28,7 @@ def parse_args():
     )  # on/off flag
     parser.add_argument("-t", "--test_split",type=float, default=None)
     parser.add_argument("--seed", default=42)
+    parser.add_argument("--mns_correction", help="correction factor for max_num steps. 1.5 is good base. if things are converging to lower numbers, bump this up.",default=1.5,type=float)
     return parser.parse_args()
 
 
@@ -133,7 +133,7 @@ def write_test_dir(tests, num, targ_dir):
             file.write(test)
 
 
-def gen_curricula(funcs, vars):
+def gen_curricula(funcs, vars,mns_correction = 1.5):
     print('Generating curricula...')
     curriculum = defaultdict(lambda: [])
     max_num_steps = 1
@@ -149,6 +149,7 @@ def gen_curricula(funcs, vars):
     total_tests = sum(len(tests) for _, tests in curriculum.items())
     print('Done.')
     print(f'{total_tests} total tests in curriculum')
+    max_num_steps = int(max_num_steps * mns_correction)
     return curriculum, max_num_steps
 
 
@@ -167,7 +168,7 @@ def save_curriculum(
 
     # save config snippet
     params = {
-            "assignment_dir": os.path.join("/RL_env/data", targ_dir.split("data/")[-1]),
+            "assignment_dir": os.path.join("data", targ_dir.split("data/")[-1]),
             "num_assignments": len(cursor_starts),
             "code_per_assignment": assignment_nums,
             "cursor_start_pos": cursor_starts,
@@ -197,7 +198,7 @@ def main(args):
     arg_strings ={}
     for name, (targ_dir, funcs) in folds.items(): 
         if args.curriculum:
-            curriculum, max_steps = gen_curricula(funcs,varnames)
+            curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction)
             arg_strings[name] = save_curriculum(curriculum, targ_dir, max_steps)
 
         test_strings = make_test_strings(funcs,varnames)

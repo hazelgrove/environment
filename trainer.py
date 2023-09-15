@@ -82,6 +82,7 @@ class Trainer:
         return
 
     def train(self, render, save_dir, sweep):
+        print(self.params)
         project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
         if sweep:
             wandb_logger = setup_wandb(project=project_name,config=self.params, group=self.log_name, api_key_file="/RL_env/wandb_api_key")
