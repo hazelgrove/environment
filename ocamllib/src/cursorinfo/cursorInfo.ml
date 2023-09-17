@@ -798,7 +798,7 @@ let%test_module "Test get_cursor_info" =
     let%test _ = check e i
   end)
 
-let max_num_nodes = 250
+let max_num_nodes = 275
 
 let ints =
   [

@@ -137,7 +137,7 @@ class PLEnv(Env):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
-                max_num_nodes=250,
+                max_num_nodes=275,
                 num_node_descriptor=107,
                 num_assignments=num_assignments,
                 code_per_assignment=code_per_assignment,
@@ -266,7 +266,7 @@ class VecPyTorch(VecEnvWrapper):
         if isinstance(actions, torch.LongTensor):
             # Squeeze the dimension for discrete actions
             actions = actions.squeeze(1)
-        actions = actions.cpu().numpy()
+        actions = actions.detach().cpu().numpy()
         self.venv.step_async(actions)
 
     def step_wait(self):
