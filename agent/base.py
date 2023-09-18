@@ -107,7 +107,7 @@ class NNBase(nn.Module):
 
             # Let's figure out which steps in the sequence have a zero for any agent
             # We will always assume t=0 has a zero in it as that makes the logic cleaner
-            has_zeros = (masks[1:] == 0.0).any(dim=-1).nonzero().squeeze().cpu()
+            has_zeros = (masks[1:] == 0.0).any(dim=-1).nonzero().squeeze().detach().cpu()
 
             # +1 to correct the masks[1:]
             if has_zeros.dim() == 0:

@@ -63,7 +63,14 @@ def resume(
     params = read_params(config_path)
 
     logger = RunLogger(graphql_endpoint)
-    trainer = ResumeGNNTrainer(name,params,resume_from_id,resume_from_name,logger)
+    print(logger,resume_from_id,resume_from_name)
+    trainer = ResumeGNNTrainer(
+        log_name=name,
+        params=params,
+        resume_id=resume_from_id,
+        resume_name=resume_from_name,
+        runLogger=logger,
+    )
     logger.create_run(
         metadata=get_metadata(Repo(".")),
         sweep_id=None,

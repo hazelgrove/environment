@@ -53,6 +53,9 @@ class Node():
     def size(self): 
         return sum(child.size() for child in self.children)+1
 
+    def __sizeof__(self) -> int:
+        return self.size()
+
     @staticmethod    
     def Hole(): 
         return Node('?',None)

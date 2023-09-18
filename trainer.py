@@ -393,6 +393,7 @@ class GNNTrainer(Trainer):
 
 class ResumeGNNTrainer(GNNTrainer):
     def __init__(self,log_name,params,resume_id,resume_name,runLogger):
+        print(runLogger)
         loaded_params = get_load_params(resume_id, runLogger)
         for field in params['resume_carryover']:
             params[field] = loaded_params[field]

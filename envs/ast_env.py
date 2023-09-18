@@ -67,6 +67,7 @@ class ASTEnv(gym.Env):
         self.dataset_inds = [(assn,test) for assn, n_tests in enumerate(code_per_assignment) for test in range(n_tests) ]
         self.assignment_no = None 
         self.problem_no = None 
+        self.num_nodes_list = []
 
         # Plus one to account for -1
         node_nvec = (num_node_descriptor + max_num_vars * 2 + 1) * np.ones(
@@ -131,6 +132,7 @@ class ASTEnv(gym.Env):
                 print(f'error occurred taking action in assn# {self.assignment_no}, problem # {self.problem_no}')
                 print(self.get_state())
                 print(f'action was {action}') 
+                print(self.num_nodes_list )
                 raise EOFError
         try: 
             reward = self.astclib.check_ast(ctypes.byref(self.state))
@@ -139,6 +141,7 @@ class ASTEnv(gym.Env):
             print(self.get_state())
             print(f'action was {action}') 
             raise EOFError
+
 
         done = False 
         if  self.done_action:
@@ -149,6 +152,18 @@ class ASTEnv(gym.Env):
 
         # Change state to Python dict
         state = self.get_state()
+
+        # If we create too many nodes, this is an error. 
+        # If we reach max_num_nodes-1 nodes we are in danger of crashing 
+        # instead, if we reach that many nodes (we shouldn't), return as a failed run. 
+        self.num_nodes_list.append(self.state.num_nodes)
+        if self.state.num_nodes >= self.max_num_nodes -5: 
+            done = True
+            reward = 0 
+            print('MAX NUMBER OF NODES EXCEEDED')
+            self.render()
+
+
 
         return state, reward, done, {}
 
@@ -162,7 +177,7 @@ class ASTEnv(gym.Env):
              
         self.assignment_no = assignment
         self.problem_no = code
-
+        self.num_nodes_list = []
 
         self.state = State()
         

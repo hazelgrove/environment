@@ -137,17 +137,24 @@ def gen_curricula(funcs, vars,mns_correction = 1.5):
     print('Generating curricula...')
     curriculum = defaultdict(lambda: [])
     max_num_steps = 1
+    max_num_nodes = 0
     for func in tqdm(funcs):
         # get our curriculum for that file, unzip into two lists
-        test_funcs, cursor_starts = make_curriculum(Node.from_sympy(func))
+        solution_template = Node.from_sympy(func)
+        test_funcs, cursor_starts = make_curriculum(solution_template)
         # print(test_funcs, cursor_starts)
         max_num_steps = max(max_num_steps, len(test_funcs) + 1)
+        max_num_nodes = max(max_num_nodes, solution_template.size())
         # generate full test functions
         test_strings = make_test_strings(test_funcs,vars,assert_funcs=[func]*len(cursor_starts))
         for test_str, cursor_pos in zip(test_strings, cursor_starts):
             curriculum[cursor_pos].append(test_str)
     total_tests = sum(len(tests) for _, tests in curriculum.items())
     print('Done.')
+    # calculate number of nodes outside of function body....
+    out_of_body =  (2**len(vars))*(len(vars)*2  +4) + len(vars) 
+    #func def = one per variable... 
+    print(f'largest solution had {max_num_nodes} nodes in func body; {max_num_nodes+ out_of_body} total')
     print(f'{total_tests} total tests in curriculum')
     max_num_steps = int(max_num_steps * mns_correction)
     return curriculum, max_num_steps

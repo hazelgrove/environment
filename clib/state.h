@@ -1,7 +1,7 @@
 #ifndef __STATE_H
 #define __STATE_H
 
-#define MAX_NUM_NODES 275
+#define MAX_NUM_NODES 150
 #define MAX_NUM_TESTS 10
 #define NUM_ACTIONS 132
 #define MAX_TREE_LENGTH 10000
