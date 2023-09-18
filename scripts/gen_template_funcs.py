@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument("-t", "--test_split",type=float, default=None)
     parser.add_argument("--seed", default=42)
     parser.add_argument("--mns_correction", help="correction factor for max_num steps. 1.5 is good base. if things are converging to lower numbers, bump this up.",default=1.5,type=float)
+    parser.add_argument("-v",'--verbose',action="store_true")
     return parser.parse_args()
 
 
@@ -133,7 +134,7 @@ def write_test_dir(tests, num, targ_dir):
             file.write(test)
 
 
-def gen_curricula(funcs, vars,mns_correction = 1.5):
+def gen_curricula(funcs, vars,mns_correction = 1.5,verbose=False):
     print('Generating curricula...')
     curriculum = defaultdict(lambda: [])
     max_num_steps = 1
@@ -141,7 +142,7 @@ def gen_curricula(funcs, vars,mns_correction = 1.5):
     for func in tqdm(funcs):
         # get our curriculum for that file, unzip into two lists
         solution_template = Node.from_sympy(func)
-        test_funcs, cursor_starts = make_curriculum(solution_template)
+        test_funcs, cursor_starts = make_curriculum(solution_template,verbose=verbose)
         # print(test_funcs, cursor_starts)
         max_num_steps = max(max_num_steps, len(test_funcs) + 1)
         max_num_nodes = max(max_num_nodes, solution_template.size())
@@ -205,7 +206,7 @@ def main(args):
     arg_strings ={}
     for name, (targ_dir, funcs) in folds.items(): 
         if args.curriculum:
-            curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction)
+            curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction,verbose=args.verbose)
             arg_strings[name] = save_curriculum(curriculum, targ_dir, max_steps)
 
         test_strings = make_test_strings(funcs,varnames)
