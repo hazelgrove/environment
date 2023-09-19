@@ -1,4 +1,16 @@
 venv
+.vscode
+data/gen_template_funcs
+data/generated*
+data/grad
+data/large
+data/mult*
+data/random_action
+data/tasks
+data/tests
+data/unit_tests
+data/var_selection
+data/auto_curricula/four_var
 **/_build
 trained_models
 logs
