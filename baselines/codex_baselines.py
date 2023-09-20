@@ -9,9 +9,9 @@ import yaml
 from tqdm import tqdm
 from itertools import product
 from codex_api_key import API_KEY
+import test_gen_util
 
-
-def get_completion(prompt, assrt, max_tokens=20, temperature=1.0):
+def get_completion(prompt, assrt, max_tokens=100, temperature=1.0,retry=False):
     if assrt:
         function = f"{prompt}\n    ?\n{assrt}"
     else:
@@ -31,33 +31,53 @@ def get_completion(prompt, assrt, max_tokens=20, temperature=1.0):
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    resp = openai.ChatCompletion.create(**jsonobj)
+    try:
+        resp = openai.ChatCompletion.create(**jsonobj)
+    except openai.OpenAIError: 
+        if not retry: 
+            print('retrying')
+            time.sleep(10)
+            return get_completion(prompt,assrt=assrt,max_tokens=max_tokens,temperature=temperature,retry=True)
+        return (None,{})
+
     insertion = (
         resp["choices"][0]["message"]["content"] if "choices" in resp.keys() else None
     )
+
     if insertion:
+        # print(f'completion:"{insertion}"')
         return insertion, resp
     return (None, resp)
 
 
-def get_edit_completion(prompt, assert_=None, max_tokens=20, temperature=1.0):
+def get_edit_completion(prompt, assert_=None, max_tokens=60, temperature=1.0,retry=False):
     if assert_:
         function = f"{prompt}\n    ?\n{assert_}"
     else:
         function = prompt
+    
+    # print(f'input is:"{function}"')
 
     instruction = "Replace the question mark in the above ocaml function with ocaml code that passes the assert."
     model = "code-davinci-edit-001"
+    try: 
+        resp = openai.Edit.create(
+            model=model, input=function, instruction=instruction, temperature=temperature
+        )
+    except openai.OpenAIError: 
+        if not retry: 
+            print('retrying')
+            time.sleep(10)
+            return get_edit_completion(prompt,assert_=assert_,max_tokens=max_tokens,temperature=temperature,retry=True)
+        return (None,{})
 
-    resp = openai.Edit.create(
-        model=model, input=function, instruction=instruction, temperature=temperature
-    )
     insertion = resp["choices"][0]["text"] if "choices" in resp.keys() else None
     if insertion:
+        # print(f'edit_comp:"{insertion}"')
         return insertion, resp
     return (None, resp)
 
-def get_code_edit(prompt, assert_=None, max_tokens=60, temperature=1.0):
+def get_code_edit(prompt, assert_=None, max_tokens=60, temperature=1.0,retry=True):
     if assert_:
         function = f"{prompt}\n    ?\n{assert_}"
     else:
@@ -66,11 +86,19 @@ def get_code_edit(prompt, assert_=None, max_tokens=60, temperature=1.0):
     instruction = "Edit the function function to produce ocaml code that passes the assert."
     model = "code-davinci-edit-001"
 
-    resp = openai.Edit.create(
-        model=model, input=function, instruction=instruction, temperature=temperature
-    )
+    try:
+        resp = openai.Edit.create(
+            model=model, input=function, instruction=instruction, temperature=temperature
+        )
+    except openai.OpenAIError: 
+        if not retry: 
+            print('retrying')
+            time.sleep(10)
+            return get_code_edit(prompt,assert_=assert_,max_tokens=max_tokens,temperature=temperature,retry=True)
+        return (None,{})
     insertion = resp["choices"][0]["text"] if "choices" in resp.keys() else None
     if insertion:
+        # print(f'edit_:"{insertion}"')
         return insertion, resp
     return (None, resp)
 
@@ -78,6 +106,7 @@ def get_code_edit(prompt, assert_=None, max_tokens=60, temperature=1.0):
 
 def test_input(text, assert_, use_temp_file="temp.txt"):
     test_text = text + "\n" + assert_
+    # print(test_text)
     with open(use_temp_file, "w") as file:
         file.write(test_text)
     prc = subprocess.run(
@@ -111,7 +140,7 @@ def read_params(config_path: str):
             and len(params[name]) == 1
             and "get_from" in params[name]
         ):
-            params_file = params[name]["get_from"]
+            params_file =  params[name]["get_from"]
             with open(params_file, "r") as env_file:
                 env_params = yaml.safe_load(env_file)
             params[name] = env_params[name]  # allows us to define both in same file
@@ -156,7 +185,7 @@ def read_assns_from_params(
                 with open(file_n.path, "r") as file:
                     assn = file.read()
                 if raw:
-                    assn = assn.split("=")[0] + "\n\t?\n" + assn.split("in")[-1]
+                    assn = assn.split("=")[0] + "=\n\t?\n" +'in\n'+ assn.split("in")[-1]
                 yield assn, file_n
 
     else:
@@ -216,6 +245,7 @@ def run_codex_experiment(
             )
             print(f'failed:')
 
+
         success_rate = corrects / counts if counts != 0 else 0.0
         bar.set_description(f"success_rate = {success_rate:1.2f}")
         bar.bar_format = "{l_bar}{bar}{r_bar}" + f"file={file_n.name}"
@@ -232,8 +262,6 @@ def main(
     fold="env",
 ):
     openai.api_key = API_KEY
-    counts = 0
-    corrects = 0
     logs = []
 
     # do gpt 3.5 / 'completion' task
@@ -273,9 +301,10 @@ def main(
         fine_logs.to_csv(file)
     with open("baselines/data/fine_logs_{dirname}.json", "w") as file:
         fine_logs.to_json(file)
-    # with open("baselines/data/fine_logs_{dirname}.pikl", "wb") as file:
-    #     fine_logs.to_pickle(file)
+    with open("baselines/data/fine_logs_{dirname}.pikl", "wb") as file:
+        fine_logs.to_pickle(file)
 
 
 if __name__ == "__main__":
+    test_gen_util.generate_tests('params.yaml')
     main()
