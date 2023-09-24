@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cuda:11.5.0-devel-ubuntu20.04 as base
+FROM nvidia/cuda:11.5.2-devel-ubuntu20.04 as base
 
 ENV LC_ALL C.UTF-8
 
