@@ -225,12 +225,13 @@ def make_curriculum(node,verbose=True,gen_variations=True):
     if gen_variations: 
         variations = gen_permutations(node)
         variations = list(map(lambda x: x.binarize(), variations))
+        if verbose >0:
+            print(f'{len(variations)} generated')
     else: 
         variations = [node.binarize()]
     
     max_steps = 0
-    all_tests = []
-    all_cursor_starts = []
+    tests_and_starts = set()
     for vari in variations: 
         binarized = vari.copy()
         print()
@@ -241,9 +242,10 @@ def make_curriculum(node,verbose=True,gen_variations=True):
         tests, cursor_starts = list(map(list, zip(*tests)))
         max_steps = max(max_steps,len(tests))
         if verbose: pretty_print_list(zip(tests,cursor_starts))
-        all_tests.extend(tests)
-        all_cursor_starts.extend(all_cursor_starts)
-    return tests, cursor_starts, len(tests)
+        tests_and_starts.update((test,start) for test, start in zip(tests,cursor_starts))
+    # deduplicate 
+    all_tests,all_starts = zip(*tests_and_starts)
+    return all_tests, all_starts, max_steps
 
 def pretty_print_list(l): 
     for ls,ln in l: 
