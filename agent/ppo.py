@@ -16,6 +16,7 @@ class PPO:
         eps=None,
         max_grad_norm=None,
         use_clipped_value_loss=True,
+        **kwargs,
     ):
 
         self.actor_critic = actor_critic
@@ -31,6 +32,9 @@ class PPO:
         self.use_clipped_value_loss = use_clipped_value_loss
 
         self.optimizer = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
+
+    def set_entropy_coeff(self,entropy_coeff): 
+        self.entropy_coef = entropy_coeff
 
     def update(self, rollouts):
         advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]
