@@ -6,15 +6,37 @@ cuda_deterministic: True
 num_processes: 8  
 num_steps: 128
 log_interval: 1   
-eval_interval: 1000 # Eval is just target # Skips eval step. (used to be 1000)
+eval_interval: 0 # Eval is just target # Skips eval step. (used to be 1000)
 save_interval: 1000
 num_env_steps: 1.0e+7
 use_linear_lr_decay: True
 resume_carryover:  [ 'seed', 'env', 'eval', 'base', 'ppo', 'make_tests','return' ]
 env:
-  get_from: data/auto_curricula/two_vars_small/param_snippet.yaml
-eval:
-  get_from: data/auto_curricula/two_vars_small/param_snippet.yaml
+  assignment_dir: data/xor
+  code_per_assignment:
+  - 3
+  - 4
+  - 3
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  cursor_start_pos:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  done_action: true
+  max_episode_steps: 22
+  num_assignments: 8
+  perturbation: 0
+# eval:
+#   get_from: data/auto_curricula/two_vars/param_snippet.yaml
 base: 
   hidden_size: 256
   num_layers: 10
@@ -35,8 +57,7 @@ make_tests:
   # command: echo "Using cached generated tests at  /RL_env/save/data/auto_curricula/four_var/curriculum"
   command: python3 scripts/gen_template_funcs.py
   args:
-    base: ['2', 'data/auto_curricula/two_vars_small','-c']
-    test_split: 0.75
+    base: ['3', 'data/auto_curricula/three_vars','-c']
 return:
   gamma: 0.99
   use_gae: True

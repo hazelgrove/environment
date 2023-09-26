@@ -28,7 +28,7 @@ class GAT_base(nn.Module):
                     ): 
         super().__init__()
 
-        self.layers = nn.ModuleList( )
+        self.layers = []
 
         node_in_channels=node_embedding_size
         node_out_channels=hidden_size
@@ -39,27 +39,28 @@ class GAT_base(nn.Module):
 
             # if hidden size is not a multiple of num heads we have a problem... 
             assert(hidden_size %heads == 0)
-            self.layers.append(
+            self.layers.append([
                 gnn.GATv2Conv(
                     in_channels=node_in_channels,
                     out_channels=node_out_channels//heads,
                     edge_dim=edge_embedding_size,
                     dropout=dropout,
                     heads=heads, 
-                )
-            )
+                ),
+                'x, edge_index, edge_attr -> x'
+            ])
             # after first layer, the hidden size = in channels. 
             node_in_channels = hidden_size
         
+        self.layers = gnn.Sequential('x, edge_index, edge_attr', self.layers)
         print(self.layers)
 
     
     def forward(self, x:torch.Tensor,edge_index:torch.Tensor,edge_attr=torch.Tensor): 
-        for i,layer in enumerate(self.layers):
-            # print(f'starting layer {i}; shapes x {x.shape}, edge_index {edge_index.shape}, edge_attr {edge_attr.shape}' )
-            x = layer(x,edge_index,edge_attr)
+        x = self.layers(x, edge_index, edge_attr)
         return x
-
+    
+    
 class NNBase(nn.Module):
     def __init__(self, recurrent, recurrent_input_size, hidden_size):
         super(NNBase, self).__init__()
