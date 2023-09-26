@@ -32,6 +32,9 @@ class PPO:
 
         self.optimizer = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
 
+    def set_entropy_coeff(self,entropy_coeff): 
+        self.entropy_coef = entropy_coeff
+
     def update(self, rollouts):
         advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)

@@ -168,8 +168,13 @@ class Trainer:
             if self.params["use_linear_lr_decay"]:
                 # decrease learning rate linearly
                 log_lr = utils.update_linear_schedule(
-                    agent.optimizer, j, num_updates, self.params["ppo"]["lr"]
+                    agent.optimizer, j, num_updates, self.params["ppo"]["lr"],
+                    targ_lr=self.params['ppo']['end_lr'] if 'end_lr' in self.params['ppo'] else None 
                 )
+                if 'entropy_coeff_decay' in self.params['ppo'] and self.params['ppo']['entropy_coeff_decay']:
+                    start_entropy = self.params['ppo']['start_ent_coeff'] if 'start_ent_coeff' in self.params['ppo'] else None 
+                    new_entropy = utils.update_entropy_schedule(j,num_updates,self.params['ppo']['entropy'],initial_ent=start_entropy)
+                    agent.set_entropy_coeff(new_entropy)
 
             for step in range(self.params["num_steps"]):
                 # Sample actions
