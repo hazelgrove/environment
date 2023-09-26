@@ -2,6 +2,7 @@
 
 import sympy as S 
 from typing import List
+from itertools import permutations,product
 ## --- Test generation section ---
 # 
 # 
@@ -24,8 +25,25 @@ class Node():
         else: 
             return self.name
     
+    def __eq__(self,other): 
+        if self.terminal: 
+            assert(len(self.children) == 0)
+            return other.terminal and len(other.children)== 0 and self.name==other.name
+        # not terminal... compare self and children 
+        # other needs to be same and have same number of children to be equal
+        if other.terminal or self.name != other.name or len(self.children) != len(other.children): 
+            return False
+        # same name, same num children. Recurse 
+        return all(ch1.__eq__(ch2) for ch1, ch2 in zip(self.children, other.children))
+     
     def __repr__(self): 
-        return self.__str__()
+        if self.terminal: 
+            assert(len(self.children)==0)
+            return self.name
+        return f"{self.name}({','.join(map(lambda x: x.__repr__(),self.children))})"
+    
+    def __hash__(self):
+        return hash(self.__repr__())
                 
     def to_ocaml(self):
         if self.terminal: 
@@ -173,14 +191,59 @@ def __curriculum_helper(list,root,curr,nth):
        curr.set_val(Node.Hole())
        return list,curr
     
-def make_curriculum(node,verbose=False):
-    bin_node = node.binarize()
-    tests, curr = __curriculum_helper([],bin_node,bin_node,0)
-    tests.append((curr,0))
-    # unzip 
-    tests, cursor_starts = list(map(list, zip(*tests)))
-    if verbose: pretty_print_list(zip(tests,cursor_starts))
-    return tests, cursor_starts
+def gen_permutations(node:Node): 
+    """
+    Generate a series of equivalent permutations of a given node. 
+    done by recursively shuffling node order for all multi-child nodes
+    """
+    results = []
+
+    if node.terminal: 
+        return [node]
+    elif len(node.children) == 1: 
+        child_prems =  gen_permutations(node.children[0])
+        for perm in child_prems: 
+            results.append(Node(node.name,[perm]))
+    else: 
+        # multiple children... time to permute 
+        # get children... 
+        child_options = [gen_permutations(child) for child in node.children]
+        # Iter through permutations of children 
+        for child_perms in permutations(child_options): 
+            for children in product(*child_perms): 
+                # do deepcopy of children so we don't get weird depenencies
+                children = [child.copy() for child in children]
+                results.append(Node(node.name,children))
+    # deduplicate results
+    if len(results) != len(set(results)): 
+        print(len(results), len(set(results)))
+    results = list(set(results))
+    return results
+
+    
+def make_curriculum(node,verbose=True,gen_variations=True):
+    if gen_variations: 
+        variations = gen_permutations(node)
+        variations = list(map(lambda x: x.binarize(), variations))
+    else: 
+        variations = [node.binarize()]
+    
+    max_steps = 0
+    all_tests = []
+    all_cursor_starts = []
+    for vari in variations: 
+        binarized = vari.copy()
+        print()
+        print(binarized)
+        tests, curr = __curriculum_helper([],binarized,binarized,0)
+        tests.append((curr,0))
+        # unzip 
+        tests, cursor_starts = list(map(list, zip(*tests)))
+        max_steps = max(max_steps,len(tests))
+        if verbose: pretty_print_list(zip(tests,cursor_starts))
+        all_tests.extend(tests)
+        all_cursor_starts.extend(all_cursor_starts)
+    return tests, cursor_starts, len(tests)
 
 def pretty_print_list(l): 
     for ls,ln in l: 
@@ -189,17 +252,17 @@ def pretty_print_list(l):
 if __name__== "__main__": 
     node1  = Node.And([Node.Var(2),Node('or',[Node.Not(Node.Var(1)),Node.Var(3)])])
     print(node1)
-    tests, starts = make_curriculum(node1)
+    tests, starts,_  = make_curriculum(node1)
     pretty_print_list(zip(tests,starts))
 
     node2  = Node.Or([Node.And([Node.Var(1),Node.Var(2)]),Node.And([Node.Not(Node.Var(1)),Node.Not(Node.Var(2))])])
     print(node2)
-    tests, starts = make_curriculum(node2)
+    tests, starts,_ = make_curriculum(node2)
     pretty_print_list(zip(tests,starts))
 
     node3  = Node.Or([Node.Not(Node.Var(1)),Node.Not(Node.Not(Node.Var(2))),Node.Not(Node.Var(3))])
     print(node3)
-    tests, starts = make_curriculum(node3)
+    tests, starts,_ = make_curriculum(node3)
     pretty_print_list(zip(tests,starts))
 
     print("\n Fourth Node")
@@ -211,7 +274,7 @@ if __name__== "__main__":
     print(node_4.to_ocaml)
     print("( ( ( x1 || (!(x3)) ) && ( x2 || (!(x1)) ) ) && ( x3 || (!(x2)) ) )")
 
-    tests, starts = make_curriculum(node_4)
+    tests, starts,_ = make_curriculum(node_4)
     pretty_print_list(zip(tests,starts))
 
         
@@ -226,9 +289,15 @@ if __name__== "__main__":
     print("( ( x3 && (!(x1)) ) && (!(x2)) )")
 
     print("\n Node 5a")
-    tests, starts = make_curriculum(node5a)
+    tests, starts,_ = make_curriculum(node5a)
     pretty_print_list(zip(tests,starts))
 
     # print("\n Node 5b")
     # tests, starts = make_curriculum(node5b)
     # pretty_print_list(zip(tests,starts))
+
+    # repr tests
+    for nod in [node1,node2,node3,node_4,node5a,node5b]:
+        print(f'\n var: {nod}')
+        for perm in gen_permutations(nod): 
+            print(perm)

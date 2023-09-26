@@ -1,46 +1,67 @@
 env_name: ASTEnv
 seed: 1
-cuda: True
-project_name: "assistant_rl"
-cuda_deterministic: True
-num_processes: 8  
+cuda: true
+project_name: assistant_rl
+cuda_deterministic: true
+num_processes: 8
 num_steps: 128
-log_interval: 1   
-eval_interval: 100 # Eval is just target # Skips eval step. (used to be 1000)
+log_interval: 1
+eval_interval: 0 #1000
 save_interval: 1000
-num_env_steps: 1.0e+7
-use_linear_lr_decay: True
-resume_carryover:  [ 'seed', 'env', 'eval', 'base', 'ppo', 'make_tests','return' ]
+num_env_steps: 10000000.0
+use_linear_lr_decay: true
+resume_carryover:
+  - seed
+  - env
+  - eval
+  - base
+  - ppo
+  - make_tests
+  - return
 env:
   get_from: data/auto_curricula/two_vars/param_snippet.yaml
+    
 eval:
-  get_from: data/auto_curricula/two_vars/param_snippet.yaml
-base: 
-  hidden_size: 400
-  num_layers: 10
-  embedding_size: 250
-  heads: 16
-  use_qkv: False
-  gnn_type: GATv2
+    assignment_dir: /RL_env/data/auto_curricula/two_vars_basic/curriculum/test
+    code_per_assignment:
+    - 0
+    cursor_start_pos:
+    - 0 
+    done_action: true
+    max_episode_steps: 0
+    num_assignments: 0
+    perturbation: 0
+base:
+    hidden_size: 256
+    num_layers: 10
+    embedding_size: 250
+    heads: 16
+    use_qkv: false
+    gnn_type: GATv2
 ppo:
-  lr: 1.0e-5   
-  eps: 1.0e-5
-  value_loss_coef: 0.5
-  max_grad_norm: 0.5
-  ppo_epoch: 4
-  num_mini_batch: 4
-  clip_param: 0.1
-  entropy_coef: 0.015
-make_tests: 
-  # command: echo "Using cached generated tests at  /RL_env/save/data/auto_curricula/four_var/curriculum"
-  command: python3 scripts/gen_template_funcs.py
-  args:
-    base: ['3', 'data/auto_curricula/two_vars','-c']
-    # test_split: 0.8
-    seed: 26 # from my birthday why not 
-    mns_correction: 1.3
+    lr: 1.0e-05
+    eps: 1.0e-05
+    value_loss_coef: 0.5
+    max_grad_norm: 0.5
+    ppo_epoch: 4
+    num_mini_batch: 4
+    clip_param: 0.1
+    entropy_coef: 0.015
+    entropy_coeff_decay: True 
+make_tests:
+    command: python3 scripts/gen_template_funcs.py
+    args:
+      base:
+      - '2'
+      - data/auto_curricula/two_vars
+      - -c
+      # - -v 
+      # select: "[9,10]"
+      mns_correction: 1.6
+      # variations:
+      # test_split: 0.5
 return:
-  gamma: 0.99
-  use_gae: True
-  gae_lambda: 0.95
-  use_proper_time_limits: False
+    gamma: 0.99
+    use_gae: true
+    gae_lambda: 0.95
+    use_proper_time_limits: false
