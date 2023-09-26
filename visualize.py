@@ -5,6 +5,7 @@ import yaml
 from run_logger import RunLogger, get_load_params
 
 from agent.arguments import get_args_visualizer
+from test_gen_util import generate_tests
 from agent.envs import PLEnv
 from agent.policy import GNNPolicy
 
@@ -13,6 +14,10 @@ def main(log_name, run_id):
     print(log_name,run_id)
     logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
     params = get_load_params(run_id, logger)
+    print(params['make_tests'])
+
+    generate_tests(params=params)
+
 
 
     # Account for changes in logging
@@ -59,6 +64,12 @@ def main(log_name, run_id):
     env.render()
     step = 0 
     stop_on_update = False 
+    made_hole = False
+    stop_on_hole=False
+    stop_on_fail=True 
+    stop_on_hole_success=True
+    stop_on_new_episode=True
+    num_tests = 0
     while True:
         with torch.no_grad():
             (_, action, _, _,) = actor_critic.act(
@@ -66,11 +77,18 @@ def main(log_name, run_id):
                 None,
                 None,
             )
+        if stop_on_new_episode and step == 0: breakpoint()
         step +=1
         print(f'step: {step}')
         print(f"Action: {action}")
-        if stop_on_update: breakpoint() # to allow manual change, action[0] = n 
+        if stop_on_update: 
+            breakpoint() # to allow manual change, action[0] = n 
+        print()
         # if needed add python input l
+        if action[0] == 7: 
+            made_hole=True
+            if stop_on_hole: breakpoint()
+        
         obs, reward, done, info = env.step(action.reshape((-1,)))
 
         if done[0]:
@@ -81,11 +99,21 @@ def main(log_name, run_id):
             # breakpoint()
             if info[0]["episode"]["r"] == 0:
                 print('failed')
-                breakpoint()
+                if stop_on_fail: breakpoint()
+            else: 
+                # succeeded 
+                if made_hole: 
+                    print('Succeeded despite hole creation')
+                    if stop_on_hole_success: breakpoint()
 
+        
+            num_tests +=1
             # breakpoint()
             print("---------------Environment reset---------------")
+            if num_tests % 5000 == 0 : 
+                breakpoint()
 
+            made_hole=False
         env.render()
         print()
 
