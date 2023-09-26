@@ -6,11 +6,13 @@ from cProfile import run
 import numpy as np
 import torch
 import yaml
+import random
 from git import Repo
 from gym.wrappers.time_limit import TimeLimit
 from run_logger import RunLogger,get_load_params
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+
 
 from agent import utils
 from agent.arguments import get_args, read_params
@@ -115,7 +117,8 @@ class Trainer:
 
         torch.manual_seed(self.params["seed"])
         torch.cuda.manual_seed_all(self.params["seed"])
-
+        random.seed(self.params['seed'])
+        np.random.seed(self.params['seed'])
         if (
             self.params["cuda"]
             and torch.cuda.is_available()
@@ -164,7 +167,7 @@ class Trainer:
         for j in range(num_updates):
             if self.params["use_linear_lr_decay"]:
                 # decrease learning rate linearly
-                utils.update_linear_schedule(
+                log_lr = utils.update_linear_schedule(
                     agent.optimizer, j, num_updates, self.params["ppo"]["lr"]
                 )
 
@@ -288,7 +291,7 @@ class Trainer:
                         dist_entropy,
                     )
                 )
-                metrics_train = {"train/reward": mean_episode_reward}
+                metrics_train = {"train/reward": mean_episode_reward,'train/rate': log_lr}
 
             metrics_eval = {}
             if (
