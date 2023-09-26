@@ -151,9 +151,9 @@ def read_params(config_path: str):
 
 
 def get_num_files(
-    raw: bool, get_template: bool, base_dir=".", paramsfile="params.yaml", fold="env"
+    raw: bool, get_template: bool,params, base_dir=".",  fold="env"
 ):
-    params = read_params(paramsfile)
+    params 
     fold_params = params[fold]
     assn_dir = os.path.join(base_dir, fold_params["assignment_dir"])
     if get_template:
@@ -172,9 +172,8 @@ def get_num_files(
 
 
 def read_assns_from_params(
-    raw: bool, get_template: bool, base_dir=".", paramsfile="params.yaml", fold="env"
+    raw: bool, get_template: bool,params, base_dir=".", fold="env"
 ):
-    params = read_params(paramsfile)
     fold_params = params[fold]
     assn_dir = os.path.join(base_dir, fold_params["assignment_dir"])
     if get_template:
@@ -203,6 +202,7 @@ def run_codex_experiment(
     raw: bool,
     templates: bool,
     mode_name:str,
+    params,
     run_codex_func = get_edit_completion, 
     fold: str = "env",
     n_samples:int = 20,
@@ -213,9 +213,9 @@ def run_codex_experiment(
     logs = []
     begin_time = time.time()
 
-    n_tests, dirname = get_num_files(raw, templates, fold=fold)
+    n_tests, dirname = get_num_files(raw, templates, params, fold=fold)
     for (test, file_n),_ in (
-        bar := tqdm(product(read_assns_from_params(raw, templates, fold=fold),range(n_samples)), total=n_tests*n_samples)
+        bar := tqdm(product(read_assns_from_params(raw, templates,params, fold=fold),range(n_samples)), total=n_tests*n_samples)
     ):
         # print(test,file_n)
         # the other (non-depricated endpoint) handles rate limits. This one does not.
@@ -262,14 +262,16 @@ def main(
     fold="env",
 ):
     openai.api_key = API_KEY
+    params = read_params('params.yaml')
     logs = []
 
     # do gpt 3.5 / 'completion' task
-    n_tests, dirname = get_num_files(raw, templates, fold=fold)
+    n_tests, dirname = get_num_files(raw, templates,params, fold=fold)
 
     chat_success_rate, completion_logs = run_codex_experiment(
         raw=raw,
         templates=templates,
+        params=params,
         mode_name = 'chat',
         run_codex_func=get_completion,
         fold=fold,n_samples=n_samples,
@@ -282,6 +284,7 @@ def main(
     edit_success_rate, edit_logs = run_codex_experiment(
         raw=raw,
         templates=templates,
+        params=params,
         mode_name = 'edit',
         run_codex_func=get_edit_completion,
         fold=fold,n_samples=n_samples,min_time_per_cycle=3.001)
