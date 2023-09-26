@@ -16,6 +16,7 @@ class PPO:
         eps=None,
         max_grad_norm=None,
         use_clipped_value_loss=True,
+        **kwargs,
     ):
 
         self.actor_critic = actor_critic
