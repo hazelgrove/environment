@@ -2,6 +2,8 @@ import os
 import time
 from collections import deque
 from cProfile import run
+from typing import Optional
+import random
 
 import numpy as np
 import torch
@@ -27,10 +29,44 @@ import wandb
 
 
 class Trainer:
-    def __init__(self,log_name, params,logger ): 
+    def __init__(self, 
+                 log_name: str,
+                 params: dict,
+                 sweep: bool = False,
+                 save_dir: Optional[str] = None,): 
+        self.log_name = log_name 
         self.params = params
-        self.logger = logger
-        self.log_name =log_name 
+        
+        # Setup WandB Logger
+        project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
+        api_key_file = '/RL_env/wandb_api_key'
+        if sweep:
+            self.logger = setup_wandb(project=project_name, config=self.params, group=self.log_name, api_key_file=api_key_file)
+        else:
+            with open(api_key_file, "r") as f:
+                api_key = f.readline()
+            os.environ["WANDB_API_KEY"] = api_key
+            
+            wandb.login()
+            self.logger = wandb.init(
+                project=project_name, 
+                config=self.params,
+                notes=self.log_name,
+            )
+        
+        # Setup directory for checkpoints
+        if save_dir is not None:
+            self.save_dir = os.path.join(save_dir, self.logger.name)
+            try:
+                os.makedirs(self.save_dir)
+            except OSError:
+                pass
+        else:
+            self.save_dir = None
+        
+        # Save hyperparameters to directory
+        with open(os.path.join(self.save_dir, "params.yaml"),'w') as file :
+            yaml.safe_dump(self.params, file)
 
     def get_policy(self,envs, device):
         base_kwargs = self.params["base"]
@@ -73,60 +109,30 @@ class Trainer:
             eval_kwargs,
         )
 
-    @staticmethod
-    def update_curriculum(envs, reward):
-        return
-
-    @staticmethod
-    def update_curriculum(envs, reward):
-        return
-
-    def train(self, render, save_dir, sweep):
-        project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
-        if sweep:
-            wandb_logger = setup_wandb(project=project_name,config=self.params, group=self.log_name, api_key_file="/RL_env/wandb_api_key")
-        else:
-            wandb_logger = wandb
-            with open("/RL_env/wandb_api_key", "r") as f:
-                api_key = f.readline()
-            os.environ["WANDB_API_KEY"] = api_key
-            wandb_logger.login()
-            wandb_logger.init(project=project_name,config=self.params, notes=self.log_name)
-        
-
-        if self.log_name != "test":
-            save_dir = os.path.join(save_dir, self.log_name)
-            try:
-                os.makedirs(save_dir)
-            except OSError:
-                pass
-        else:
-            save_dir = None
-
-        # save a copy of our params.yaml to that same directory for continuation
-        with open(os.path.join(save_dir, str(self.logger.run_id) + "_params.yaml"),'w') as file :
-            yaml.safe_dump(self.params,file)
-
-        # Only use one process if we are rendering
-        if render:
-            self.params["num_processes"] = 1
-
-
-        torch.manual_seed(self.params["seed"])
-        torch.cuda.manual_seed_all(self.params["seed"])
+    def train(self, render=False, save_dir=None, sweep=False):
+        # Setup reproducibility
+        seed = self.params['seed']
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
 
         if (
             self.params["cuda"]
             and torch.cuda.is_available()
         ):
+            torch.cuda.manual_seed_all(seed)
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic =  self.params["cuda_deterministic"]
+            
+        # Only use one process if we are rendering
+        if render:
+            self.params["num_processes"] = 1
 
-        print(f"Cuda Availability: {torch.cuda.is_available()}")
-
+        # Setup PyTorch
         torch.set_num_threads(1)
         device = torch.device("cuda:0" if self.params["cuda"] else "cpu")
 
+        # Get environment
         envs = self.get_env(device)
 
         actor_critic = self.get_policy(envs, device)
@@ -240,18 +246,16 @@ class Trainer:
             # save for every interval-th episode or for the last epoch
             if (
                 j % self.params["save_interval"] == 0 or j == num_updates - 1
-            ) and save_dir is not None:
+            ) and self.save_dir is not None:
                 torch.save(
                     [
                         actor_critic.state_dict(),
                         getattr(utils.get_vec_normalize(envs), "obs_rms", None),
                     ],
-                    os.path.join(save_dir, str(self.logger.run_id) + ".pt"),
+                    os.path.join(self.save_dir, "params.pt"),
                 )
 
-            mean_episode_reward = np.mean(episode_rewards)
-            # self.update_curriculum(envs, mean_episode_reward)
-            metrics_train = {}
+            # Log train data
             if j % self.params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
                     (j + 1) * self.params["num_processes"] * self.params["num_steps"]
@@ -270,7 +274,8 @@ class Trainer:
                 grad_norm = grad_norm**0.5
 
                 fps = int(total_num_steps / (end - start))
-
+                
+                mean_episode_reward = np.mean(episode_rewards)
                 print(
                     "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
                         j,
@@ -287,18 +292,26 @@ class Trainer:
                         dist_entropy,
                     )
                 )
-                metrics_train = {"train/reward": mean_episode_reward}
+                
+                metrics_train = {
+                    "train/reward": mean_episode_reward,
+                    "train/total_num_steps": total_num_steps,
+                    "train/fps": fps,
+                    "train/grad_norm": grad_norm,
+                    "train/action_loss": action_loss,
+                    "train/value_loss": value_loss,
+                    "train/dist_entroy": dist_entropy,
+                }
+                self.logger.log(metrics_train, step=j)
 
-            metrics_eval = {}
+            # Log eval data
             if (
                 self.params["eval_interval"] > 0
                 and len(episode_rewards) > 1
                 and j % self.params["eval_interval"] == 0
             ):
-                # obs_rms = utils.get_vec_normalize(envs).obs_rms
                 eval_reward = self.evaluate(
                     actor_critic,
-                    # obs_rms,
                     self.params["env_name"],
                     self.params["seed"],
                     self.params["num_processes"],
@@ -308,36 +321,10 @@ class Trainer:
                 )
                 last_eval_reward = eval_reward
 
-                if self.logger is not None:
-                    self.logger.log(
-                        update=j,
-                        mean_episode_rewards=mean_episode_reward,
-                        eval_reward=eval_reward,
-                        fps=fps,
-                        episode_timesteps=total_num_steps,
-                        gradient_norm=grad_norm,
-                        policy_loss=action_loss,
-                        value_loss=value_loss,
-                        policy_entropy=dist_entropy,
-                        run_id = str(self.logger.run_id),
-                    )
-                metrics_eval = {"eval/reward": eval_reward}   
-            else:
-                if self.logger is not None:
-                    self.logger.log(
-                        update=j,
-                        mean_episode_rewards=mean_episode_reward,
-                        eval_reward=last_eval_reward,
-                        fps=fps,
-                        episode_timesteps=total_num_steps,
-                        gradient_norm=grad_norm,
-                        policy_loss=action_loss,
-                        value_loss=value_loss,
-                        policy_entropy=dist_entropy,
-                        run_id=str(self.logger.run_id),
-                    )
-            
-            wandb_logger.log({**metrics_train, **metrics_eval})
+                metrics_eval = {
+                    "eval/reward": eval_reward,
+                }
+                self.logger.log(metrics_eval, step=j)
 
 
 class GNNTrainer(Trainer):

@@ -9,22 +9,14 @@ from agent.envs import PLEnv
 from agent.policy import GNNPolicy
 
 
-def main(log_name, run_id):
-    print(log_name,run_id)
-    logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
-    params = get_load_params(run_id, logger)
-
-
-    # Account for changes in logging
-    # params["env"]["cursor_start_pos"] = [6, 6]
-    # params["env"]["perturbation"] = 0
-    # params["env"]["max_episode_steps"] = 2
-    # params["env"]["assignment_dir"] = "data/tests"
+def main(save_dir, log_name, run_id):
+    print(f"Visualizing {log_name}...")
     
-    # params["base"]["done_action"] = params["env"]["done_action"]
+    # Get save directory
+    save_dir = os.path.join(save_dir, log_name)
+    with open(os.path.join(save_dir, "params.yaml"), 'r') as f:
+        params = yaml.safe_load(f)
 
-
-    path = os.path.join("save", log_name, str(run_id) + ".pt")
     torch.manual_seed(params["seed"])
     torch.cuda.manual_seed_all(params["seed"])
 
@@ -52,7 +44,7 @@ def main(log_name, run_id):
         done_action = params['env']['done_action'],
     )
     actor_critic.to(device)
-    actor_critic.load_state_dict(torch.load(path)[0])
+    actor_critic.load_state_dict(torch.load(os.path.join(save_dir, 'params.pt'))[0])
     actor_critic.eval()
 
     obs = env.reset()
@@ -93,4 +85,4 @@ def main(log_name, run_id):
 if __name__ == "__main__":
     args = get_args_visualizer()
 
-    main(args.log_name, args.run_id)
+    main(args.save_dir, args.log_name, args.run_id)

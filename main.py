@@ -24,31 +24,14 @@ from ray.air.integrations.wandb import WandbLoggerCallback
 
 def _log(
     name: str,
-    repo: Repo,
-    graphql_endpoint: str,
     save_dir: str,
-    sweep_id: Optional[int] = None,
+    sweep: bool = False,
     render: bool = False,
     **kwargs
 ):
-    logger = RunLogger(graphql_endpoint)
-    logger.create_run(
-        metadata=get_metadata(repo),
-        sweep_id=sweep_id,
-        charts=get_charts(),
-    )
-    logger.update_metadata(
-        {
-            "parameters": kwargs,
-            "run_id": logger.run_id,
-            "name": name,
-        }
-    )
-
-    sweep = (sweep_id != None)
-    trainer = GNNTrainer(name,kwargs,logger)
+    trainer = GNNTrainer(name, kwargs, sweep, save_dir=save_dir)
     trainer.train(
-        render=render, save_dir=save_dir, sweep=sweep
+        render=render
     )
 
 def resume(
@@ -85,7 +68,6 @@ def resume(
 def run(
     name: str,
     config_path: str,
-    graphql_endpoint: str,
     save_dir: str,
     render: bool = False,
 ):
@@ -93,8 +75,6 @@ def run(
 
     _log(
         name=name,
-        repo=Repo("."),
-        graphql_endpoint=graphql_endpoint,
         save_dir=save_dir,
         sweep_id=None,
         render=render,
@@ -176,7 +156,7 @@ if __name__ == "__main__":
     print(sys.argv)
     args = get_args()
     print("Python started.")
-    generate_tests( config_path= "params.yaml")
+    generate_tests(config_path="params.yaml")
 
     if args.resume:
         assert(not args.sweep) # cannot sweep when resuming 
@@ -185,7 +165,6 @@ if __name__ == "__main__":
         resume(
             name=args.log_name,
             config_path="params.yaml",
-            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
             save_dir=args.save_dir,
             resume_from_id=args.resume_id,
             resume_from_name=args.resume_name, 
@@ -196,7 +175,6 @@ if __name__ == "__main__":
         sweep(
             name=args.log_name,
             config_path="params.yaml",
-            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
             save_dir=args.save_dir,
             render=args.render,
         )
@@ -204,7 +182,6 @@ if __name__ == "__main__":
         run(
             name=args.log_name,
             config_path="params.yaml",
-            graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
             save_dir=args.save_dir,
             render=args.render,
         )

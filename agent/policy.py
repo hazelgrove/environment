@@ -88,7 +88,95 @@ class Policy(nn.Module):
 
         return value, action_log_probs, dist_entropy, rnn_hxs
 
+
+class GraphormerPolicy(Policy):
+    def __init__(
+        self,
+        obs_space,
+        action_space,
+        num_fixed_actions,
+        max_num_vars=11,
+        base_kwargs=None,
+        device=None,
+        done_action=False,
+        use_qkv=True
+    ):
+        super(Policy, self).__init__()
+        self.has_done_action = done_action
+        
+        self.use_qkv = base_kwargs.pop('use_qkv',use_qkv)
+
+        # handle number of actions... we have one extra if we're using a done action 
+        self.num_nonvar_actions = num_fixed_actions + 1 if done_action else num_fixed_actions
+        self.num_actions = self.num_nonvar_actions +  max_num_vars *2
+
+        self.obs_space = Obs(**obs_space.spaces)
+
+        if base_kwargs is None:
+            base_kwargs = {}
+        self.base = GNNBase(device=device, **base_kwargs)
+            
+        # use qkv by default, else  use a projection 
+        if self.use_qkv: 
+            self.qkv = QKV(
+                num_fixed_actions=self.num_nonvar_actions,
+                embedding_size=self.base.output_size,
+                max_num_vars=max_num_vars,
+            )
+        else: 
+            self.projection = torch.nn.Linear(self.base.hidden_size,self.num_actions)
+            # 
+
+        self.dist = MaskedCategorical()
+        self.device = device
     
+    def _get_dist(self, inputs):
+        inputs = Obs(
+            *torch.split(
+                inputs,
+                [get_size(space) for space in astuple(self.obs_space)],
+                dim=-1,
+            )
+        )
+        value, actor_features, vars = self.base(asdict(inputs))
+
+        args_in_scope = inputs.args_in_scope.reshape( # what does this do ????? 
+            inputs.args_in_scope.shape[0], -1, 2
+        )
+        if self.use_qkv: 
+            # If we choose not to use qkv, instead use a simple learned projection
+            actor_features = self.qkv(actor_features, vars, args_in_scope)
+        else: 
+            # If we choose not to use qkv, instead use a simple learned projection
+            actor_features = self.projection(actor_features)
+        dist = self.dist(actor_features, inputs.permitted_actions)
+
+        return dist, value
+
+    def act(self, inputs, rnn_hxs, masks, deterministic=False):
+        dist,value = self._get_dist(inputs)
+        if deterministic:
+            action = dist.mode()
+        else:
+            action = dist.sample()
+
+        action_log_probs = dist.log_probs(action)
+
+        return value, action, action_log_probs, rnn_hxs
+    
+
+    def get_value(self, inputs, rnn_hxs, masks):
+        _ ,value = self._get_dist(inputs)
+
+        return value
+
+    def evaluate_actions(self, inputs, rnn_hxs, masks, action):
+        dist,value = self._get_dist(inputs)
+
+        action_log_probs = dist.log_probs(action)
+        dist_entropy = dist.entropy().mean()
+
+        return value, action_log_probs, dist_entropy, rnn_hxs
 
 
 class GNNPolicy(Policy):

@@ -4,9 +4,9 @@ name=$1
 mount_dir="/RL_env/save"
 
 
-if ! [ -z "$4" ]
+if ! [ -z "$3" ]
 then
-    gpus="\"device=$4\""
+    gpus="\"device=$3\""
 else
     gpus="all"
 fi

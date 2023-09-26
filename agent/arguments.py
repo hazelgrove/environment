@@ -29,6 +29,9 @@ def get_args():
 def get_args_visualizer():
     parser = argparse.ArgumentParser(description="Visualizer")
     parser.add_argument(
+        "--save-dir", default="None", help="Directory containing parameter files"
+    )
+    parser.add_argument(
         "--run-id", default="None", help="Run ID for the log to visualize"
     )
     parser.add_argument("--log-name", default="None", help="Name for the log")
