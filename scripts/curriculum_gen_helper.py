@@ -221,7 +221,7 @@ def gen_permutations(node:Node):
     return results
 
     
-def make_curriculum(node,verbose=True,gen_variations=True):
+def make_curriculum(node,verbose=True,gen_variations=True,legacy=False):
     if gen_variations: 
         variations = gen_permutations(node)
         variations = list(map(lambda x: x.binarize(), variations))
@@ -234,8 +234,8 @@ def make_curriculum(node,verbose=True,gen_variations=True):
     tests_and_starts = set()
     for vari in variations: 
         binarized = vari.copy()
-        print()
-        print(binarized)
+        # print()
+        # print(binarized)
         tests, curr = __curriculum_helper([],binarized,binarized,0)
         tests.append((curr,0))
         # unzip 
@@ -245,6 +245,7 @@ def make_curriculum(node,verbose=True,gen_variations=True):
         tests_and_starts.update((test,start) for test, start in zip(tests,cursor_starts))
     # deduplicate 
     all_tests,all_starts = zip(*tests_and_starts)
+    if legacy: return tests, starts, max_steps
     return all_tests, all_starts, max_steps
 
 def pretty_print_list(l): 

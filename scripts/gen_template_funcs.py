@@ -24,6 +24,7 @@ def powerset(in_list:list):
     return chain.from_iterable(combinations(in_list, r) for r in range(len(in_list)+1))
 
 def make_nfuncs(n,simplify=True,variations=False): 
+    print(simplify,variations)
     print('Genrating functions...')
     in_vars = S.symbols([f'x{n}' for n in range(1,n+1)]) # x1, x2, ... , xn 
     inputs = list(product([0,1],repeat=n))
@@ -33,6 +34,7 @@ def make_nfuncs(n,simplify=True,variations=False):
     if simplify: 
         funcs = list(tqdm(map(S.simplify_logic,funcs), total=len(funcs)))
     elif variations: 
+        # print(f'generating reorderings: initial size = {len(funcs)}')
         funcs_new = []
         for func in tqdm(funcs):
             cnf, dnf = S.simplify_logic(func,form='cnf'), S.simplify_logic(func, form='dnf')
@@ -41,6 +43,7 @@ def make_nfuncs(n,simplify=True,variations=False):
             else: 
                 funcs_new.append(cnf)
         funcs = funcs_new 
+        print(f'generating reorderings: final size: {len(funcs)}')
     return funcs, in_vars
 
 def sympy_to_ocaml(expr): 
@@ -121,7 +124,7 @@ def write_test_dir(tests, num, targ_dir):
             file.write(test)
 
 
-def gen_curricula(funcs, vars,mns_correction = 1.5,verbose=False):
+def gen_curricula(funcs, vars,mns_correction = 1.5,gen_variations=False,verbose=False):
     print('Generating curricula...')
     curriculum = defaultdict(lambda: [])
     max_num_steps = 1
@@ -129,7 +132,7 @@ def gen_curricula(funcs, vars,mns_correction = 1.5,verbose=False):
     for func in tqdm(funcs):
         # get our curriculum for that file, unzip into two lists
         solution_template = Node.from_sympy(func)
-        test_funcs, cursor_starts,max_steps = make_curriculum(solution_template,verbose=verbose)
+        test_funcs, cursor_starts,max_steps = make_curriculum(solution_template,gen_variations=gen_variations,verbose=verbose)
         # print(test_funcs, cursor_starts)
         max_num_steps = max(max_num_steps, max_steps + 1)
         max_num_nodes = max(max_num_nodes, solution_template.size())
@@ -171,6 +174,7 @@ def parse_args():
     parser.add_argument("-v",'--verbose',action="store_true")
     parser.add_argument('--select',type=str,default=None,help="select only a subset of template functions to use. Primarily used for debugging. Specified as json-formatted list of ints.")
     parser.add_argument('--variations',action="store_true", help="generate variations of functions to attempt to augment data")  # on/off flag
+    parser.add_argument('--reorders',action="store_true", help="generate reorderings of (high level variations)")  # on/off flag
     return parser.parse_args()
 
 
@@ -269,7 +273,8 @@ def split_folds(comps,targ_dir, split, seed=42):
 
 
 def main(args): 
-    funcs, varnames = make_nfuncs(args.n_args,simplify=not (args.raw or args.variations),variations=args.variations)
+    func_variations = args.variations or args.reorders
+    funcs, varnames = make_nfuncs(args.n_args,simplify=not (args.raw or func_variations),variations=func_variations)
     targ_dir = args.targ_dir if not args.curriculum else path.join(args.targ_dir,'curriculum')
     if args.test_split and not args.select: 
         folds = split_folds(funcs,targ_dir,args.test_split,args.seed)
@@ -291,7 +296,7 @@ def main(args):
         test_strings = make_test_strings(funcs,varnames)
         save_template_strings(test_strings, path.join(targ_dir,'templates'))
         if args.curriculum:
-            curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction,verbose=args.verbose)
+            curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction,gen_variations=args.variations,verbose=args.verbose)
             arg_strings[name] = save_curriculum(curriculum, targ_dir, max_steps)
         else: 
             arg_strings[name] = save_raw_tests(args.n_args,test_strings,targ_dir)
