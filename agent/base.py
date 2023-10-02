@@ -10,11 +10,13 @@ from agent.batch import collate, separate
 from agent.models import CursorRNN, GatedGNN
 from agent.utils import init
 
+from Graphormer.graphormer.models.graphormer import GraphormerModel
+
 
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
-
+    
 
 class GAT_base(nn.Module): 
     def __init__(self,
@@ -462,3 +464,53 @@ class TestBase(NNBase):
         out = x[:, -1, :]
 
         return self.critic_linear(out), out
+    
+    
+class GraphormerBase(NNBase):
+    def __init__(
+        self,
+    ):
+        super(GNNBase, self).__init__(False, 1, hidden_size)
+
+        correct_gnn_types = ["GatedGNN", "GATv2"]
+        if gnn_type not in correct_gnn_types:
+            raise ValueError(f"GNN type not in {correct_gnn_types}")
+
+        self.hidden_size = hidden_size
+        self.embedding_size = embedding_size
+        self.num_layers = num_layers
+        self.max_num_vars = max_num_vars
+        self.device = device
+        
+        if gnn_type == "GatedGNN":
+            self.main = GatedGNN(out_channels=self.hidden_size, num_layers=self.num_layers)
+        else:  # gatv2
+            self.main = GAT_base(
+                 node_embedding_size=self.embedding_size +1 ,
+                 edge_embedding_size= self.embedding_size,
+                 hidden_size=self.hidden_size,
+                 out_channels=self.hidden_size,
+                 num_layers=self.num_layers,
+                 heads=heads,
+                )
+
+        self.node_embedding = nn.Embedding(
+            num_embeddings=num_node_descriptor + max_num_vars * 2 + 1,
+            embedding_dim=embedding_size,
+            padding_idx=-1,
+        )
+        self.edge_embedding = nn.Embedding(
+            num_embeddings=(num_edge_descriptor + 1) * 2,
+            embedding_dim=embedding_size,
+        )
+        # self.assignment_embedding = nn.Embedding(num_assignments, embedding_size)
+
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
+        )
+        self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
+
+        self.num_edge_descriptor = num_edge_descriptor
+
+        self.train()
+        print(self)

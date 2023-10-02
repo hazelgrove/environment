@@ -1,0 +1,20 @@
+env:
+  assignment_dir: data/auto_curricula/two_vars/curriculum
+  code_per_assignment:
+  - 60
+  - 21
+  - 6
+  - 5
+  - 4
+  - 6
+  cursor_start_pos:
+  - 0
+  - 2
+  - 3
+  - 4
+  - 5
+  - 7
+  done_action: true
+  max_episode_steps: 22
+  num_assignments: 6
+  perturbation: 0
