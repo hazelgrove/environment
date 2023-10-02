@@ -91,10 +91,6 @@ threadpoolctl==3.1.0
 tokenizers==0.13.3
 toml==0.10.2
 tomli==2.0.1
-torch @ https://download.pytorch.org/whl/cu115/torch-1.11.0%2Bcu115-cp38-cp38-linux_x86_64.whl
-torch-geometric==2.1.0.post1
-torch-scatter @ https://data.pyg.org/whl/torch-1.11.0%2Bcu115/torch_scatter-2.0.9-cp38-cp38-linux_x86_64.whl
-torch-sparse @ https://data.pyg.org/whl/torch-1.11.0%2Bcu115/torch_sparse-0.6.13-cp38-cp38-linux_x86_64.whl
 tqdm==4.64.1
 traitlets==5.3.0
 transformers==4.31.0
