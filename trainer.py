@@ -173,8 +173,10 @@ class Trainer:
                 )
                 if 'entropy_coeff_decay' in self.params['ppo'] and self.params['ppo']['entropy_coeff_decay']:
                     start_entropy = self.params['ppo']['start_ent_coeff'] if 'start_ent_coeff' in self.params['ppo'] else None 
-                    new_entropy = utils.update_entropy_schedule(j,num_updates,self.params['ppo']['entropy_coef'],initial_ent=start_entropy)
-                    agent.set_entropy_coeff(new_entropy)
+                    curr_entropy_coeff = utils.update_entropy_schedule(j,num_updates,self.params['ppo']['entropy_coef'],initial_ent=start_entropy)
+                    agent.set_entropy_coeff(curr_entropy_coeff)
+                else: 
+                    curr_entropy_coeff = self.params['ppo']['entropy_coef']
 
             for step in range(self.params["num_steps"]):
                 # Sample actions
@@ -296,7 +298,7 @@ class Trainer:
                         dist_entropy,
                     )
                 )
-                metrics_train = {"train/reward": mean_episode_reward,'train/rate': log_lr}
+                metrics_train = {"train/reward": mean_episode_reward,'train/rate': log_lr,'train/ent_coeff': curr_entropy_coeff}
 
             metrics_eval = {}
             if (
