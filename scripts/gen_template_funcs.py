@@ -173,8 +173,8 @@ def parse_args():
     parser.add_argument("--mns_correction", help="correction factor for max_num steps. 1.5 is good base. if things are converging to lower numbers, bump this up.",default=1.5,type=float)
     parser.add_argument("-v",'--verbose',action="store_true")
     parser.add_argument('--select',type=str,default=None,help="select only a subset of template functions to use. Primarily used for debugging. Specified as json-formatted list of ints.")
-    parser.add_argument('--variations',action="store_true", help="generate variations of functions to attempt to augment data")  # on/off flag
-    parser.add_argument('--reorders',action="store_true", help="generate reorderings of (high level variations)")  # on/off flag
+    parser.add_argument('--variations',action="store_true", help="generate variations of high-level functions to attempt to augment data")  # on/off flag
+    parser.add_argument('--permutations',action="store_true", help="generate low level permutations of functions, to further augment data")  # on/off flag
     return parser.parse_args()
 
 
@@ -273,8 +273,9 @@ def split_folds(comps,targ_dir, split, seed=42):
 
 
 def main(args): 
-    func_variations = args.variations or args.reorders
-    funcs, varnames = make_nfuncs(args.n_args,simplify=not (args.raw or func_variations),variations=func_variations)
+    variations = args.variations 
+    permutations = args.permutations
+    funcs, varnames = make_nfuncs(args.n_args,simplify=not (args.raw or args.variations),variations=args.variations)
     targ_dir = args.targ_dir if not args.curriculum else path.join(args.targ_dir,'curriculum')
     if args.test_split and not args.select: 
         folds = split_folds(funcs,targ_dir,args.test_split,args.seed)
@@ -296,7 +297,7 @@ def main(args):
         test_strings = make_test_strings(funcs,varnames)
         save_template_strings(test_strings, path.join(targ_dir,'templates'))
         if args.curriculum:
-            curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction,gen_variations=args.variations,verbose=args.verbose)
+            curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction,gen_variations=args.permutations,verbose=args.verbose)
             arg_strings[name] = save_curriculum(curriculum, targ_dir, max_steps)
         else: 
             arg_strings[name] = save_raw_tests(args.n_args,test_strings,targ_dir)
