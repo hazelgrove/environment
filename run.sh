@@ -15,7 +15,8 @@ fi
 echo "using gpus: $gpus"
 docker build -t "$name" .
 
-docker run --rm -it -d \
+docker run --rm -it \
+	-r \
 	--env-file .env \
 	--shm-size=10.24gb \
 	--name "$name" \

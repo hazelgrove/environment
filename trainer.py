@@ -85,6 +85,7 @@ class Trainer:
 
     def train(self, render, save_dir, sweep):
         print(self.params)
+
         project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
         if sweep:
             wandb_logger = setup_wandb(project=project_name,config=self.params, group=self.log_name, api_key_file="/RL_env/wandb_api_key")
@@ -107,8 +108,10 @@ class Trainer:
             save_dir = None
 
         # save a copy of our params.yaml to that same directory for continuation
-        with open(os.path.join(save_dir, str(self.logger.run_id) + "_params.yaml"),'w') as file :
-            yaml.safe_dump(self.params,file)
+        print(save_dir, self.logger.run_id)
+        if save_dir is not None: 
+            with open(os.path.join(save_dir, str(self.logger.run_id) + "_params.yaml"),'w') as file :
+                yaml.safe_dump(self.params,file)
 
         # Only use one process if we are rendering
         if render:
