@@ -165,7 +165,7 @@ def parse_args():
     parser.add_argument(
         "-c",
         "--curriculum",
-        "--generate curiculum to target directory rather than just templates",
+        help="generate curiculum to target directory rather than just templates",
         action="store_true",
     )  # on/off flag
     parser.add_argument("-t", "--test_split", help="If specified, a test split will be selected at random comprising this portion of the total functions",type=float, default=None)
@@ -173,8 +173,8 @@ def parse_args():
     parser.add_argument("--mns_correction", help="correction factor for max_num steps. 1.5 is good base. if things are converging to lower numbers, bump this up.",default=1.5,type=float)
     parser.add_argument("-v",'--verbose',action="store_true")
     parser.add_argument('--select',type=str,default=None,help="select only a subset of template functions to use. Primarily used for debugging. Specified as json-formatted list of ints.")
-    parser.add_argument('--variations',action="store_true", help="generate variations of high-level functions to attempt to augment data")  # on/off flag
-    parser.add_argument('--permutations',action="store_true", help="generate low level permutations of functions, to further augment data")  # on/off flag
+    parser.add_argument('--variations', default=False, help="generate variations of high-level functions to attempt to augment data")  # on/off flag
+    parser.add_argument('--permutations',default=False, help="generate low level permutations of functions, to further augment data")  # on/off flag
     return parser.parse_args()
 
 

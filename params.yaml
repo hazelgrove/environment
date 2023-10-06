@@ -19,7 +19,7 @@ resume_carryover:
   - make_tests
   - return
 env:
-  get_from: data/auto_curricula/2vars_basic/param_snippet.yaml
+  get_from: data/auto_curricula/2v_basic/param_snippet.yaml
     
 eval:
     assignment_dir: /RL_env/data/auto_curricula/2vars_basic/curriculum/test
@@ -47,20 +47,20 @@ ppo:
     num_mini_batch: 4
     clip_param: 0.1
     entropy_coef: 0.015
-    entropy_coeff_decay: False 
+    entropy_coeff_decay: True 
 make_tests:
     command: python3 scripts/gen_template_funcs.py
     args:
       base:
       - '2'
-      - data/auto_curricula/2vars_varied
-      # - -c
+      - data/auto_curricula/2v_basic
       # - -v 
     #   select: "[9,10]"
     #   select: [8]
       mns_correction: 1.6
-      variations:
-      # permutations: 
+      curriculum: 
+      variations: True  
+      permutations: True
       # test_split: 0.5
 return:
     gamma: 0.99
