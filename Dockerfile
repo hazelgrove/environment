@@ -37,17 +37,12 @@ RUN apt-get update -q \
   && apt-get clean
 WORKDIR "/deps"
 COPY pyproject.toml poetry.lock requirements.txt /deps/
-RUN python3.8 -m pip install -r requirements.txt 
-
-ENV PYTHON_ENV=/usr/local/lib/python3.9/dist-packages
+RUN pip3 install -r requirements.txt
+ENV PYTHON_ENV=/root/.cache/pypoetry/virtualenvs/hazelnut-K3BlsyQa-py3.8/
 
 FROM base AS runtime
 COPY --from=deps $PYTHON_ENV $PYTHON_ENV
 WORKDIR "/RL_env"
-COPY Graphormer Graphormer
-RUN python3 -m pip install --upgrade pip
-WORKDIR "/RL_env/Graphormer"
-RUN ./install.sh
 RUN apt-get update -q \
   && DEBIAN_FRONTEND="noninteractive" \
   apt-get install -yq \

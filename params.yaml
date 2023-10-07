@@ -55,8 +55,8 @@ ppo:
   clip_param: 0.1
   entropy_coef: 0.015
 make_tests: 
-  command: echo "Using cached generated tests at  /RL_env/save/data/auto_curricula/four_var/curriculum"
-  # command: python3 scripts/gen_template_funcs.py
+  # command: echo "Using cached generated tests at  /RL_env/save/data/auto_curricula/four_var/curriculum"
+  command: python3 scripts/gen_template_funcs.py
   args:
     base: ['2', 'data/auto_curricula/two_vars','-c']
 return:
