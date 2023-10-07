@@ -10,7 +10,6 @@ import torch
 import yaml
 from git import Repo
 from gym.wrappers.time_limit import TimeLimit
-from run_logger import RunLogger,get_load_params
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
@@ -175,8 +174,10 @@ class Trainer:
                 )
                 if 'entropy_coeff_decay' in self.params['ppo'] and self.params['ppo']['entropy_coeff_decay']:
                     start_entropy = self.params['ppo']['start_ent_coeff'] if 'start_ent_coeff' in self.params['ppo'] else None 
-                    new_entropy = utils.update_entropy_schedule(j,num_updates,self.params['ppo']['entropy_coef'], initial_ent=start_entropy)
-                    agent.set_entropy_coeff(new_entropy)
+                    curr_entropy_coeff = utils.update_entropy_schedule(j,num_updates,self.params['ppo']['entropy_coef'], initial_ent=start_entropy)
+                    agent.set_entropy_coeff(curr_entropy_coeff)
+                else:
+                    curr_entropy_coeff = self.params['ppo']['entropy_coef']
 
             for step in range(self.params["num_steps"]):
                 # Sample actions
@@ -306,6 +307,8 @@ class Trainer:
                     "train/action_loss": action_loss,
                     "train/value_loss": value_loss,
                     "train/dist_entroy": dist_entropy,
+                    "train/lr": log_lr,
+                    "train/entr_coeff": curr_entropy_coeff,
                 }
                 self.logger.log(metrics_train, step=j)
 

@@ -12,7 +12,6 @@ import torch
 import yaml
 from git.repo import Repo
 from ray import tune
-from run_logger import RunLogger, create_sweep
 
 from agent.arguments import get_args, read_params
 from logger import get_charts, get_metadata
@@ -45,20 +44,7 @@ def resume(
 ): 
     params = read_params(config_path)
 
-    logger = RunLogger(graphql_endpoint)
     trainer = ResumeGNNTrainer(name,params,resume_from_id,resume_from_name,logger)
-    logger.create_run(
-        metadata=get_metadata(Repo(".")),
-        sweep_id=None,
-        charts=get_charts(),
-    )
-    logger.update_metadata(
-        {
-            "parameters": trainer.params,
-            "run_id": logger.run_id,
-            "name": name,
-        }
-    )
     #Train 
     trainer.train(
         render=render, save_dir=save_dir, sweep=sweep
