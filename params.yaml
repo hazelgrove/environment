@@ -38,12 +38,13 @@ env:
 # eval:
 #   get_from: data/auto_curricula/two_vars/param_snippet.yaml
 base: 
-  hidden_size: 256
-  num_layers: 10
-  embedding_size: 250
-  heads: 16
+  hidden_size: 64
+  num_layers: 1
+  embedding_size: 128
+  node_dim: 64
+  edge_dim: 16
+  heads: 2
   use_qkv: False
-  gnn_type: GATv2
 ppo:
   lr: 1.0e-5   
   eps: 1.0e-5
@@ -54,10 +55,10 @@ ppo:
   clip_param: 0.1
   entropy_coef: 0.015
 make_tests: 
-  command: echo "Using cached generated tests at  /RL_env/save/data/auto_curricula/four_var/curriculum"
-  # command: python3 scripts/gen_template_funcs.py
+  # command: echo "Using cached generated tests at  /RL_env/save/data/auto_curricula/four_var/curriculum"
+  command: python3 scripts/gen_template_funcs.py
   args:
-    base: ['3', 'data/auto_curricula/three_vars','-c']
+    base: ['2', 'data/auto_curricula/two_vars','-c']
 return:
   gamma: 0.99
   use_gae: True

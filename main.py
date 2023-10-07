@@ -12,7 +12,6 @@ import torch
 import yaml
 from git.repo import Repo
 from ray import tune
-from run_logger import RunLogger, create_sweep
 
 from agent.arguments import get_args, read_params
 from logger import get_charts, get_metadata

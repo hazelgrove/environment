@@ -10,14 +10,13 @@ import torch
 import yaml
 from git import Repo
 from gym.wrappers.time_limit import TimeLimit
-from run_logger import RunLogger,get_load_params
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from agent import utils
 from agent.arguments import get_args, read_params
 from agent.envs import Env, PLEnv, VecPyTorch
-from agent.policy import GNNPolicy, Policy, TestPolicy
+from agent.policy import GNNPolicy, Policy, TestPolicy, GraphormerPolicy
 from agent.ppo import PPO
 from agent.storage import RolloutStorage
 from envs.test_env import TestEnv
@@ -331,7 +330,7 @@ class GNNTrainer(Trainer):
     def get_policy(self,envs, device):
         base_kwargs = self.params["base"]
         print(base_kwargs)
-        policy = GNNPolicy(
+        policy = GraphormerPolicy(
             envs.get_attr("orig_obs_space")[0],
             envs.get_attr("action_space")[0],
             envs.get_attr("num_actions")[0],
