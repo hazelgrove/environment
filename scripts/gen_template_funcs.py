@@ -24,6 +24,7 @@ def powerset(in_list:list):
     return chain.from_iterable(combinations(in_list, r) for r in range(len(in_list)+1))
 
 def make_nfuncs(n,simplify=True,variations=False): 
+
     print(simplify,variations)
     print('Genrating functions...')
     in_vars = S.symbols([f'x{n}' for n in range(1,n+1)]) # x1, x2, ... , xn 
@@ -34,6 +35,7 @@ def make_nfuncs(n,simplify=True,variations=False):
     if simplify: 
         funcs = list(tqdm(map(S.simplify_logic,funcs), total=len(funcs)))
     elif variations: 
+        print('variations are being gnerated')
         # print(f'generating reorderings: initial size = {len(funcs)}')
         funcs_new = []
         for func in tqdm(funcs):
@@ -173,8 +175,8 @@ def parse_args():
     parser.add_argument("--mns_correction", help="correction factor for max_num steps. 1.5 is good base. if things are converging to lower numbers, bump this up.",default=1.5,type=float)
     parser.add_argument("-v",'--verbose',action="store_true")
     parser.add_argument('--select',type=str,default=None,help="select only a subset of template functions to use. Primarily used for debugging. Specified as json-formatted list of ints.")
-    parser.add_argument('--variations', default=False, help="generate variations of high-level functions to attempt to augment data")  # on/off flag
-    parser.add_argument('--permutations',default=False, help="generate low level permutations of functions, to further augment data")  # on/off flag
+    parser.add_argument('--variations', help="generate variations of high-level functions to attempt to augment data",type=lambda x: x.lower() == 'true')  # on/off flag
+    parser.add_argument('--permutations', help="generate low level permutations of functions, to further augment data",type=lambda x: x.lower() == 'true')  # on/off flag
     return parser.parse_args()
 
 
@@ -273,8 +275,8 @@ def split_folds(comps,targ_dir, split, seed=42):
 
 
 def main(args): 
-    variations = args.variations 
-    permutations = args.permutations
+    if args.variations: print('creating variations on functions')
+    if args.permutations: print('generating permutations')
     funcs, varnames = make_nfuncs(args.n_args,simplify=not (args.raw or args.variations),variations=args.variations)
     targ_dir = args.targ_dir if not args.curriculum else path.join(args.targ_dir,'curriculum')
     if args.test_split and not args.select: 
