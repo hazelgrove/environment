@@ -35,6 +35,7 @@ RUN apt-get update -q \
     python3-pip \
     cmake \
   && apt-get clean
+RUN apt-get autoclean
 WORKDIR "/deps"
 COPY pyproject.toml poetry.lock requirements.txt /deps/
 RUN pip3 install -r requirements.txt
