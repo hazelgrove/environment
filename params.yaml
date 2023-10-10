@@ -8,7 +8,7 @@ num_steps: 128
 log_interval: 1
 eval_interval: 0 #1000
 save_interval: 1000
-num_env_steps: 10000000.0
+num_env_steps: 1.0e+8
 use_linear_lr_decay: true
 resume_carryover:
   - seed
@@ -19,8 +19,10 @@ resume_carryover:
   - make_tests
   - return
 env:
-  get_from: data/auto_curricula/2v_basic/param_snippet.yaml
-    
+  get_from1: data/auto_curricula/2_basic/param_snippet.yaml   
+  get_from2: data/auto_curricula/3_basic/param_snippet.yaml    
+  ds_ratio: [0.4,0.6]
+  perturbation: 0
 eval:
     assignment_dir: /RL_env/data/auto_curricula/2vars_basic/curriculum/test
     code_per_assignment:
@@ -53,14 +55,22 @@ make_tests:
     args:
       base:
       - '2'
-      - data/auto_curricula/2v_basic
+      - data/auto_curricula/2_basic
       # - -v 
-    #   select: "[9,10]"
-    #   select: [8]
       mns_correction: 1.6
       curriculum: 
-      variations: True  
-      permutations: True
+      variations: false  
+      permutations: false
+      # test_split: 0.5
+    args2:
+      base:
+      - '3'
+      - data/auto_curricula/3_basic
+      # - -v 
+      mns_correction: 1.6
+      curriculum: 
+      variations: false  
+      permutations: false
       # test_split: 0.5
 return:
     gamma: 0.99

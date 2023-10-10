@@ -1,6 +1,7 @@
 import os
 import time
-from collections import deque
+import re
+from collections import deque,defaultdict
 from cProfile import run
 
 import numpy as np
@@ -50,7 +51,6 @@ class Trainer:
             device,
             False,
         )
-
         return envs
 
     @staticmethod
@@ -96,7 +96,8 @@ class Trainer:
             os.environ["WANDB_API_KEY"] = api_key
             wandb_logger.login()
             wandb_logger.init(project=project_name,config=self.params, notes=self.log_name)
-        
+
+        print(f'starting run{wandb_logger.run.name}')
 
         if self.log_name != "test":
             save_dir = os.path.join(save_dir, self.log_name)
@@ -158,6 +159,7 @@ class Trainer:
         rollouts.to(device)
 
         episode_rewards = deque(maxlen=1000)
+        episode_rewards_by_part = defaultdict(lambda :deque(maxlen=1000) )
 
         start = time.time()
         num_updates = (
@@ -200,6 +202,7 @@ class Trainer:
                     breakpoint()
                 try:
                     obs, reward, done, infos = envs.step(action.reshape((-1,)))
+                    # print(done,infos)
                 except EOFError: 
                     print(action)
                     raise EOFError()
@@ -214,7 +217,12 @@ class Trainer:
 
                 for info in infos:
                     if "episode" in info.keys():
+                        # print(f'logging info: {info}')
                         episode_rewards.append(info["episode"]["r"])
+                        if 'ds_num' in info: 
+                            # print(f'logging infos for part {info["ds_num"]}')
+                            episode_rewards_by_part[info['ds_num']+1].append(info["episode"]["r"])
+
 
                 # If done then clean the history of observations.
                 masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
@@ -262,7 +270,7 @@ class Trainer:
                     ],
                     os.path.join(save_dir, str(self.logger.run_id) + ".pt"),
                 )
-
+            
             mean_episode_reward = np.mean(episode_rewards)
             # self.update_curriculum(envs, mean_episode_reward)
             metrics_train = {}
@@ -286,7 +294,7 @@ class Trainer:
                 fps = int(total_num_steps / (end - start))
 
                 print(
-                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
+                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.1f}/{:.1f}".format(
                         j,
                         total_num_steps,
                         fps,
@@ -295,14 +303,29 @@ class Trainer:
                         np.median(episode_rewards),
                         np.min(episode_rewards),
                         np.max(episode_rewards),
+                    )
+                )
+                metrics_train = {"train/reward": mean_episode_reward,'train/rate': log_lr,'train/ent_coeff': curr_entropy_coeff}
+                if len(episode_rewards_by_part) > 0: 
+                    by_part_rews = "" 
+                    part_names = list(episode_rewards_by_part.keys())
+                    part_names.sort()
+                    for part_name in part_names: 
+                        part_rewards = episode_rewards_by_part[part_name]
+                        metrics_train[f'train/reward_{part_name}'] = np.mean(part_rewards)
+                        print("\t\t\tPart {}: mean/median reward {:.2f}/{:.2f} (min/max reward {:.2f}/{:.2f})".format(
+                            part_name,
+                            np.mean(part_rewards),
+                            np.median(part_rewards),
+                            np.min(part_rewards),
+                            np.max(part_rewards)
+                        ))
+                    print(' Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n'.format(
                         grad_norm,
                         action_loss,
                         value_loss,
                         dist_entropy,
-                    )
-                )
-                metrics_train = {"train/reward": mean_episode_reward,'train/rate': log_lr,'train/ent_coeff': curr_entropy_coeff}
-
+                    ))                    
             metrics_eval = {}
             if (
                 self.params["eval_interval"] > 0
@@ -371,8 +394,15 @@ class GNNTrainer(Trainer):
 
     def get_env(self, device):
         env_kwargs = self.params["env"]
+        dataset_tags = [key for key in self.params['env'] if re.match('dataset_\d+',key)]
+        if len(dataset_tags) > 0: 
+            test_params = []
+            for tag in dataset_tags: 
+                test_params.append(self.params['env'].pop(tag))
+        else:
+            test_params = self.params['env']
         envs = PLEnv.make_vec_envs(
-            self.params["seed"], self.params["num_processes"], device, **env_kwargs
+            self.params["seed"], self.params["num_processes"], device, test_params=test_params, **env_kwargs
         )
 
         return envs
