@@ -58,11 +58,13 @@ def read_params(config_path:str):
                 params[name].pop(get_from) 
 
             # enforce certain requirements: all datasets need to have same 'done action' param
-            if 'done_action' not in params[name] and 'done_action' in loaded_params[0]: 
-                targ_done_action = loaded_params[0]['done_action']
-                for i in range(len(loaded_params)):
-                    loaded_params[i]['done_action'] = targ_done_action
-                params[name]['done_action'] = targ_done_action
+            pull_params = ['done_action','perturbation']
+            for pull_param in pull_params:
+                if pull_param not in params[name] and pull_param in loaded_params[0]: 
+                    targ_done_action = loaded_params[0][pull_param]
+                    for i in range(len(loaded_params)):
+                        loaded_params[i][pull_param] = targ_done_action
+                    params[name][pull_param] = targ_done_action
 
             # also, pull out max episode steps val, as its used elsewhere 
             if 'max_episode_steps' not in params[name]:

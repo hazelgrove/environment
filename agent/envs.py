@@ -174,6 +174,8 @@ class PLEnv(Env):
         perturbation,
         done_action,
         test_params,
+        cursor_start_pos=None,
+        assignment_dir =None, 
         num_assignments=None,
         code_per_assignment=None,
         ds_ratio=None,
@@ -183,23 +185,28 @@ class PLEnv(Env):
             raise ValueError("Rendering is not supported for multiple processes")
         
         #handle multi-ds code 
-        if type(test_params) is list: 
-            if ds_ratio is None or len(ds_ratio) != len(test_params):
-                print('\nDS ratio either nonexistent or not the right length.')
-                print('A uniform DS ratio will be assumed\n')
-                ds_ratio = [1/float(len(test_params))] * len(test_params)
-            for test_param in test_params: 
-                print(test_param)
-            code_per_assignment = [param['code_per_assignment']for param in test_params]
-            num_assignments = [param['num_assignments'] for param in test_params]
-            assignment_dir=[param['assignment_dir'] for param in test_params]
-            cursor_start_pos = [param['cursor_start_pos'] for param in test_params]
-            max_episode_steps_per_ds = [param['max_episode_steps'] for param in test_params]
-            multi_DS =True
-        else:
-            multi_DS=False
-            max_episode_steps_per_ds=None
+        if type(test_params) is not  list:
+            ds_ratio = [1.0]
+            test_params = [test_params]
 
+        if ds_ratio is None or len(ds_ratio) != len(test_params):
+            print('\nDS ratio either nonexistent or not the right length.')
+            print('A uniform DS ratio will be assumed\n')
+            ds_ratio = [1/float(len(test_params))] * len(test_params)
+        for test_param in test_params: 
+            print(test_param)
+        code_per_assignment = [param['code_per_assignment']for param in test_params]
+        num_assignments = [param['num_assignments'] for param in test_params]
+        assignment_dir=[param['assignment_dir'] for param in test_params]
+        cursor_start_pos = [param['cursor_start_pos'] for param in test_params]
+        max_episode_steps_per_ds = [param['max_episode_steps'] for param in test_params]
+        multi_DS =True
+        # test that everything is input correctly 
+        assert(type(code_per_assignment) is list )
+        assert(type(num_assignments) in (list,int) )
+        assert(type(assignment_dir) in (list,str) )
+        assert(num_assignments is not None)
+        assert(type(num_assignments) in (list, int)) 
         envs = [
             PLEnv.make_env(
                 seed,
