@@ -1,12 +1,14 @@
 #! /usr/bin/env python3
+
 import yaml
 import subprocess
 from agent.arguments import read_params
 import re
 
-def generate_tests(config_path="params.yaml"):
-    with open(config_path,'r') as file: 
-        params = yaml.safe_load(file)
+def generate_tests(config_path="params.yaml",params=None):
+    if params is None: 
+        with open(config_path,'r') as file: 
+            params = yaml.safe_load(file)
     gen_params = params["make_tests"]
     call_cmd = gen_params['command']
     for key in gen_params.keys():

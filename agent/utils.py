@@ -39,11 +39,27 @@ class AddBias(nn.Module):
         return x + bias
 
 
-def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr):
+def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr,targ_lr=None):
     """Decreases the learning rate linearly"""
-    lr = initial_lr - (initial_lr * (epoch / float(total_num_epochs)))
+    if targ_lr is None: 
+        targ_lr = initial_lr/10
+    diff = initial_lr -targ_lr
+    lr = initial_lr - (diff * (epoch / float(total_num_epochs)))
+    # cap lr to be > 0 
+    lr = max(targ_lr,lr)
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
+    return lr
+
+def update_entropy_schedule( epoch, total_num_epochs,targ_ent,initial_ent=None):
+    """Decreases the learning rate linearly"""
+    if initial_ent is None: 
+        initial_ent = targ_ent*5 
+    diff = initial_ent - targ_ent 
+    ent = initial_ent - (diff * (epoch / float(total_num_epochs)))
+    # dont undershoot by accident 
+    ent = max(targ_ent,ent)
+    return ent
 
 
 def init(module, weight_init, bias_init, gain=1):

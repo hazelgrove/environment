@@ -7,7 +7,7 @@ from envs.ast_env import State
 from agent.arguments import read_params
 
 def init():
-	max_num_nodes=250
+	max_num_nodes=150
 	num_node_descriptor=107
     # num_assignments=num_assignments,
     # code_per_assignment=code_per_assignment,

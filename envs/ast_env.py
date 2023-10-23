@@ -31,7 +31,9 @@ class ASTEnv(gym.Env):
         curriculum: Optional[Union[List[int], int]] = None,
         curriculum_threshold: Optional[int] = None,
         done_action:bool = False,
-        
+        ds_ratio:List[bool] = [],
+        multi_ds:bool=False,
+        max_episode_steps_per_ds=None
     ):
         super(ASTEnv, self).__init__()
 
@@ -64,9 +66,25 @@ class ASTEnv(gym.Env):
         self.done_action = done_action
 
         # for logging and sampling 
-        self.dataset_inds = [(assn,test) for assn, n_tests in enumerate(code_per_assignment) for test in range(n_tests) ]
+        if multi_ds: 
+            self.dataset_inds = [
+                [
+                    (assn,test) 
+                    for assn, n_tests in enumerate(code_per_assignment[ds_ind]) 
+                    for test in range(n_tests) 
+                ]
+                for ds_ind in range(len(ds_ratio))
+            ]
+
+        else:
+            self.dataset_inds = [
+                (assn,test) 
+                    for assn, n_tests in enumerate(code_per_assignment) 
+                    for test in range(n_tests) 
+            ]
         self.assignment_no = None 
         self.problem_no = None 
+        self.num_nodes_list = []
 
         # Plus one to account for -1
         node_nvec = (num_node_descriptor + max_num_vars * 2 + 1) * np.ones(
@@ -96,7 +114,7 @@ class ASTEnv(gym.Env):
                 "cursor_position": gym.spaces.Discrete(max_num_nodes),
                 "vars_in_scope": gym.spaces.MultiDiscrete(vars_nvec),
                 "args_in_scope": gym.spaces.MultiDiscrete(args_nvec),
-                "assignment": gym.spaces.Discrete(num_assignments),
+                "assignment": gym.spaces.Discrete(sum(num_assignments)),
             }
         )
 
@@ -108,7 +126,11 @@ class ASTEnv(gym.Env):
         self.code_per_assignment = code_per_assignment
         self.assignment_dir = assignment_dir
         self.cursor_start_pos = cursor_start_pos
+        self.multi_ds = multi_ds
+        self.ds_ratio = ds_ratio
         self.curriculum = curriculum
+        self.max_episode_steps_per_ds = max_episode_steps_per_ds
+
         self.curriculum_threshold = curriculum_threshold
         if self.curriculum is not None and self.curriculum_threshold is None:
             raise ValueError("Curriculum threshold must be set if curriculum is set")
@@ -131,6 +153,7 @@ class ASTEnv(gym.Env):
                 print(f'error occurred taking action in assn# {self.assignment_no}, problem # {self.problem_no}')
                 print(self.get_state())
                 print(f'action was {action}') 
+                print(self.num_nodes_list )
                 raise EOFError
         try: 
             reward = self.astclib.check_ast(ctypes.byref(self.state))
@@ -139,6 +162,7 @@ class ASTEnv(gym.Env):
             print(self.get_state())
             print(f'action was {action}') 
             raise EOFError
+
 
         done = False 
         if  self.done_action:
@@ -150,39 +174,69 @@ class ASTEnv(gym.Env):
         # Change state to Python dict
         state = self.get_state()
 
-        return state, reward, done, {}
+        # If we create too many nodes, this is an error. 
+        # If we reach max_num_nodes-1 nodes we are in danger of crashing 
+        # instead, if we reach that many nodes (we shouldn't), return as a failed run. 
+        self.num_nodes_list.append(self.state.num_nodes)
+        if self.state.num_nodes >= self.max_num_nodes -5: 
+            done = True
+            reward = 0 
+            print('MAX NUMBER OF NODES EXCEEDED')
+            self.render()
+
+        infos = {}
+        if self.multi_ds:
+            self.curr_step +=1 
+            if self.curr_step == self.max_episode_steps_per_ds: 
+                # finish; 
+                done=True
+            infos = {'ds_num':self.ds_num}
+
+        return state, reward, done, infos
 
     def reset(self):
-        if self.curriculum is not None:
+        if self.multi_ds:
+            ds_num = np.random.choice(list(range(len(self.ds_ratio))),p=self.ds_ratio)
+            assignment, code = random.sample(self.dataset_inds[ds_num],k=1)[0]
+            assignment_dir = self.assignment_dir[ds_num]
+            self.ds_num = ds_num 
+            # print(assignment,code,assignment_dir)
+        elif self.curriculum is not None:
+            assignment_dir = self.assignment_dir
             assignment = random.sample(self.curriculum[: self.curriculum_index], 1)[0]
             code = random.randint(0, self.code_per_assignment[assignment] - 1)
         else:
+            assignment_dir = self.assignment_dir
             # assignment = self.observation_space.spaces["assignment"].sample()
             assignment, code = random.sample(self.dataset_inds,k=1)[0]
              
         self.assignment_no = assignment
         self.problem_no = code
-
+        self.num_nodes_list = []
+        self.max_num_actions = self.max_episode_steps_per_ds[ds_num]
+        self.curr_step = 0 
 
         self.state = State()
         
         if self.cursor_start_pos is None:
+            # print(code,assignment, code,self.assignment_dir)
             self.astclib.init_assignment(
                 ctypes.byref(self.state),
-                bytes(self.assignment_dir, encoding="utf8"),
+                bytes(assignment_dir, encoding="utf8"),
                 ctypes.c_int(assignment),
                 ctypes.c_int(code),
                 ctypes.c_int(self.perturbation),
                 ctypes.c_int(-1),
             )
         else:
+            # print(self.cursor_start_pos[ds_num][assignment],code,assignment, code,self.assignment_dir[ds_num])
             self.astclib.init_assignment(
                 ctypes.byref(self.state),
-                bytes(self.assignment_dir, encoding="utf8"),
+                bytes(self.assignment_dir[ds_num], encoding="utf8"),
                 ctypes.c_int(assignment),
                 ctypes.c_int(code),
                 ctypes.c_int(self.perturbation),
-                ctypes.c_int(self.cursor_start_pos[assignment]),
+                ctypes.c_int(self.cursor_start_pos[ds_num][assignment]),
             )
         
         return self.get_state()

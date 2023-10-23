@@ -1,6 +1,7 @@
 import os
 import time
-from collections import deque
+import re
+from collections import deque,defaultdict
 from cProfile import run
 from typing import Optional
 import random
@@ -8,10 +9,12 @@ import random
 import numpy as np
 import torch
 import yaml
+import random
 from git import Repo
 from gym.wrappers.time_limit import TimeLimit
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+
 
 from agent import utils
 from agent.arguments import get_args, read_params
@@ -83,7 +86,6 @@ class Trainer:
             device,
             False,
         )
-
         return envs
 
     @staticmethod
@@ -108,6 +110,7 @@ class Trainer:
             eval_kwargs,
         )
 
+<<<<<<< HEAD
     def train(self, render=False, save_dir=None, sweep=False):
         # Setup reproducibility
         seed = self.params['seed']
@@ -115,6 +118,56 @@ class Trainer:
         np.random.seed(seed)
         random.seed(seed)
 
+=======
+    @staticmethod
+    def update_curriculum(envs, reward):
+        return
+
+    @staticmethod
+    def update_curriculum(envs, reward):
+        return
+
+    def train(self, render, save_dir, sweep):
+        print(self.params)
+
+        project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
+        if sweep:
+            wandb_logger = setup_wandb(project=project_name,config=self.params, group=self.log_name, api_key_file="/RL_env/wandb_api_key")
+        else:
+            wandb_logger = wandb
+            with open("/RL_env/wandb_api_key", "r") as f:
+                api_key = f.readline()
+            os.environ["WANDB_API_KEY"] = api_key
+            wandb_logger.login()
+            wandb_logger.init(project=project_name,config=self.params, notes=self.log_name)
+
+        print(f'starting run{wandb_logger.run.name}')
+
+        if self.log_name != "test":
+            save_dir = os.path.join(save_dir, self.log_name)
+            try:
+                os.makedirs(save_dir)
+            except OSError:
+                pass
+        else:
+            save_dir = None
+
+        # save a copy of our params.yaml to that same directory for continuation
+        print(save_dir, self.logger.run_id)
+        if save_dir is not None: 
+            with open(os.path.join(save_dir, str(self.logger.run_id) + "_params.yaml"),'w') as file :
+                yaml.safe_dump(self.params,file)
+
+        # Only use one process if we are rendering
+        if render:
+            self.params["num_processes"] = 1
+
+
+        torch.manual_seed(self.params["seed"])
+        torch.cuda.manual_seed_all(self.params["seed"])
+        random.seed(self.params['seed'])
+        np.random.seed(self.params['seed'])
+>>>>>>> 2c716df
         if (
             self.params["cuda"]
             and torch.cuda.is_available()
@@ -156,6 +209,7 @@ class Trainer:
         rollouts.to(device)
 
         episode_rewards = deque(maxlen=1000)
+        episode_rewards_by_part = defaultdict(lambda :deque(maxlen=1000) )
 
         start = time.time()
         num_updates = (
@@ -168,9 +222,16 @@ class Trainer:
         for j in range(num_updates):
             if self.params["use_linear_lr_decay"]:
                 # decrease learning rate linearly
-                utils.update_linear_schedule(
-                    agent.optimizer, j, num_updates, self.params["ppo"]["lr"]
+                log_lr = utils.update_linear_schedule(
+                    agent.optimizer, j, num_updates, self.params["ppo"]["lr"],
+                    targ_lr=self.params['ppo']['end_lr'] if 'end_lr' in self.params['ppo'] else None 
                 )
+                if 'entropy_coeff_decay' in self.params['ppo'] and self.params['ppo']['entropy_coeff_decay']:
+                    start_entropy = self.params['ppo']['start_ent_coeff'] if 'start_ent_coeff' in self.params['ppo'] else None 
+                    curr_entropy_coeff = utils.update_entropy_schedule(j,num_updates,self.params['ppo']['entropy_coef'],initial_ent=start_entropy)
+                    agent.set_entropy_coeff(curr_entropy_coeff)
+                else: 
+                    curr_entropy_coeff = self.params['ppo']['entropy_coef']
 
             for step in range(self.params["num_steps"]):
                 # Sample actions
@@ -191,6 +252,7 @@ class Trainer:
                     breakpoint()
                 try:
                     obs, reward, done, infos = envs.step(action.reshape((-1,)))
+                    # print(done,infos)
                 except EOFError: 
                     print(action)
                     raise EOFError()
@@ -205,7 +267,12 @@ class Trainer:
 
                 for info in infos:
                     if "episode" in info.keys():
+                        # print(f'logging info: {info}')
                         episode_rewards.append(info["episode"]["r"])
+                        if 'ds_num' in info: 
+                            # print(f'logging infos for part {info["ds_num"]}')
+                            episode_rewards_by_part[info['ds_num']+1].append(info["episode"]["r"])
+
 
                 # If done then clean the history of observations.
                 masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
@@ -253,8 +320,15 @@ class Trainer:
                     ],
                     os.path.join(self.save_dir, "params.pt"),
                 )
+<<<<<<< HEAD
 
             # Log train data
+=======
+            
+            mean_episode_reward = np.mean(episode_rewards)
+            # self.update_curriculum(envs, mean_episode_reward)
+            metrics_train = {}
+>>>>>>> 2c716df
             if j % self.params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
                     (j + 1) * self.params["num_processes"] * self.params["num_steps"]
@@ -276,7 +350,7 @@ class Trainer:
                 
                 mean_episode_reward = np.mean(episode_rewards)
                 print(
-                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.1f}/{:.1f}\n Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n".format(
+                    "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.1f}/{:.1f}".format(
                         j,
                         total_num_steps,
                         fps,
@@ -285,6 +359,24 @@ class Trainer:
                         np.median(episode_rewards),
                         np.min(episode_rewards),
                         np.max(episode_rewards),
+                    )
+                )
+                metrics_train = {"train/reward": mean_episode_reward,'train/rate': log_lr,'train/ent_coeff': curr_entropy_coeff}
+                if len(episode_rewards_by_part) > 0: 
+                    by_part_rews = "" 
+                    part_names = list(episode_rewards_by_part.keys())
+                    part_names.sort()
+                    for part_name in part_names: 
+                        part_rewards = episode_rewards_by_part[part_name]
+                        metrics_train[f'train/reward_{part_name}'] = np.mean(part_rewards)
+                        print("\t\t\tPart {}: mean/median reward {:.2f}/{:.2f} (min/max reward {:.2f}/{:.2f})".format(
+                            part_name,
+                            np.mean(part_rewards),
+                            np.median(part_rewards),
+                            np.min(part_rewards),
+                            np.max(part_rewards)
+                        ))
+                    print(' Gradient norm {:.3f}\n Policy loss {:.3E}, value loss {:.3E}, policy entropy {:.3E}\n'.format(
                         grad_norm,
                         action_loss,
                         value_loss,
@@ -343,8 +435,15 @@ class GNNTrainer(Trainer):
 
     def get_env(self, device):
         env_kwargs = self.params["env"]
+        dataset_tags = [key for key in self.params['env'] if re.match('dataset_\d+',key)]
+        if len(dataset_tags) > 0: 
+            test_params = []
+            for tag in dataset_tags: 
+                test_params.append(self.params['env'].pop(tag))
+        else:
+            test_params = self.params['env']
         envs = PLEnv.make_vec_envs(
-            self.params["seed"], self.params["num_processes"], device, **env_kwargs
+            self.params["seed"], self.params["num_processes"], device, test_params=test_params, **env_kwargs
         )
 
         return envs
@@ -378,6 +477,7 @@ class GNNTrainer(Trainer):
 
 class ResumeGNNTrainer(GNNTrainer):
     def __init__(self,log_name,params,resume_id,resume_name,runLogger):
+        print(runLogger)
         loaded_params = get_load_params(resume_id, runLogger)
         for field in params['resume_carryover']:
             params[field] = loaded_params[field]
