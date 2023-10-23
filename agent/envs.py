@@ -133,11 +133,14 @@ class PLEnv(Env):
         num_assignments,
         code_per_assignment,
         done_action, 
+        ds_ratio = None,
+        multi_ds=False,
+        max_episode_steps_per_ds=None
     ):
         def _thunk():
             # Arguments for env are fixed according to the implementation of the C code
             env = ASTEnv(
-                max_num_nodes=250,
+                max_num_nodes=150,
                 num_node_descriptor=107,
                 num_assignments=num_assignments,
                 code_per_assignment=code_per_assignment,
@@ -147,6 +150,9 @@ class PLEnv(Env):
                 assignment_dir=assignment_dir,
                 cursor_start_pos=cursor_start_pos,
                 done_action=done_action,
+                ds_ratio=ds_ratio,
+                multi_ds=multi_ds,
+                max_episode_steps_per_ds=max_episode_steps_per_ds,
             )
             env.seed(seed + rank)
 
@@ -166,16 +172,41 @@ class PLEnv(Env):
         device,
         max_episode_steps,
         perturbation,
-        assignment_dir,
-        cursor_start_pos,
-        num_assignments,
-        code_per_assignment,
         done_action,
+        test_params,
+        cursor_start_pos=None,
+        assignment_dir=None, 
+        num_assignments=None,
+        code_per_assignment=None,
+        ds_ratio=None,
         render=False,
     ):
         if render and num_processes > 1:
             raise ValueError("Rendering is not supported for multiple processes")
+        
+        #handle multi-ds code 
+        if type(test_params) is not  list:
+            ds_ratio = [1.0]
+            test_params = [test_params]
 
+        if ds_ratio is None or len(ds_ratio) != len(test_params):
+            print('\nDS ratio either nonexistent or not the right length.')
+            print('A uniform DS ratio will be assumed\n')
+            ds_ratio = [1/float(len(test_params))] * len(test_params)
+        for test_param in test_params: 
+            print(test_param)
+        code_per_assignment = [param['code_per_assignment']for param in test_params]
+        num_assignments = [param['num_assignments'] for param in test_params]
+        assignment_dir=[param['assignment_dir'] for param in test_params]
+        cursor_start_pos = [param['cursor_start_pos'] for param in test_params]
+        max_episode_steps_per_ds = [param['max_episode_steps'] for param in test_params]
+        multi_DS =True
+        # test that everything is input correctly 
+        assert(type(code_per_assignment) is list )
+        assert(type(num_assignments) in (list,int) )
+        assert(type(assignment_dir) in (list,str) )
+        assert(num_assignments is not None)
+        assert(type(num_assignments) in (list, int)) 
         envs = [
             PLEnv.make_env(
                 seed,
@@ -187,6 +218,9 @@ class PLEnv(Env):
                 num_assignments,
                 code_per_assignment,
                 done_action, 
+                ds_ratio=ds_ratio,
+                multi_ds=multi_DS,
+                max_episode_steps_per_ds = max_episode_steps_per_ds
             )
             for i in range(num_processes)
         ]
@@ -265,9 +299,8 @@ class VecPyTorch(VecEnvWrapper):
     def step_async(self, actions):
         if isinstance(actions, torch.LongTensor):
             # Squeeze the dimension for discrete actions
-            # actions = actions.squeeze(1)
-            actions = actions.view((-1, ))
-        actions = actions.cpu().numpy()
+            actions = actions.squeeze(1)
+        actions = actions.detach().cpu().numpy()
         self.venv.step_async(actions)
 
     def step_wait(self):
