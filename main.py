@@ -12,7 +12,6 @@ import torch
 import yaml
 from git.repo import Repo
 from ray import tune
-from run_logger import RunLogger, create_sweep
 
 from agent.arguments import get_args, read_params
 from logger import get_charts, get_metadata
@@ -31,22 +30,9 @@ def _log(
     render: bool = False,
     **kwargs
 ):
-    logger = RunLogger(graphql_endpoint)
-    logger.create_run(
-        metadata=get_metadata(repo),
-        sweep_id=sweep_id,
-        charts=get_charts(),
-    )
-    logger.update_metadata(
-        {
-            "parameters": kwargs,
-            "run_id": logger.run_id,
-            "name": name,
-        }
-    )
 
     sweep = (sweep_id != None)
-    trainer = GNNTrainer(name,kwargs,logger)
+    trainer = GNNTrainer(name,kwargs)
     trainer.train(
         render=render, save_dir=save_dir, sweep=sweep
     )
@@ -62,26 +48,11 @@ def resume(
 ): 
     params = read_params(config_path)
 
-    logger = RunLogger(graphql_endpoint)
-    print(logger,resume_from_id,resume_from_name)
     trainer = ResumeGNNTrainer(
         log_name=name,
         params=params,
         resume_id=resume_from_id,
         resume_name=resume_from_name,
-        runLogger=logger,
-    )
-    logger.create_run(
-        metadata=get_metadata(Repo(".")),
-        sweep_id=None,
-        charts=get_charts(),
-    )
-    logger.update_metadata(
-        {
-            "parameters": trainer.params,
-            "run_id": logger.run_id,
-            "name": name,
-        }
     )
     #Train 
     trainer.train(
@@ -195,7 +166,6 @@ if __name__ == "__main__":
             graphql_endpoint=os.getenv("GRAPHQL_ENDPOINT"),
             save_dir=args.save_dir,
             resume_from_id=args.resume_id,
-            resume_from_name=args.resume_name, 
             render=args.render,
         )
 

@@ -10,13 +10,12 @@ import yaml
 import random
 from git import Repo
 from gym.wrappers.time_limit import TimeLimit
-from run_logger import RunLogger,get_load_params
-from stable_baselines3.common.monitor import Monitor
+# from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 
 from agent import utils
-from agent.arguments import get_args, read_params
+from agent.arguments import get_args, read_params, fetch_params
 from agent.envs import Env, PLEnv, VecPyTorch
 from agent.policy import GNNPolicy, Policy, TestPolicy
 from agent.ppo import PPO
@@ -30,9 +29,8 @@ import wandb
 
 
 class Trainer:
-    def __init__(self,log_name, params,logger ): 
+    def __init__(self,log_name, params ): 
         self.params = params
-        self.logger = logger
         self.log_name =log_name 
 
     def get_policy(self,envs, device):
@@ -98,26 +96,28 @@ class Trainer:
             wandb_logger.init(project=project_name,config=self.params, notes=self.log_name)
 
         print(f'starting run{wandb_logger.run.name}')
+        self.save_name = wandb_logger.run.id
 
         if self.log_name != "test":
-            save_dir = os.path.join(save_dir, self.log_name)
             try:
                 os.makedirs(save_dir)
             except OSError:
-                pass
+                save_dir = None
         else:
             save_dir = None
 
         # save a copy of our params.yaml to that same directory for continuation
-        print(save_dir, self.logger.run_id)
         if save_dir is not None: 
-            with open(os.path.join(save_dir, str(self.logger.run_id) + "_params.yaml"),'w') as file :
+            with open(os.path.join(save_dir, str(self.save_name) + "_params.yaml"),'w') as file :
                 yaml.safe_dump(self.params,file)
 
         # Only use one process if we are rendering
         if render:
             self.params["num_processes"] = 1
 
+        # TODO: This is what I tried using to increase reproducibilty. It breaks things. 
+        # Apparently even nn.functional.Linear() is not entriely deterministic... 
+        # torch.use_deterministic_algorithms(True)
 
         torch.manual_seed(self.params["seed"])
         torch.cuda.manual_seed_all(self.params["seed"])
@@ -268,7 +268,7 @@ class Trainer:
                         actor_critic.state_dict(),
                         getattr(utils.get_vec_normalize(envs), "obs_rms", None),
                     ],
-                    os.path.join(save_dir, str(self.logger.run_id) + ".pt"),
+                    os.path.join(save_dir, str(self.save_name) + ".pt"),
                 )
             
             mean_episode_reward = np.mean(episode_rewards)
@@ -344,36 +344,7 @@ class Trainer:
                     self.params["eval"],
                 )
                 last_eval_reward = eval_reward
-
-                if self.logger is not None:
-                    self.logger.log(
-                        update=j,
-                        mean_episode_rewards=mean_episode_reward,
-                        eval_reward=eval_reward,
-                        fps=fps,
-                        episode_timesteps=total_num_steps,
-                        gradient_norm=grad_norm,
-                        policy_loss=action_loss,
-                        value_loss=value_loss,
-                        policy_entropy=dist_entropy,
-                        run_id = str(self.logger.run_id),
-                    )
-                metrics_eval = {"eval/reward": eval_reward}   
-            else:
-                if self.logger is not None:
-                    self.logger.log(
-                        update=j,
-                        mean_episode_rewards=mean_episode_reward,
-                        eval_reward=last_eval_reward,
-                        fps=fps,
-                        episode_timesteps=total_num_steps,
-                        gradient_norm=grad_norm,
-                        policy_loss=action_loss,
-                        value_loss=value_loss,
-                        policy_entropy=dist_entropy,
-                        run_id=str(self.logger.run_id),
-                    )
-            
+                metrics_eval = {"eval/reward": eval_reward} 
             wandb_logger.log({**metrics_train, **metrics_eval})
 
 
@@ -417,15 +388,20 @@ class GNNTrainer(Trainer):
         max_episode_steps,
         eval_kwargs,
     ):
-        return PLEvaluator.evaluate(
-            actor_critic,
-            env_name,
-            seed,
-            num_processes,
-            device,
-            max_episode_steps,
-            eval_kwargs,
-        )
+        if type(eval_kwargs) is dict: 
+            test_params = eval_kwargs
+            eval_kwargs['test_params'] = test_params
+            return PLEvaluator.evaluate(
+                actor_critic,
+                env_name,
+                seed,
+                num_processes,
+                device,
+                max_episode_steps,
+                eval_kwargs,
+            )
+        else: 
+            raise NotImplementedError()
 
     def update_curriculum(self,envs, reward):
         envs.get_attr("update_curriculum")(reward)
@@ -435,23 +411,25 @@ class GNNTrainer(Trainer):
 
 
 class ResumeGNNTrainer(GNNTrainer):
-    def __init__(self,log_name,params,resume_id,resume_name,runLogger):
-        print(runLogger)
-        loaded_params = get_load_params(resume_id, runLogger)
+    def __init__(self,log_name,params,resume_id,resume_name):
+        # print(runLogger)
+        loaded_params = fetch_params(resume_id)
         for field in params['resume_carryover']:
             params[field] = loaded_params[field]
 
-        super().__init__(log_name,params,runLogger)
+        super().__init__(log_name,params)
 
         self.resume_id = resume_id 
         self.resume_name = resume_name
         self.log_name = log_name 
-        self.runLogger = runLogger
         self.params = params
+        self.save_dir = None
 
+    def train(self, render, save_dir, sweep):
+        self.save_dir = save_dir 
+        super().train(self,render,save_dir,sweep)
 
     def get_policy(self,envs, device):
-
         base_kwargs = self.params["base"]
         policy = GNNPolicy(
             envs.get_attr("orig_obs_space")[0],
@@ -462,12 +440,10 @@ class ResumeGNNTrainer(GNNTrainer):
             done_action=envs.get_attr('done_action')[0],
         )
         # load model 
-        model_path = os.path.join("save", self.resume_name, str(self.resume_id) + ".pt")
+        model_path = os.path.join(self.save_dir, str(self.resume_id) + ".pt")
         policy.load_state_dict(torch.load(model_path)[0])
 
         return policy
-    
-    #inherit the rest from GnnTrainer 
 
 
 class TestTrainer(Trainer):
@@ -523,26 +499,9 @@ class TestTrainer(Trainer):
 
 if __name__ == "__main__":
     args = get_args()
-
-    params = read_params(config_path)
-
-    logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
-    logger.create_run(
-        metadata=get_metadata(Repo(".")),
-        charts=get_charts(),
-    )
-    logger.update_metadata(
-        {
-            "parameters": params,
-            "run_id": logger.run_id,
-            "name": args.log_name,
-        }
-    )
-
-    params["run_id"] = logger.run_id
-
+    params = read_params(args.config_path)
     if args.gnn:
-        trainer = GNNTrainer(args.log_name,params,logger)
+        trainer = GNNTrainer(args.log_name,params)
         trainer.train(
             render=args.render, save_dir=args.save_dir
         )

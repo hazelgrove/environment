@@ -2,9 +2,8 @@ import os
 
 import torch
 import yaml
-from run_logger import RunLogger, get_load_params
 
-from agent.arguments import get_args_visualizer
+from agent.arguments import get_args_visualizer, fetch_params
 from test_gen_util import generate_tests
 from agent.envs import PLEnv
 from agent.policy import GNNPolicy
@@ -12,13 +11,10 @@ from agent.policy import GNNPolicy
 
 def main(log_name, run_id):
     print(log_name,run_id)
-    logger = RunLogger(os.getenv("GRAPHQL_ENDPOINT"))
-    params = get_load_params(run_id, logger)
+    params = fetch_params(run_id)
     print(params['make_tests'])
 
     generate_tests(params=params)
-
-
 
     # Account for changes in logging
     # params["env"]["cursor_start_pos"] = [6, 6]
@@ -29,7 +25,7 @@ def main(log_name, run_id):
     # params["base"]["done_action"] = params["env"]["done_action"]
 
 
-    path = os.path.join("save", log_name, str(run_id) + ".pt")
+    path = os.path.join("save", str(run_id) + ".pt")
     torch.manual_seed(params["seed"])
     torch.cuda.manual_seed_all(params["seed"])
 

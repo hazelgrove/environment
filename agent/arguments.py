@@ -81,6 +81,18 @@ def read_params(config_path:str):
     return params
 
 
+def fetch_params(run_id:str,save_dir:str): 
+    """
+    Given a run id and name, fetches the historical parameters from a past run to 
+    either (a) continue training it, or (b) resume to visualise 
+
+    :param run_id: run_id of specified run; used for fetching the specific run 
+    :param save_dir: general directory that files are suppposed to be saved to
+
+    """
+
+    return read_params(os.path.join(save_dir,run_id + '_params.yaml'))
+
 
 
 if __name__ == "__main__":
