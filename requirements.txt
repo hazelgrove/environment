@@ -48,6 +48,10 @@ msgpack==1.0.4
 multidict==6.0.2
 nodeenv==1.7.0
 numpy==1.23.3
+nvidia-cublas-cu11==11.10.3.66
+nvidia-cuda-nvrtc-cu11==11.7.99
+nvidia-cuda-runtime-cu11==11.7.99
+nvidia-cudnn-cu11==8.5.0.96
 opencv-python==4.6.0.66
 packaging==21.3
 pandas==1.4.4
@@ -92,7 +96,7 @@ threadpoolctl==3.1.0
 tokenizers==0.13.3
 toml==0.10.2
 tomli==2.0.1
-torch @ https://download.pytorch.org/whl/cu115/torch-1.11.0%2Bcu115-cp38-cp38-linux_x86_64.whl
+torch==1.13.0
 torch-geometric==2.1.0.post1
 torch-scatter @ https://data.pyg.org/whl/torch-1.11.0%2Bcu115/torch_scatter-2.0.9-cp38-cp38-linux_x86_64.whl
 torch-sparse @ https://data.pyg.org/whl/torch-1.11.0%2Bcu115/torch_sparse-0.6.13-cp38-cp38-linux_x86_64.whl
