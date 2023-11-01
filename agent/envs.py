@@ -6,6 +6,7 @@ import torch
 from gym.spaces.box import Box
 from gym.wrappers.clip_action import ClipAction
 from gym.wrappers.time_limit import TimeLimit
+from gym.utils.seeding import np_random
 from stable_baselines3.common.atari_wrappers import (
     ClipRewardEnv,
     EpisodicLifeEnv,
@@ -43,10 +44,10 @@ class Env:
         def _thunk():
             if env_id.startswith("dm"):
                 _, domain, task = env_id.split(".")
-                env = dmc2gym.make(domain_name=domain, task_name=task)
+                env = dmc2gym.make(domain_name=domain, task_name=task,seed=seed)
                 env = ClipAction(env)
             else:
-                env = gym.make(env_id)
+                env = gym.make(env_id,seed=seed)
 
             is_atari = hasattr(gym.envs, "atari") and isinstance(
                 env.unwrapped, gym.envs.atari.AtariEnv
@@ -54,8 +55,6 @@ class Env:
             if is_atari:
                 env = NoopResetEnv(env, noop_max=30)
                 env = MaxAndSkipEnv(env, skip=4)
-
-            env.seed(seed + rank)
 
             if str(env.__class__.__name__).find("TimeLimit") >= 0:
                 env = TimeLimitMask(env)
@@ -154,8 +153,6 @@ class PLEnv(Env):
                 multi_ds=multi_ds,
                 max_episode_steps_per_ds=max_episode_steps_per_ds,
             )
-            env.seed(seed + rank)
-
             env = FlattenObservation(env)
             # if render:
             #     env = RenderWrapper(env, mode=render_mode)

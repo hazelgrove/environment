@@ -139,6 +139,7 @@ class ASTEnv(gym.Env):
         self.curriclum_index = 1
 
         self.astclib.init_c(ctypes.c_int(seed))
+        self.random = np.random.default_rng(seed=seed)
 
     def step(self, action: int):
         if self.done_action:
@@ -195,20 +196,21 @@ class ASTEnv(gym.Env):
         return state, reward, done, infos
 
     def reset(self):
+        super().reset(self.random.integers(2**60))
         if self.multi_ds:
-            ds_num = np.random.choice(list(range(len(self.ds_ratio))),p=self.ds_ratio)
-            assignment, code = random.sample(self.dataset_inds[ds_num],k=1)[0]
+            ds_num = self.random.choice(list(range(len(self.ds_ratio))),p=self.ds_ratio)
+            assignment, code = self.random.sample(self.dataset_inds[ds_num],k=1)[0]
             assignment_dir = self.assignment_dir[ds_num]
             self.ds_num = ds_num 
             # print(assignment,code,assignment_dir)
         elif self.curriculum is not None:
             assignment_dir = self.assignment_dir
-            assignment = random.sample(self.curriculum[: self.curriculum_index], 1)[0]
-            code = random.randint(0, self.code_per_assignment[assignment] - 1)
+            assignment = self.random.sample(self.curriculum[: self.curriculum_index], 1)[0]
+            code = self.random.randint(0, self.code_per_assignment[assignment] - 1)
         else:
             assignment_dir = self.assignment_dir
             # assignment = self.observation_space.spaces["assignment"].sample()
-            assignment, code = random.sample(self.dataset_inds,k=1)[0]
+            assignment, code = self.random.sample(self.dataset_inds,k=1)[0]
              
         self.assignment_no = assignment
         self.problem_no = code

@@ -36,9 +36,10 @@ RUN apt-get update -q \
     cmake \
   && apt-get clean
 WORKDIR "/deps"
-COPY pyproject.toml poetry.lock requirements.txt /deps/
-RUN pip3 install -r requirements.txt
+COPY pyproject.toml poetry.lock /deps/
+RUN pip3 install poetry && poetry install
 ENV PYTHON_ENV=/root/.cache/pypoetry/virtualenvs/hazelnut-K3BlsyQa-py3.8/
+# RUN pip3 install torch==2.1.0
 
 FROM base AS runtime
 COPY --from=deps $PYTHON_ENV $PYTHON_ENV
