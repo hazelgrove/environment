@@ -495,7 +495,7 @@ class GraphormerBase(NNBase):
         self.heads = heads
         
         graphormer_config = GraphormerConfig(
-            num_atoms=num_node_descriptor,
+            num_atoms=num_node_descriptor + max_num_vars * 2 + 1,
             num_edges=(num_edge_descriptor + 1) * 2,
             num_in_degree=10,
             num_out_degree=10,

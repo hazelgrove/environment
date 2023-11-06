@@ -11,6 +11,7 @@ import torch
 import yaml
 import random
 from git import Repo
+import transformers
 from gym.wrappers.time_limit import TimeLimit
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -116,6 +117,7 @@ class Trainer:
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
+        # transformers.enable_full_determinism(seed)
 
         if (
             self.params["cuda"]

@@ -53,16 +53,6 @@ make_tests:
       variations: false  
       permutations: false
       # test_split: 0.5
-    # args2:
-    #   base:
-    #   - '3'
-    #   - data/auto_curricula/3_basic
-    #   # - -v 
-    #   mns_correction: 1.6
-    #   curriculum: 
-    #   variations: false  
-    #   permutations: false
-    #   # test_split: 0.5
 return:
     gamma: 0.99
     use_gae: true

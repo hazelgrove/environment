@@ -159,9 +159,10 @@ def sweep(
     print(results)
 
 if __name__ == "__main__":
+    print("Python started.")
     print(sys.argv)
     args = get_args()
-    print("Python started.")
+    
     generate_tests(config_path="params.yaml")
 
     if args.resume:
