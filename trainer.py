@@ -83,6 +83,20 @@ class Trainer:
     def train(self, render, save_dir, sweep):
         print(self.params)
 
+        torch.manual_seed(self.params["seed"])
+        torch.cuda.manual_seed_all(self.params["seed"])
+        random.seed(self.params['seed'])
+        np.random.seed(self.params['seed'])
+        if (
+            self.params["cuda"]
+            and torch.cuda.is_available()
+        ):
+            torch.use_deterministic_algorithms(True,warn_only=True) 
+            torch.backends.cudnn.benchmark = False
+            torch.backends.cudnn.deterministic =  self.params["cuda_deterministic"]
+        print(f"Cuda Availability: {torch.cuda.is_available()}")
+
+
         project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
         if sweep:
             wandb_logger = setup_wandb(project=project_name,config=self.params, group=self.log_name, api_key_file="/RL_env/wandb_api_key")
@@ -114,22 +128,6 @@ class Trainer:
         if render:
             self.params["num_processes"] = 1
 
-        # TODO: This is what I tried using to increase reproducibilty. It breaks things. 
-        # Apparently even nn.functional.Linear() is not entriely deterministic... 
-        # torch.use_deterministic_algorithms(True)
-
-        torch.manual_seed(self.params["seed"])
-        torch.cuda.manual_seed_all(self.params["seed"])
-        random.seed(self.params['seed'])
-        np.random.seed(self.params['seed'])
-        if (
-            self.params["cuda"]
-            and torch.cuda.is_available()
-        ):
-            torch.backends.cudnn.benchmark = False
-            torch.backends.cudnn.deterministic =  self.params["cuda_deterministic"]
-
-        print(f"Cuda Availability: {torch.cuda.is_available()}")
 
         torch.set_num_threads(1)
         device = torch.device("cuda:0" if self.params["cuda"] else "cpu")
@@ -195,6 +193,7 @@ class Trainer:
                         rollouts.recurrent_hidden_states[step],
                         rollouts.masks[step],
                     )
+                # print(value, action,action_log_prob)
 
                 if render:
                     print(f"Action: {action}")
@@ -213,6 +212,8 @@ class Trainer:
                     if done[0]:
                         print(f"Reward: {reward}")
                         print("---------------Environment reset---------------")
+
+                # print(obs,reward,done,infos)
 
                 for info in infos:
                     if "episode" in info.keys():

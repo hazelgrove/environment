@@ -50,7 +50,8 @@ class GAT_base(nn.Module):
             )
             # after first layer, the hidden size = in channels. 
             node_in_channels = hidden_size
-        
+
+            # print(torch.sum(self.layers[-1].lin_l.weight))
         print(self.layers)
 
     
@@ -325,17 +326,20 @@ class GNNBase(NNBase):
 
         # Get node representation at cursor
         out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
-        vars = x[
-            torch.arange(batch_size)
-            .reshape(-1, 1)
-            .expand(batch_size, self.max_num_vars),
-            inputs["vars_in_scope"],
-        ]
-        num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
-        mask = torch.zeros(batch_size, self.max_num_vars, device=vars.device)
-        mask[torch.arange(batch_size), num_vars] = 1
-        mask = mask.cumsum(dim=1).reshape(batch_size, -1, 1)
-        vars = vars * (1 - mask)
+
+        # Commented out this portion because as is it is non-reproducible... 
+        # vars = x[
+        #     torch.arange(batch_size)
+        #     .reshape(-1, 1)
+        #     .expand(batch_size, self.max_num_vars),
+        #     inputs["vars_in_scope"],
+        # ]
+        # num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
+        # mask = torch.zeros(batch_size, self.max_num_vars, device=vars.device)
+        # mask[torch.arange(batch_size), num_vars] = 1
+        # mask = mask.cumsum(dim=1).reshape(batch_size, -1, 1)
+        # vars = vars * (1 - mask)
+        vars=None
 
         return self.critic_linear(out), out, vars
 

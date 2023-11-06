@@ -140,18 +140,23 @@ class GNNPolicy(Policy):
                 dim=-1,
             )
         )
+        # print('get_dist: ')
+        # print(inputs)
         value, actor_features, vars = self.base(asdict(inputs))
 
         args_in_scope = inputs.args_in_scope.reshape( # what does this do ????? 
             inputs.args_in_scope.shape[0], -1, 2
         )
-        if self.use_qkv: 
+        if self.use_qkv:
+            raise NotImplementedError("no current version of QKV is reproducible.")
             # If we choose not to use qkv, instead use a simple learned projection
             actor_features = self.qkv(actor_features, vars, args_in_scope)
         else: 
             # If we choose not to use qkv, instead use a simple learned projection
             actor_features = self.projection(actor_features)
+        # print(actor_features)
         dist = self.dist(actor_features, inputs.permitted_actions)
+        # print(dist)
 
         return dist, value
 
@@ -161,6 +166,8 @@ class GNNPolicy(Policy):
             action = dist.mode()
         else:
             action = dist.sample()
+        
+        # print(action)
 
         action_log_probs = dist.log_probs(action)
 

@@ -7,8 +7,8 @@ authors = ["Ethan Brooks <ethanabrooks@gmail.com>", "Yikai Fan <yikaifan@umich.e
 [tool.poetry.dependencies]
 python = "^3.8"
 numpy = "^1.22"
-stable-baselines3 = ">=1.5.0"
-gym = {version = "^0.25"}
+stable-baselines3 = "^2.0.0"
+gym = {version = "^0.26"}
 torch-geometric = "^2.3"
 PyYAML = "^6.0"
 ray = { version = "^2.0.0", extras = ["tune"] }

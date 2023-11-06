@@ -1,4 +1,5 @@
 import copy
+import os
 import ctypes
 import random
 from itertools import product
@@ -218,6 +219,9 @@ class ASTEnv(gym.Env):
             # assignment = self.observation_space.spaces["assignment"].sample()
             assignment, code = self.random.choice(self.dataset_inds,k=1)[0]
 
+        # with open(os.path.join(assignment_dir,str(int(assignment)),f'{int(code)}.ml'),'r') as file: 
+        #     print(file.read())
+        
              
         self.assignment_no = assignment
         self.problem_no = code
