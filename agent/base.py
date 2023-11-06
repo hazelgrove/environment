@@ -502,6 +502,7 @@ class GraphormerBase(NNBase):
             num_hidden_layers=self.num_layers,
             embedding_dim=self.hidden_size,
             ffn_embedding_dim=self.hidden_size,
+            num_attention_heads=self.heads
         )
         self.graphormer_model = GraphormerModel(graphormer_config)
         
