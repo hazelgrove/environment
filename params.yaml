@@ -78,7 +78,3 @@ return:
     use_gae: true
     gae_lambda: 0.95
     use_proper_time_limits: false
-<<<<<<< HEAD
-
-=======
->>>>>>> 2c716df

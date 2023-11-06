@@ -175,11 +175,7 @@ class PLEnv(Env):
         done_action,
         test_params,
         cursor_start_pos=None,
-<<<<<<< HEAD
         assignment_dir=None, 
-=======
-        assignment_dir =None, 
->>>>>>> 2c716df
         num_assignments=None,
         code_per_assignment=None,
         ds_ratio=None,

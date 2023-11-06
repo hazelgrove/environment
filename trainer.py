@@ -110,7 +110,6 @@ class Trainer:
             eval_kwargs,
         )
 
-<<<<<<< HEAD
     def train(self, render=False, save_dir=None, sweep=False):
         # Setup reproducibility
         seed = self.params['seed']
@@ -118,56 +117,6 @@ class Trainer:
         np.random.seed(seed)
         random.seed(seed)
 
-=======
-    @staticmethod
-    def update_curriculum(envs, reward):
-        return
-
-    @staticmethod
-    def update_curriculum(envs, reward):
-        return
-
-    def train(self, render, save_dir, sweep):
-        print(self.params)
-
-        project_name = self.params['project_name'] if 'project_name' in self.params.keys() else 'assistant_rl'
-        if sweep:
-            wandb_logger = setup_wandb(project=project_name,config=self.params, group=self.log_name, api_key_file="/RL_env/wandb_api_key")
-        else:
-            wandb_logger = wandb
-            with open("/RL_env/wandb_api_key", "r") as f:
-                api_key = f.readline()
-            os.environ["WANDB_API_KEY"] = api_key
-            wandb_logger.login()
-            wandb_logger.init(project=project_name,config=self.params, notes=self.log_name)
-
-        print(f'starting run{wandb_logger.run.name}')
-
-        if self.log_name != "test":
-            save_dir = os.path.join(save_dir, self.log_name)
-            try:
-                os.makedirs(save_dir)
-            except OSError:
-                pass
-        else:
-            save_dir = None
-
-        # save a copy of our params.yaml to that same directory for continuation
-        print(save_dir, self.logger.run_id)
-        if save_dir is not None: 
-            with open(os.path.join(save_dir, str(self.logger.run_id) + "_params.yaml"),'w') as file :
-                yaml.safe_dump(self.params,file)
-
-        # Only use one process if we are rendering
-        if render:
-            self.params["num_processes"] = 1
-
-
-        torch.manual_seed(self.params["seed"])
-        torch.cuda.manual_seed_all(self.params["seed"])
-        random.seed(self.params['seed'])
-        np.random.seed(self.params['seed'])
->>>>>>> 2c716df
         if (
             self.params["cuda"]
             and torch.cuda.is_available()
@@ -320,15 +269,8 @@ class Trainer:
                     ],
                     os.path.join(self.save_dir, "params.pt"),
                 )
-<<<<<<< HEAD
 
             # Log train data
-=======
-            
-            mean_episode_reward = np.mean(episode_rewards)
-            # self.update_curriculum(envs, mean_episode_reward)
-            metrics_train = {}
->>>>>>> 2c716df
             if j % self.params["log_interval"] == 0 and len(episode_rewards) > 1:
                 total_num_steps = (
                     (j + 1) * self.params["num_processes"] * self.params["num_steps"]

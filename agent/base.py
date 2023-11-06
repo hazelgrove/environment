@@ -5,12 +5,13 @@ import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
 
+from transformers.models.graphormer import GraphormerModel
+from transformers.models.graphormer.configuration_graphormer import GraphormerConfig
+from transformers.models.graphormer.collating_graphormer import GraphormerDataCollator
 
-from agent.batch import collate, separate
+from agent.batch import collate, separate, graphormer_collate
 from agent.models import CursorRNN, GatedGNN
 from agent.utils import init
-
-from agent.graphormer.model import Graphormer
 
 
 class Flatten(nn.Module):
@@ -478,6 +479,7 @@ class GraphormerBase(NNBase):
         num_edge_descriptor: int = 7,
         max_num_vars: int = 11,
         heads: Optional[int] = 4, 
+        max_degree: int = 20,
         device: Optional[torch.device] = None,
     ):
         super(GraphormerBase, self).__init__(False, 1, hidden_size)
@@ -492,18 +494,16 @@ class GraphormerBase(NNBase):
         
         self.heads = heads
         
-        self.graphormer_model = Graphormer(
-            num_layers=self.num_layers,
-            input_node_dim=self.embedding_size + 1, # +1 for starter (information whether node can be changed)
-            node_dim=self.node_dim,
-            input_edge_dim=self.embedding_size,
-            edge_dim=self.edge_dim,
-            output_dim=self.hidden_size,
-            n_heads=self.heads,
-            max_in_degree=20,
-            max_out_degree=20,
-            max_path_distance=100,
+        graphormer_config = GraphormerConfig(
+            num_atoms=num_node_descriptor,
+            num_edges=(num_edge_descriptor + 1) * 2,
+            num_in_degree=10,
+            num_out_degree=10,
+            num_hidden_layers=self.num_layers,
+            embedding_dim=self.hidden_size,
+            ffn_embedding_dim=self.hidden_size,
         )
+        self.graphormer_model = GraphormerModel(graphormer_config)
         
         self.device = device
 
@@ -525,64 +525,22 @@ class GraphormerBase(NNBase):
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
         self.critic_linear = init_(nn.Linear(self.hidden_size, 1))
+        
+        self.data_processor = GraphormerDataCollator(on_the_fly_processing=True)
 
         self.train()
         print(self)
         
-    def forward(self, inputs: torch.Tensor):
+    def forward(self, inputs):
         batch_size = inputs["nodes"].shape[0]
-
-        # Get corresponding data from inputs
-        x = inputs["nodes"]
+        
         edges = inputs["edges"].reshape((batch_size, -1, 3))
-        edge_index = edges[:, :, :2]
-        edge_index = edge_index.transpose(-2, -1)
-        edge_attr = edges[:, :, 2]
-        starter = inputs["starter"]
-        assignment = inputs["assignment"]
+        x, edge_index, edge_attr = inputs["nodes"].cpu(), edges[:, :, :2].cpu(), edges[:, :, 2].cpu()
+        
+        features = self.data_processor(graphormer_collate(x, edge_index, edge_attr))
+        features = {k: v.to(self.device) for k, v in features.items()}
+        
+        out = self.graphormer_model(**features)
+        out = out["last_hidden_state"][torch.arange(batch_size), inputs["cursor_position"].long().flatten() + 1] # +1 because index 0 is graph level embedding
 
-        x, edge_index, edge_attr = collate(x, edge_index, edge_attr)
-        edge_index = torch.concat((edge_index, edge_index.flip(0)), dim=1)
-        edge_attr = torch.concat((edge_attr, edge_attr + self.num_edge_descriptor), dim=0)
-
-        # Convert inputs to long
-        x = x.long()
-        edge_index = edge_index.long()
-        edge_attr = edge_attr.long()
-        assignment = assignment.long()
-        inputs["cursor_position"] = inputs["cursor_position"].long()
-        inputs["vars_in_scope"] = inputs["vars_in_scope"].long()
-
-        # Convert to embedding
-        x = self.node_embedding(x + 1)
-        edge_attr = self.edge_embedding(
-            edge_attr + 1
-        )  # Shift 1 to make the -1 edge type to 0
-
-        # Append information on whether node can be changed
-        starter = starter.reshape((-1, 1))
-        x = torch.concat((x, starter), dim=-1)
-
-        # Pass through Graphormer
-        print('Graphormer forward')
-        print(x.device)
-        x = self.graphormer_model(x, edge_index, edge_attr)
-        print('Graphormer forward ends')
-
-        x = separate(x, batch_size)
-
-        # Get node representation at cursor
-        out = x[torch.arange(batch_size), inputs["cursor_position"].flatten()]
-        vars = x[
-            torch.arange(batch_size)
-            .reshape(-1, 1)
-            .expand(batch_size, self.max_num_vars),
-            inputs["vars_in_scope"],
-        ]
-        num_vars = torch.count_nonzero(inputs["vars_in_scope"] + 1, dim=1)
-        mask = torch.zeros(batch_size, self.max_num_vars, device=vars.device)
-        mask[torch.arange(batch_size), num_vars] = 1
-        mask = mask.cumsum(dim=1).reshape(batch_size, -1, 1)
-        vars = vars * (1 - mask)
-
-        return self.critic_linear(out), out, vars
+        return self.critic_linear(out), out

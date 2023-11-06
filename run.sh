@@ -19,7 +19,6 @@ docker build -t "$name" .
 # debug / run interactively 
 # otherwise leave it in 
 docker run --rm -it \
-	-d \
 	--env-file .env \
 	--shm-size=10.24gb \
 	--name "$name" \

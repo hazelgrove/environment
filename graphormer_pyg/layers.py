@@ -82,6 +82,7 @@ class EdgeEncoding(nn.Module):
         :param edge_paths: pairwise node paths in edge indexes
         :return: torch.Tensor, Edge Encoding matrix
         """
+        breakpoint()
         cij = torch.zeros((x.shape[0], x.shape[0])).to(next(self.parameters()).device)
 
         for src in edge_paths:
@@ -91,7 +92,82 @@ class EdgeEncoding(nn.Module):
                 cij[src][dst] = dot_product(self.edge_vector[weight_inds], edge_attr[path_ij]).mean()
 
         cij = torch.nan_to_num(cij)
+        cij2 = cij
+        
+        breakpoint()
+        # Step 1: Padding and creating masks
+        max_nodes = x.shape[0]
+        all_paths = -1 * torch.ones((max_nodes, max_nodes, self.max_path_distance), dtype=torch.long).to(next(self.parameters()).device)
+        path_masks = torch.zeros((max_nodes, max_nodes, self.max_path_distance)).to(next(self.parameters()).device)
+
+        for src, dsts in edge_paths.items():
+            for dst, path in dsts.items():
+                path_len = len(path)
+                all_paths[src, dst, :path_len] = torch.tensor(path)[:self.max_path_distance]
+                path_masks[src, dst, :path_len] = 1
+
+        # Step 2: Precompute dot products
+        dot_products = torch.mm(self.edge_vector, edge_attr.t())  # shape [20, 1098]
+
+        # Step 3: Use masking to get the right dot products
+        # Expand dimensions for dot_products
+        dot_products_expanded = dot_products.unsqueeze(0).unsqueeze(0)  # shape [1, 1, 20, 1098]
+
+        # Expand dimensions for all_paths for gathering
+        all_paths_expanded = all_paths.unsqueeze(2)  # shape [1200, 1200, 1, 20]
+
+        # Step 3: Use torch.gather to get the right dot products
+        selected_products = torch.gather(dot_products_expanded, 3, all_paths_expanded)
+
+        # Now, squeeze out the extra dimension from selected_products
+        selected_products = selected_products.squeeze(2)  # shape [1200, 1200, 20]
+
+        # Use the mask to compute mean
+        sums = (selected_products * path_masks).sum(dim=2)
+        path_lengths = path_masks.sum(dim=2)
+        cij = sums / path_lengths
+
+        # Replace NaNs with 0s
+        cij = torch.nan_to_num(cij)
+        
+        breakpoint()
         return cij
+    
+    # def forward(self, x: torch.Tensor, edge_attr: torch.Tensor, edge_paths) -> torch.Tensor:
+    #     """
+    #     :param x: node feature matrix
+    #     :param edge_attr: edge feature matrix
+    #     :param edge_paths: pairwise node paths in edge indexes
+    #     :return: torch.Tensor, Edge Encoding matrix
+    #     """
+    #     # 1. Tensor Initialization
+    #     C = torch.full((x.shape[0], x.shape[0], self.max_path_distance), -1, dtype=torch.long).to(next(self.parameters()).device)
+
+    #     # 2. Populating the Tensor with Shortest Paths
+    #     for src in edge_paths:
+    #         for dst in edge_paths[src]:
+    #             C[src, dst, :len(edge_paths[src][dst])] = torch.tensor(edge_paths[src][dst][:self.max_path_distance])
+
+    #     # 3. Calculating the Dot Product
+    #     # Getting the valid indices and excluding the padded -1 indices
+    #     valid_indices = (C >= 0).long()
+    #     # Get edge attributes based on C's values where valid
+    #     edge_attributes = torch.gather(edge_attr, 0, C * valid_indices)
+
+    #     # Get corresponding weights from self.edge_vector
+    #     weights = valid_indices.cumsum(dim=-1) - 1
+    #     weights = torch.gather(self.edge_vector, 0, weights)
+
+    #     # Perform batch-wise dot product
+    #     dot_products = (weights * edge_attributes).sum(dim=-1)
+    #     # Consider only valid paths for averaging
+    #     mean_values = dot_products.sum(dim=-1) / valid_indices.sum(dim=-1).float()
+
+    #     # 4. Averaging and Final Cleanup
+    #     cij = torch.where(valid_indices.sum(dim=-1) > 0, mean_values, torch.tensor(0.0).to(dot_products.device))
+    #     cij = torch.nan_to_num(cij)
+
+    #     return cij
 
 
 class GraphormerAttentionHead(nn.Module):
@@ -181,11 +257,17 @@ class GraphormerMultiHeadAttention(nn.Module):
         :param ptr: batch pointer that shows graph indexes in batch of graphs
         :return: torch.Tensor, node embeddings after all attention heads
         """
-        return self.linear(
-            torch.cat([
-                attention_head(x, x, x, edge_attr, b, edge_paths, ptr) for attention_head in self.heads
-            ], dim=-1)
-        )
+        out = []
+        for attention_head in self.heads:
+            out.append(attention_head(x, x, x, edge_attr, b, edge_paths, ptr))
+        out = torch.cat(out, dim=-1)
+        return self.linear(out)
+        
+        # return self.linear(
+        #     torch.cat([
+        #         attention_head(x, x, x, edge_attr, b, edge_paths, ptr) for attention_head in self.heads
+        #     ], dim=-1)
+        # )
 
 
 class GraphormerEncoderLayer(nn.Module):

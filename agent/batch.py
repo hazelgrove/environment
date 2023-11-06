@@ -33,3 +33,24 @@ def separate(x, batch_size):
     x = x.reshape(batch_size, -1, num_features)
 
     return x
+
+
+def graphormer_collate(x, edge_index, edge_attr):
+    b = x.shape[0]
+    
+    items = []
+    for i in range(b):
+        num_nodes = torch.count_nonzero(x[i] + 1)
+        num_edges = torch.count_nonzero(edge_index[i, :, 0] + 1)
+                
+        item = dict(
+            node_feat=x[i, :num_nodes].reshape((-1, 1)),
+            edge_attr=edge_attr[i, :num_edges].reshape((-1, 1)),
+            edge_index=edge_index[i, :num_edges, :].reshape((2, -1)),
+            num_nodes=num_nodes,
+            labels=torch.zeros(b), # Dummy variable for library
+        )
+                
+        items.append(item)
+    
+    return items
