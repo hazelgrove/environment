@@ -146,6 +146,8 @@ class ASTEnv(gym.Env):
             # we've added an additional element in position 0, correct for it 
             action -=1 
 
+        truncated=False
+
         if not (self.done_action and action == self.done_action_num): # first (-1 th) action --> dummy action
             # set action to move parent (doesnt change actual structrue)
             try: 
@@ -181,9 +183,11 @@ class ASTEnv(gym.Env):
         self.num_nodes_list.append(self.state.num_nodes)
         if self.state.num_nodes >= self.max_num_nodes -5: 
             done = True
+            truncated = True
             reward = 0 
             print('MAX NUMBER OF NODES EXCEEDED')
             self.render()
+
 
         infos = {}
         if self.multi_ds:
@@ -193,24 +197,27 @@ class ASTEnv(gym.Env):
                 done=True
             infos = {'ds_num':self.ds_num}
 
-        return state, reward, done, infos
+        return state, reward, done, truncated, infos
 
-    def reset(self):
-        super().reset(self.random.integers(2**60))
+    def reset(self,seed=None):
+        if seed is None: 
+            seed = int(self.random.integers(2**60))
+        super().reset(seed=seed)
         if self.multi_ds:
             ds_num = self.random.choice(list(range(len(self.ds_ratio))),p=self.ds_ratio)
-            assignment, code = self.random.sample(self.dataset_inds[ds_num],k=1)[0]
+            assignment, code = self.random.choice(self.dataset_inds[ds_num])
             assignment_dir = self.assignment_dir[ds_num]
             self.ds_num = ds_num 
             # print(assignment,code,assignment_dir)
         elif self.curriculum is not None:
             assignment_dir = self.assignment_dir
-            assignment = self.random.sample(self.curriculum[: self.curriculum_index], 1)[0]
+            assignment = self.random.choice(self.curriculum[: self.curriculum_index])[0]
             code = self.random.randint(0, self.code_per_assignment[assignment] - 1)
         else:
             assignment_dir = self.assignment_dir
             # assignment = self.observation_space.spaces["assignment"].sample()
-            assignment, code = self.random.sample(self.dataset_inds,k=1)[0]
+            assignment, code = self.random.choice(self.dataset_inds,k=1)[0]
+
              
         self.assignment_no = assignment
         self.problem_no = code
@@ -241,7 +248,9 @@ class ASTEnv(gym.Env):
                 ctypes.c_int(self.cursor_start_pos[ds_num][assignment]),
             )
         
-        return self.get_state()
+        infos = {'ds_num':self.ds_num}
+
+        return self.get_state(), infos
 
     def render(self, mode=None) -> None:
         print("Current state:")

@@ -13,6 +13,7 @@ from collections import defaultdict
 from tqdm import tqdm
 from copy import copy
 import sympy as S
+import numpy as np
 
 ## ------------- Function generation --------------
 # generate boolean functions of n variables according to
@@ -126,7 +127,7 @@ def write_test_dir(tests, num, targ_dir):
             file.write(test)
 
 
-def gen_curricula(funcs, vars,mns_correction = 1.5,gen_variations=False,verbose=False):
+def gen_curricula(funcs, vars,mns_correction = 1.5,gen_variations=False,verbose=True):
     print('Generating curricula...')
     curriculum = defaultdict(lambda: [])
     max_num_steps = 1
@@ -264,19 +265,21 @@ def save_curriculum(
 # 
 
 def split_folds(comps,targ_dir, split, seed=42):
-    random.seed(seed)
     # rezip this so that each element is paired (ttable, pretty_func, func)
     comps = copy(comps)
-    print(comps)
     random.shuffle(comps)
     num_test = int(len(comps) * split) if split < 1 else int(split)
     test, train = comps[:num_test], comps[num_test:]
     return {'env':(path.join(targ_dir,'train'),train),'eval':(path.join(targ_dir,'test'),test)}
 
+def seed_all(seed=42): 
+    random.seed(seed)
+    np.random.seed(seed)
 
 def main(args): 
     if args.variations: print('creating variations on functions')
     if args.permutations: print('generating permutations')
+    seed_all(args.seed)
     funcs, varnames = make_nfuncs(args.n_args,simplify=not (args.raw or args.variations),variations=args.variations)
     targ_dir = args.targ_dir if not args.curriculum else path.join(args.targ_dir,'curriculum')
     if args.test_split and not args.select: 
@@ -299,6 +302,7 @@ def main(args):
         test_strings = make_test_strings(funcs,varnames)
         save_template_strings(test_strings, path.join(targ_dir,'templates'))
         if args.curriculum:
+
             curriculum, max_steps = gen_curricula(funcs,varnames,mns_correction=args.mns_correction,gen_variations=args.permutations,verbose=args.verbose)
             arg_strings[name] = save_curriculum(curriculum, targ_dir, max_steps)
         else: 

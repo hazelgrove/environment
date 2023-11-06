@@ -153,7 +153,9 @@ class PLEnv(Env):
                 multi_ds=multi_ds,
                 max_episode_steps_per_ds=max_episode_steps_per_ds,
             )
+            setattr(env,'render_mode',False)
             env = FlattenObservation(env)
+            
             # if render:
             #     env = RenderWrapper(env, mode=render_mode)
             env = TimeLimit(env, max_episode_steps=max_episode_steps)

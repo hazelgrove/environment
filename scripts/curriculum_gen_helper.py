@@ -231,7 +231,7 @@ def make_curriculum(node,verbose=True,gen_variations=True,legacy=False):
         variations = [node.binarize()]
     
     max_steps = 0
-    tests_and_starts = set()
+    tests_and_starts = []
     for vari in variations: 
         binarized = vari.copy()
         # print()
@@ -242,7 +242,7 @@ def make_curriculum(node,verbose=True,gen_variations=True,legacy=False):
         tests, cursor_starts = list(map(list, zip(*tests)))
         max_steps = max(max_steps,len(tests))
         if verbose: pretty_print_list(zip(tests,cursor_starts))
-        tests_and_starts.update((test,start) for test, start in zip(tests,cursor_starts))
+        tests_and_starts.extend((test,start) for test, start in zip(tests,cursor_starts))
     # deduplicate 
     all_tests,all_starts = zip(*tests_and_starts)
     if legacy: return tests, starts, max_steps

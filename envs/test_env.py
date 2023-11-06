@@ -33,12 +33,12 @@ class TestEnv(gym.Env):
             reward = 1
         done = True
 
-        return self.state, reward, done, {}
+        return self.state, reward, done,False, {}
 
     def reset(self):
         self.state = np.random.randint(0, 2, self.num_nodes)
         
-        return self.state
+        return self.state, {}
 
     def render(self, mode=None) -> None:
         print(f"Current state: {self.state}")
