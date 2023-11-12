@@ -1,7 +1,7 @@
 env_name: ASTEnv
 seed: 1
 cuda: true
-project_name: assistant_test
+project_name: assistant_rl
 cuda_deterministic: true
 num_processes: 12
 num_steps: 128
