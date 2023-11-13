@@ -5,13 +5,14 @@ import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
 
-from transformers.models.graphormer import GraphormerModel
+# from transformers.models.graphormer import GraphormerModel
 from transformers.models.graphormer.configuration_graphormer import GraphormerConfig
 from transformers.models.graphormer.collating_graphormer import GraphormerDataCollator
 
 from agent.batch import collate, separate, graphormer_collate
 from agent.models import CursorRNN, GatedGNN
 from agent.utils import init
+from agent.graphormer import GraphormerModel
 
 
 class Flatten(nn.Module):
@@ -502,7 +503,8 @@ class GraphormerBase(NNBase):
             num_hidden_layers=self.num_layers,
             embedding_dim=self.hidden_size,
             ffn_embedding_dim=self.hidden_size,
-            num_attention_heads=self.heads
+            num_attention_heads=self.heads,
+            edge_type='normal',
         )
         self.graphormer_model = GraphormerModel(graphormer_config)
         

@@ -19,7 +19,7 @@ resume_carryover:
   - make_tests
   - return
 env:
-  get_from1: data/auto_curricula/1_basic/param_snippet.yaml   
+  get_from1: data/auto_curricula/3_basic/param_snippet.yaml   
   # get_from2: data/auto_curricula/3_basic/param_snippet.yaml    
   ds_ratio: [0.4,0.6]
   perturbation: 0
@@ -45,8 +45,8 @@ make_tests:
     command: python3 scripts/gen_template_funcs.py
     args:
       base:
-      - '1'
-      - data/auto_curricula/1_basic
+      - '3'
+      - data/auto_curricula/3_basic
       # - -v 
       mns_correction: 1.6
       curriculum: 

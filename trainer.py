@@ -274,6 +274,7 @@ class Trainer:
 
             # Log train data
             if j % self.params["log_interval"] == 0 and len(episode_rewards) > 1:
+                print(torch.cuda.memory_summary())
                 total_num_steps = (
                     (j + 1) * self.params["num_processes"] * self.params["num_steps"]
                 )
