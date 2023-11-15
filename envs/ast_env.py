@@ -3,6 +3,7 @@ import os
 import ctypes
 import random
 from itertools import product
+from functools import reduce 
 from typing import Any, List, Optional, Tuple, TypedDict, TypeVar, Union
 
 import gym
@@ -34,7 +35,8 @@ class ASTEnv(gym.Env):
         done_action:bool = False,
         ds_ratio:List[bool] = [],
         multi_ds:bool=False,
-        max_episode_steps_per_ds=None
+        max_episode_steps_per_ds=None,
+        base_dir = '/RL_env'
     ):
         super(ASTEnv, self).__init__()
 
@@ -63,6 +65,7 @@ class ASTEnv(gym.Env):
         self.num_actions = num_actions
         self.max_num_vars = max_num_vars
         self.perturbation = perturbation
+        self.base_dir = base_dir
         # done action info
         self.done_action = done_action
 
@@ -140,7 +143,34 @@ class ASTEnv(gym.Env):
         self.curriclum_index = 1
 
         self.astclib.init_c(ctypes.c_int(seed))
+        self.seed = seed 
         self.random = np.random.default_rng(seed=seed)
+
+
+    def return_debug_info(self,**kwargs): 
+        ds_num = self.random.choice(list(range(len(self.ds_ratio))),p=self.ds_ratio)
+        assignment, code = self.random.choice(self.dataset_inds[ds_num])
+        assignment_dir = self.assignment_dir[ds_num]
+        self.ds_num = ds_num 
+
+        ret_lines = [
+                '.::::.Debug Info.::::.',
+                f'Seed number: {self.seed}',
+                str(assignment_dir),
+                str(assignment),
+                str(code),
+                ]
+        # ret_lines.append(str(ds_num))
+        # ret_lines.append(str(os.path.isdir(assignment_dir)))
+        # ret_lines.append(str(os.path.isdir(os.path.join('/RL_env',str(assignment_dir)))))
+        # ret_lines.append(str(os.listdir('.')))
+        # ret_lines.append(str(os.listdir(self.base_dir)))
+        # ret_lines.append(str(os.listdir(os.path.join(self.base_dir,'data'))))
+        # ret_lines.append(str(os.listdir(os.path.join(self.base_dir,'data','auto_curricula'))))
+        # ret_lines.append(str(os.listdir(os.path.join(self.base_dir,'data','auto_curricula'))))
+
+        return '\n'.join(ret_lines)
+
 
     def step(self, action: int):
         if self.done_action:
@@ -201,6 +231,7 @@ class ASTEnv(gym.Env):
         return state, reward, done, truncated, infos
 
     def reset(self,seed=None):
+        # print(seed)
         if seed is None: 
             seed = int(self.random.integers(2**60))
         super().reset(seed=seed)
@@ -219,9 +250,10 @@ class ASTEnv(gym.Env):
             # assignment = self.observation_space.spaces["assignment"].sample()
             assignment, code = self.random.choice(self.dataset_inds,k=1)[0]
 
+
         # with open(os.path.join(assignment_dir,str(int(assignment)),f'{int(code)}.ml'),'r') as file: 
         #     print(file.read())
-        
+        # print('')
              
         self.assignment_no = assignment
         self.problem_no = code
@@ -229,13 +261,16 @@ class ASTEnv(gym.Env):
         self.max_num_actions = self.max_episode_steps_per_ds[ds_num]
         self.curr_step = 0 
 
+        # update assignment dir to add  base dir 
+        assignment_dir = os.path.join(self.base_dir, assignment_dir)
+
         self.state = State()
         
         if self.cursor_start_pos is None:
             # print(code,assignment, code,self.assignment_dir)
             self.astclib.init_assignment(
                 ctypes.byref(self.state),
-                bytes(assignment_dir, encoding="utf8"),
+                bytes(os.path.join(self.base_dir,assignment_dir), encoding="utf8"),
                 ctypes.c_int(assignment),
                 ctypes.c_int(code),
                 ctypes.c_int(self.perturbation),
@@ -245,7 +280,7 @@ class ASTEnv(gym.Env):
             # print(self.cursor_start_pos[ds_num][assignment],code,assignment, code,self.assignment_dir[ds_num])
             self.astclib.init_assignment(
                 ctypes.byref(self.state),
-                bytes(self.assignment_dir[ds_num], encoding="utf8"),
+                bytes(os.path.join(self.base_dir,self.assignment_dir[ds_num]), encoding="utf8"),
                 ctypes.c_int(assignment),
                 ctypes.c_int(code),
                 ctypes.c_int(self.perturbation),
@@ -261,9 +296,10 @@ class ASTEnv(gym.Env):
         try: 
             self.astclib.print_curr_state(ctypes.byref(self.state))
         except EOFError: 
-            print(f'error occurred in assn# {self.assignment_no}, problem # {self.problem_no}')
+            err_str = f'error occurred in assn# {self.assignment_no}, problem # {self.problem_no}'
+            print(err_str)
             print(self.get_state())
-            raise EOFError
+            raise EOFError(err_str)
 
 
     def close(self) -> None:

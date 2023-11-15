@@ -93,32 +93,41 @@ def sweep(
     random_search: bool = False,
     render: bool = False,
 ):
-    with open(config_path, "r") as file:
-        params = yaml.safe_load(file)
+    params = read_params(config_path)
 
-    sweep_id = create_sweep(
-        config=params,
-        graphql_endpoint=graphql_endpoint,
-        log_level="INFO",
-        name=name,
-    )
+    # sweep_id = create_sweep(
+    #     config=params,
+    #     graphql_endpoint=graphql_endpoint,
+    #     log_level="INFO",
+    #     name=name,
+    # )
     
     hyperparam_names = [
         "base",
         "ppo",
         "return",
+        "seed",
     ]
 
     for section in params.keys():
         if section in hyperparam_names:
-            params[section] = {
-                k: (tune.choice(v) if random_search else tune.grid_search(v))
-                if isinstance(v, list)
-                else v
-                for k, v in params[section].items()
-            }
-    # pprint(params)
-    # print(params['base']['hidden_size'])
+            if isinstance(params[section],dict):
+                params[section] = {
+                    k: (tune.choice(v) if random_search else tune.grid_search(v))
+                    if isinstance(v, list)
+                    else v
+                    for k, v in params[section].items()
+                }
+            elif isinstance(params[section],list):
+                print(params[section])
+                print(section)
+                params[section] = [
+                    tune.choice(params[section]) if random_search else tune.grid_search(params[section])
+                ]
+
+    print(params['seed'])
+    pprint(params)
+    print(params['base']['hidden_size'])
     num_cpus = os.cpu_count()
     num_gpus = torch.cuda.device_count()
 
@@ -127,7 +136,7 @@ def sweep(
         "repo": Repo("."),
         "graphql_endpoint": graphql_endpoint,
         "save_dir": save_dir,
-        "sweep_id": sweep_id,
+        "sweep_id": None,
         "wandb": {"project": name},
         **params,
     }

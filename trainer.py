@@ -29,6 +29,8 @@ import wandb
 
 class Trainer:
     def __init__(self,log_name, params ): 
+        if isinstance(params['seed'],list) and len(params['seed']) == 1 :
+            params['seed'] = int(params['seed'][0])
         self.params = params
         self.log_name =log_name 
 
@@ -91,7 +93,7 @@ class Trainer:
             self.params["cuda"]
             and torch.cuda.is_available()
         ):
-            torch.use_deterministic_algorithms(True,warn_only=True) 
+            # torch.use_deterministic_algorithms(True,warn_only=True) 
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic =  self.params["cuda_deterministic"]
         print(f"Cuda Availability: {torch.cuda.is_available()}")
@@ -108,7 +110,7 @@ class Trainer:
             wandb_logger.login()
             wandb_logger.init(project=project_name,config=self.params, notes=self.log_name)
 
-        print(f'starting run{wandb_logger.run.name}')
+        print(f'starting run: {wandb_logger.run.name}')
         self.save_name = wandb_logger.run.id
 
         if self.log_name != "test":
@@ -134,6 +136,9 @@ class Trainer:
 
         envs = self.get_env(device)
 
+        for printval in envs.env_method('return_debug_info'):
+            print(printval)
+
         actor_critic = self.get_policy(envs, device)
         actor_critic.to(device)
 
@@ -149,6 +154,7 @@ class Trainer:
             envs.action_space,
             actor_critic.recurrent_hidden_state_size,
         )
+        
 
         obs = envs.reset()
         

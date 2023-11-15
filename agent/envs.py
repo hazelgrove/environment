@@ -208,7 +208,7 @@ class PLEnv(Env):
         assert(type(num_assignments) in (list, int)) 
         envs = [
             PLEnv.make_env(
-                seed,
+                seed * 100 + i, # multiply by 100 because i don't want overlap b/t 1,2,3,4 seeded starts
                 i,
                 max_episode_steps,
                 perturbation,
