@@ -128,8 +128,6 @@ def sweep(
     print(params['seed'])
     pprint(params)
     print(params['base']['hidden_size'])
-    num_cpus = os.cpu_count()
-    num_gpus = torch.cuda.device_count()
 
     config = {
         "name": name,
@@ -148,7 +146,7 @@ def sweep(
     tuner = ray.tune.Tuner(
         tune.with_resources(
             tune.with_parameters(trainable),
-            resources={"cpu": int(num_cpus / num_gpus), "gpu": 1}
+            resources={"cpu": int(num_cpus // num_gpus), "gpu": 1}
         ),
         param_space=config,
     )

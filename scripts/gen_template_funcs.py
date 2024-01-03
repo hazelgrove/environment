@@ -309,6 +309,7 @@ def main(args):
             arg_strings[name] = save_raw_tests(args.n_args,test_strings,targ_dir)
     with open(path.join(args.targ_dir,'param_snippet.yaml'),'w') as pfile:
         yaml.dump(arg_strings,pfile)
+    print(f'saved params file to {targ_dir}')
 
 if __name__ == "__main__":
     args = parse_args()
